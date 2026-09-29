@@ -2515,7 +2515,7 @@ struct VideoTrimControls: View {
     var body: some View {
         VStack(spacing: Spacing.md) {
             GeometryReader { geometry in
-                toolbar(expanded: geometry.size.width > 600)
+                toolbar(expanded: geometry.size.width > 650)
             }.frame(height: 32)
             GeometryReader { geometry in
                 ScrollView(.horizontal) {
@@ -2672,8 +2672,10 @@ struct VideoTrimControls: View {
                     }
                 }.disabled(redoHistory.isEmpty)
                     .modifier(TimelineTooltip(text: redoHistory.isEmpty ? "No timeline edits to redo" : "Redo the last timeline edit"))
-                playbackControls
-                Spacer(minLength: 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            playbackControls
+            HStack(spacing: 4) {
                 Text(expanded ? "\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(playback.seconds))
                     .font(.system(size: 10, design: .monospaced))
                     .lineLimit(1)
@@ -2693,7 +2695,7 @@ struct VideoTrimControls: View {
                 icon("plus", "Zoom timeline in") { zoom = min(8, zoom + 1) }
                     .disabled(zoom >= 8)
             }
-
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 

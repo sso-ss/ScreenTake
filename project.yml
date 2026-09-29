@@ -26,8 +26,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.screen.Screen
         PRODUCT_NAME: ScreenTake
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: 0.1.9
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: 0.1.10
+        CURRENT_PROJECT_VERSION: 12
         INFOPLIST_KEY_NSScreenCaptureUsageDescription: "ScreenTake needs screen recording access to capture your display."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "ScreenTake needs microphone access to record audio."
         INFOPLIST_KEY_CFBundleDisplayName: ScreenTake

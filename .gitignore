@@ -3,6 +3,7 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
+.build/
 
 # Skill pack (copilot/claude agent files)
 .github/agents/

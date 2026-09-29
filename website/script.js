@@ -140,14 +140,17 @@ document.getElementById('cursor-size').addEventListener('input', event => {
 const workflowContent = {
   record: {
     title: 'Start with a good take.', image: 'assets/recording.png', alt: 'ScreenTake recording workspace with canvas and capture settings',
+    width: 1416, height: 806,
     copy: 'Choose your screen, set up your microphone and camera, and record at 30 or 60 FPS. Pause and resume from the native capture toolbar.'
   },
   edit: {
-    title: 'Keep the good parts.', image: 'assets/editor.png', alt: 'ScreenTake video editor showing its preview, timeline, and canvas settings',
-    copy: 'Trim the start. Split out a mistake. Drag clips into the right order and review detected pauses before removing them. Undo is there when you need it.'
+    title: 'Keep the good parts.', image: 'assets/editor.png?v=3', alt: 'ScreenTake 0.1.10 editor with a sample video, original audio waveform, two voiceover takes, and separate audio levels',
+    width: 1400, height: 850, version: 'ScreenTake · 0.1.10',
+    copy: 'Trim, split, and reorder your clips. Record narration while watching your video, then move and trim each voiceover take on its own audio strip.'
   },
   export: {
     title: 'One last look. Then it’s yours.', image: 'assets/export.svg?v=3', alt: 'Illustration of a finished video with playback controls and a MOV file saved to your Mac',
+    width: 1012, height: 640,
     copy: 'Preview your canvas, background, and edits, then save a MOV file to your Mac. Your recording is ready to share through the tools you already use.'
   }
 };
@@ -160,14 +163,19 @@ function selectWorkflow(button) {
     tab.tabIndex = selected ? 0 : -1;
   });
   const content = workflowContent[button.dataset.step];
+  document.querySelector('.workflow-visual').dataset.step = button.dataset.step;
   document.getElementById('workflow-panel').setAttribute('aria-labelledby', button.id);
   document.getElementById('workflow-title').textContent = content.title;
   document.getElementById('workflow-copy').textContent = content.copy;
+  const workflowVersion = document.getElementById('workflow-version');
+  workflowVersion.textContent = content.version || '';
+  workflowVersion.hidden = !content.version;
   const workflowImage = document.getElementById('workflow-image');
   workflowImage.src = content.image;
   workflowImage.alt = content.alt;
-  workflowImage.width = button.dataset.step === 'record' ? 1416 : 1012;
-  workflowImage.height = button.dataset.step === 'record' ? 806 : 640;
+  workflowImage.width = content.width;
+  workflowImage.height = content.height;
+  document.dispatchEvent(new Event('workflowchange'));
 }
 workflowTabs.forEach((button, index) => {
   button.addEventListener('click', () => selectWorkflow(button));
@@ -184,7 +192,7 @@ workflowTabs.forEach((button, index) => {
   });
 });
 
-selectWorkflow(workflowTabs[1]);
+selectWorkflow(workflowTabs[0]);
 
 document.querySelectorAll('[data-background]').forEach(button => {
   button.addEventListener('click', () => {
@@ -320,7 +328,39 @@ if (window.gsap) {
       borderRadius: '50%', duration: 2, repeat: -1, yoyo: true, repeatDelay: .6, ease: 'sine.inOut'
     }, 0);
 
+    const recordVisual = document.querySelector('.workflow-visual');
+    const recordTime = document.querySelector('.record-demo-time');
+    const recordClock = { seconds: 4 };
+    const recordMotion = gsap.timeline({ paused: true, repeat: -1, repeatDelay: .6 });
+    recordMotion.fromTo('.record-demo-pointer', { left: '24%', top: '45%' }, { left: '68%', top: '64%', duration: 2.4, ease: 'power2.inOut' })
+      .fromTo('.record-demo-pointer i', { scale: .3, opacity: 0 }, { scale: 1.6, opacity: .7, duration: .5 }, 2.4)
+      .to('.record-demo-pointer i', { opacity: 0, duration: .5 }, 2.9)
+      .to('.record-demo-pointer', { left: '40%', top: '36%', duration: 2.6, ease: 'power2.inOut' }, 3.2)
+      .to('.record-demo-pointer', { left: '24%', top: '45%', duration: 1.8, ease: 'power2.inOut' }, 6)
+      .fromTo(recordClock, { seconds: 4 }, { seconds: 12, duration: 8, ease: 'none', onUpdate: () => {
+        recordTime.textContent = `00:${String(Math.floor(recordClock.seconds)).padStart(2, '0')}`;
+      } }, 0);
+    recordMotion.fromTo('.record-demo-dot', { opacity: 1 }, { opacity: .4, repeat: 9, yoyo: true, duration: .4 }, 0);
+    document.querySelectorAll('.record-demo-meter i').forEach((bar, index) => {
+      recordMotion.fromTo(bar, { scaleY: .3 }, { scaleY: 1, duration: .4, repeat: 17, yoyo: true, ease: 'sine.inOut' }, index * .1);
+    });
+
+    const voiceoverPreview = document.querySelector('.voiceover-preview');
+    const voiceoverTime = voiceoverPreview.querySelector('.voiceover-time');
+    const voiceoverTakes = voiceoverPreview.querySelectorAll('.voiceover-take');
+    const voiceoverClock = { seconds: 0 };
+    // Clip positions match the 8/43/9/34/6 timeline grid, over ten seconds.
+    const voiceoverMotion = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 1.2 });
+    voiceoverMotion.fromTo('.voiceover-playhead', { left: '0%' }, { left: '100%', duration: 10, ease: 'none' }, 0)
+      .fromTo(voiceoverClock, { seconds: 0 }, { seconds: 10, duration: 10, ease: 'none', onUpdate: () => {
+        voiceoverTime.textContent = `00:${String(Math.floor(voiceoverClock.seconds)).padStart(2, '0')} / 00:10`;
+      } }, 0)
+      .fromTo(voiceoverTakes[0], { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 4.3, ease: 'none' }, .8)
+      .fromTo(voiceoverTakes[1], { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 3.4, ease: 'none' }, 6);
+
     const featureLoops = new Map([
+      [voiceoverPreview, voiceoverMotion],
+      [recordVisual, recordMotion],
       [heroSection, heroWaveMotion],
       [document.querySelector('.audio-card'), waveMotion],
       [document.querySelector('.zoom-card'), pointerMotion],
@@ -334,7 +374,8 @@ if (window.gsap) {
     const syncFeatureMotion = () => {
       featureLoops.forEach((animation, card) => {
         const tryingCursor = card === cursorCard && (cursorCard.matches(':hover') || cursorCard.contains(document.activeElement));
-        animation.paused(featureMotionPaused || document.hidden || !visibleLoops.has(card) || tryingCursor);
+        const inactiveRecord = card === recordVisual && recordVisual.dataset.step !== 'record';
+        animation.paused(featureMotionPaused || document.hidden || !visibleLoops.has(card) || tryingCursor || inactiveRecord);
       });
     };
     const loopObserver = new IntersectionObserver(entries => {
@@ -369,6 +410,7 @@ if (window.gsap) {
     motionToggle.title = 'Turn off motion';
     motionToggle.addEventListener('click', toggleFeatureMotion);
     document.addEventListener('visibilitychange', syncFeatureMotion);
+    document.addEventListener('workflowchange', syncFeatureMotion);
     const syncCursorFocus = () => queueMicrotask(syncFeatureMotion);
     cursorCard.addEventListener('pointerenter', syncFeatureMotion);
     cursorCard.addEventListener('pointerleave', syncFeatureMotion);
@@ -411,6 +453,9 @@ if (window.gsap) {
       motionToggle.hidden = true;
       motionToggle.removeEventListener('click', toggleFeatureMotion);
       document.removeEventListener('visibilitychange', syncFeatureMotion);
+      document.removeEventListener('workflowchange', syncFeatureMotion);
+      recordTime.textContent = '00:04';
+      voiceoverTime.textContent = '00:05 / 00:10';
       document.removeEventListener('click', context.interaction);
     };
   });
