@@ -2,7 +2,7 @@
 
 Open `index.html` in a browser. This is a standalone, responsive HTML/CSS/JavaScript page with no install step, build process, external fonts, or runtime CDN requests. GSAP 3.13.0 is vendored in `assets/gsap.min.js` (upstream license information is retained in the file).
 
-The design uses ScreenTake's `#6C5CE7` accent, actual recording/editor screenshots, and Prism, Lagoon, Ember, and Midnight wallpapers. All presentation assets are local. The screen-and-play mark is a proposed website identity, not a replacement for the native app icon.
+The design uses ScreenTake's `#6C5CE7` accent, actual recording/editor screenshots, and Prism, Lagoon, Ember, and Midnight wallpapers. All presentation assets are local. The screen-and-play mark in `assets/mark.svg` is shared with the native Mac app icon and welcome screen. Run `swift tools/generate_app_icon.swift` from the repository root after changing it to refresh the native assets.
 
 Website typography has a 10px minimum at every breakpoint, with most supporting text at 12–15px. Darker text colors and stronger purple surfaces improve legibility. Text within the app screenshots is part of the original image.
 

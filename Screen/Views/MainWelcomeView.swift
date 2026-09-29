@@ -50,6 +50,12 @@ struct MainWelcomeView: View {
 
                 // App title
                 VStack(spacing: 12) {
+                    Image("BrandMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 72, height: 72)
+                        .accessibilityHidden(true)
+
                     Text("ScreenTake")
                         .font(.system(size: 42, weight: .bold, design: .rounded))
                         .foregroundStyle(
