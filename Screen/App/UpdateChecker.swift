@@ -33,10 +33,9 @@ struct ScreenRelease: Decodable, Equatable {
         guard !draft, !prerelease,
               html_url.scheme == "https", html_url.host == "github.com",
               html_url.user == nil, html_url.password == nil, html_url.port == nil,
-              html_url.path == "/sso-ss/screen-recorder-mac/releases/tag/\(tag_name)",
+              html_url.path == "/sso-ss/ScreenTake/releases/tag/\(tag_name)",
               assets.contains(where: { asset in
-                  ["Screen-share-", "ScreenTake-share-"].contains(where: { asset.name.hasPrefix("\($0)\(version)-build") })
-                      && asset.name.hasSuffix(".zip")
+                  asset.name.hasPrefix("ScreenTake-\(version)-build") && asset.name.hasSuffix(".dmg")
               }),
               let available = Self.components(version),
               let current = Self.components(installed) else { return false }
@@ -47,7 +46,7 @@ struct ScreenRelease: Decodable, Equatable {
 @MainActor
 final class UpdateChecker {
     static let interval: TimeInterval = 24 * 60 * 60
-    static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/screen-recorder-mac/releases/latest")!
+    static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/ScreenTake/releases/latest")!
 
     private let defaults: UserDefaults
     private let installedVersion: String
@@ -77,7 +76,7 @@ final class UpdateChecker {
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("Screen-Update-Checker", forHTTPHeaderField: "User-Agent")
+        request.setValue("ScreenTake-Update-Checker", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
             throw URLError(.badServerResponse)

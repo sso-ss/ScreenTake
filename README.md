@@ -2,9 +2,9 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.10 (build 12)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.11 (build 13)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.10/ScreenTake-0.1.10-build12.dmg) · [Release notes](https://github.com/sso-ss/ScreenTake/releases/tag/v0.1.10)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.11/ScreenTake-0.1.11-build13.dmg) · [Release notes](https://github.com/sso-ss/ScreenTake/releases/tag/v0.1.11)
 
 ## See the app
 
@@ -64,7 +64,7 @@ The recording shortcuts work across apps. Plain Z and Space also toggle zoom and
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
 - Cursor and zoom re-editing need capture data retained in the current app session. Imported finished videos and recordings reopened after quitting do not restore that data.
 - Editable source media uses local disk space. Saving a finished MOV does not preserve all capture data for later editing.
-- Build 12’s built-in update checker and feedback shortcut still point to the previous repository. Use this repository’s [releases](https://github.com/sso-ss/ScreenTake/releases) and [issues](https://github.com/sso-ss/ScreenTake/issues) for current downloads and feedback. Installation is manual.
+- ScreenTake checks this repository for new releases about once a day while the app is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page; installation is manual. Version 0.1.10 checks the previous repository, where 0.1.11 is also published to bridge existing installations.
 
 ## Feedback
 
