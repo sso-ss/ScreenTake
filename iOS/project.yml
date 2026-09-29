@@ -1,0 +1,69 @@
+name: ScreenMobile
+options:
+  bundleIdPrefix: com.screen
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+targets:
+  ScreenMobile:
+    type: application
+    platform: iOS
+    sources:
+      - ScreenMobile
+      - path: ../Screen/Assets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.screen.mobile
+        PRODUCT_NAME: ScreenMobile
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: YES
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ScreenTake
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: Save your exported videos to your photo library.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  ScreenMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+        excludes:
+          - EditSettingsChecks.swift
+    dependencies:
+      - target: ScreenMobile
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SUPPORTS_MACCATALYST: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ScreenMobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ScreenMobile"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  ScreenMobileUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: ScreenMobile
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SUPPORTS_MACCATALYST: YES
+schemes:
+  ScreenMobile:
+    build:
+      targets:
+        ScreenMobile: all
+        ScreenMobileTests: [test]
+        ScreenMobileUITests: [test]
+    run:
+      config: Debug
+    test:
+      targets:
+        - ScreenMobileTests
+        - ScreenMobileUITests

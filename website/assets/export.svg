@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1012" height="640" viewBox="0 0 1012 640" fill="none">
+  <defs>
+    <linearGradient id="canvas" x1="161" y1="76" x2="821" y2="440" gradientUnits="userSpaceOnUse"><stop stop-color="#8A72E8"/><stop offset=".5" stop-color="#B2A0E9"/><stop offset="1" stop-color="#6751AD"/></linearGradient>
+    <linearGradient id="document" x1="362" y1="475" x2="406" y2="526" gradientUnits="userSpaceOnUse"><stop stop-color="#A28BFF"/><stop offset="1" stop-color="#6C5CE7"/></linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%"><feDropShadow dy="15" stdDeviation="18" flood-color="#110B23" flood-opacity=".25"/></filter>
+  </defs>
+  <g font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+    <rect x="130" y="53" width="752" height="412" rx="19" fill="#1C1826" stroke="#675477" stroke-opacity=".5" filter="url(#shadow)"/>
+    <path d="M149 54h714a18 18 0 0 1 18 18v323H131V72a18 18 0 0 1 18-18Z" fill="url(#canvas)"/>
+    <circle cx="232" cy="130" r="72" fill="#E7D8FF" opacity=".08"/>
+    <circle cx="763" cy="340" r="146" fill="#E7D8FF" opacity=".06"/>
+    <rect x="265" y="102" width="482" height="243" rx="12" fill="#FDFBFF" filter="url(#shadow)"/>
+    <path d="M277 102h458a12 12 0 0 1 12 12v22H265v-22a12 12 0 0 1 12-12Z" fill="#F1ECF8"/>
+    <circle cx="282" cy="119" r="3.5" fill="#F0B1AF"/><circle cx="294" cy="119" r="3.5" fill="#EACFA0"/><circle cx="306" cy="119" r="3.5" fill="#AFCEB1"/>
+    <text x="506" y="124" text-anchor="middle" fill="#594B6B" font-size="14">Your next great demo</text>
+    <text x="506" y="178" text-anchor="middle" fill="#62429B" font-size="14" letter-spacing="2">MADE WITH SCREENTAKE</text>
+    <text x="506" y="222" text-anchor="middle" fill="#4D3A65" font-size="34" font-weight="600" letter-spacing="-1.2">Ready for its audience.</text>
+    <text x="506" y="251" text-anchor="middle" fill="#594B6B" font-size="15">Your story. Your style. Your finished video.</text>
+    <rect x="477" y="274" width="58" height="5" rx="2.5" fill="#B6A1D3"/>
+    <circle cx="506" cy="386" r="23" fill="#F5F0FF" stroke="#E7DCF9"/>
+    <path d="m501 377 13 9-13 9Z" fill="#7860B3"/>
+    <path d="m166 423 9 6-9 6Z" fill="#C6BCD5"/>
+    <text x="194" y="433" fill="#D8CBED" font-size="14">00:30 / 00:30</text>
+    <rect x="295" y="426" width="457" height="4" rx="2" fill="#514460"/>
+    <rect x="295" y="426" width="457" height="4" rx="2" fill="#A58BE4"/>
+    <circle cx="752" cy="428" r="5" fill="#DDD1F3"/>
+    <path d="M823 424h-5v-5m18 5h5v-5m-23 14v5h5m13 0h5v-5" stroke="#A497B5" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="290" y="492" width="432" height="91" rx="15" fill="#342C42" stroke="#5A496C" stroke-opacity=".8" filter="url(#shadow)"/>
+    <rect x="311" y="513" width="47" height="49" rx="11" fill="url(#document)"/>
+    <path d="m330 527 13 10-13 10Z" fill="#F8F5FF"/>
+    <text x="374" y="532" fill="#FFFFFF" font-size="18" font-weight="500">Product walkthrough.mov</text>
+    <text x="374" y="552" fill="#D8CBED" font-size="14">MOV video · Saved to your Mac</text>
+    <circle cx="684" cy="537" r="14" fill="#66508C"/>
+    <path d="m678 537 4 4 8-9" stroke="#E8DAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="506" y="615" text-anchor="middle" fill="#D8CBED" font-size="14" letter-spacing="1.8">FINISHED VIDEO · ILLUSTRATION</text>
+  </g>
+</svg>

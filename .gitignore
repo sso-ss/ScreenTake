@@ -1,0 +1,17 @@
+.DS_Store
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Skill pack (copilot/claude agent files)
+.github/agents/
+.github/copilot-instructions.md
+skills/
+.claude/
+CLAUDE.md
+test_audio.swift
+test_mux.swift
+
+# Private blog content must remain local-only.
+**/*[Bb][Ll][Oo][Gg]*
