@@ -70,4 +70,22 @@ The recording shortcuts work across apps. Plain Z and Space also toggle zoom and
 
 [Report an issue](https://github.com/sso-ss/ScreenTake/issues) with your Mac model, macOS version, ScreenTake version, and steps to reproduce the problem. Remove private information from screenshots and recordings before sharing them.
 
-This repository contains the public website and release installer. The screenshots show the native Mac app; website animations are demonstrations.
+## Build from source (macOS)
+
+The native Mac app source is in [`Screen/`](Screen/), with the Xcode project in [`Screen.xcodeproj/`](Screen.xcodeproj/). You need a Mac running macOS 13 or later and Xcode 15 or later.
+
+Open `Screen.xcodeproj`, select the **Screen** scheme, and press **Run**. Or build from Terminal:
+
+```sh
+xcodebuild -project Screen.xcodeproj -scheme Screen -configuration Debug CODE_SIGNING_ALLOWED=NO build
+```
+
+The app asks macOS for Screen Recording, Microphone, and Camera permissions when those features are used. To regenerate the Xcode project from [`project.yml`](project.yml), install [XcodeGen](https://github.com/yonaskolb/XcodeGen) and run `xcodegen generate`.
+
+The downloadable release above is the Mac app.
+
+## Open source
+
+ScreenTake is released under the [MIT License](LICENSE). Contributions and feedback are welcome.
+
+The screenshots show the native Mac app; website animations are demonstrations.

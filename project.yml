@@ -1,0 +1,45 @@
+name: Screen
+options:
+  bundleIdPrefix: com.screen
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  Screen:
+    type: application
+    platform: macOS
+    sources:
+      - path: Screen
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.screen.Screen
+        PRODUCT_NAME: ScreenTake
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: 0.1.10
+        CURRENT_PROJECT_VERSION: 12
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: "ScreenTake needs screen recording access to capture your display."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "ScreenTake needs microphone access to record audio."
+        INFOPLIST_KEY_CFBundleDisplayName: ScreenTake
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.video"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: Screen/Screen.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Screen/Screen-Bridging-Header.h
+        ENABLE_HARDENED_RUNTIME: YES
+      configs:
+        Debug:
+          ENABLE_DEBUG_DYLIB: NO
+    entitlements:
+      path: Screen/Screen.entitlements
+      properties:
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true

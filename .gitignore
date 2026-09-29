@@ -1,3 +1,9 @@
+# macOS and Xcode generated files
 .DS_Store
 *.swp
 *.tmp
+.build/
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
