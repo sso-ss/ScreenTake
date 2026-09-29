@@ -4,7 +4,7 @@ ScreenTake is a native screen recorder and editor for Mac. Record your screen, t
 
 **Latest release: 0.1.10 (build 12)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.10/ScreenTake-0.1.10-build12-local.dmg) · [Release notes](https://github.com/sso-ss/ScreenTake/releases/tag/v0.1.10)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.10/ScreenTake-0.1.10-build12.dmg) · [Release notes](https://github.com/sso-ss/ScreenTake/releases/tag/v0.1.10)
 
 ## See the app
 
@@ -46,7 +46,7 @@ Voiceover recording uses your Mac’s default microphone and mutes preview sound
 4. Open ScreenTake and allow Screen Recording, Microphone, and Camera access when needed.
 5. Make a short test recording and check the exported video and audio before sharing.
 
-This build is locally signed but **not notarized by Apple**. macOS may block the first launch. If you trust the download, try opening the app once, then look for **Open Anyway** under **System Settings → Privacy & Security**. Do not disable macOS security protections.
+This build is signed with a Developer ID certificate and notarized by Apple. If macOS blocks the first launch, confirm you downloaded the current DMG and report the exact message. Do not disable macOS security protections.
 
 ## Keyboard shortcuts
 
