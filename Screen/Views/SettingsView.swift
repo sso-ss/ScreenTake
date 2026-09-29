@@ -38,6 +38,9 @@ struct SettingsView: View {
     @State private var isShowingPhoneCrop = false
     @State private var editDraft = VideoEditSettings()
     @State private var appliedEdits = VideoEditSettings()
+    @StateObject private var voiceOverRecorder = VoiceOverRecorder()
+    @State private var selectedVoiceOverID: UUID?
+    @State private var previewReady = false
     @State private var hasEditableAudio = false
     @State private var previewAudioURL: URL?
     @State private var previewError: String?
@@ -169,7 +172,11 @@ struct SettingsView: View {
     private var settingsPresentation: some View {
         mainContent
         .task(id: livePreviewRequest) { await refreshLivePreview() }
-        .onChange(of: editDraft.audioEnabled) { enabled in videoPlayer?.isMuted = !enabled }
+        .onChange(of: voiceOverRecorder.isBusy) { busy in appState.isRecordingVoiceOver = busy }
+        .onDisappear {
+            voiceOverRecorder.cancel()
+            appState.isRecordingVoiceOver = false
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 0)
                 .stroke(isDragging ? DesignColors.accent.opacity(0.6) : Color.clear, lineWidth: 2)
@@ -218,10 +225,18 @@ struct SettingsView: View {
 
     private var titleBar: some View {
         HStack(spacing: Spacing.lg) {
-            // App name
-            Text("ScreenTake")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(DesignColors.primaryLabel)
+            // App identity
+            HStack(spacing: 8) {
+                Image("BrandMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
+
+                Text("ScreenTake")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(DesignColors.primaryLabel)
+            }
 
             Spacer()
 
@@ -245,7 +260,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Import video file")
-            .disabled(isExporting || isSaving || appState.recording.processingStage != nil)
+            .disabled(editsBusy)
 
             // Record button
             Button {
@@ -267,7 +282,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Start recording")
-            .disabled(appState.recording.processingStage != nil || isExporting || !appState.capture.isLayoutReady)
+            .disabled(editsBusy || !appState.capture.isLayoutReady)
         }
         .padding(.horizontal, Spacing.lg)
         .frame(height: 52)
@@ -435,7 +450,7 @@ struct SettingsView: View {
     }
 
     private var editsBusy: Bool {
-        isExporting || isSaving || isShowingSavePanel || appState.isRecording || appState.recording.processingStage != nil
+        isExporting || isSaving || isShowingSavePanel || appState.isRecording || appState.recording.processingStage != nil || voiceOverRecorder.isBusy
     }
 
     private var hasEditChanges: Bool { editDraft != appliedEdits }
@@ -444,31 +459,30 @@ struct SettingsView: View {
     }
 
     private var editControlsColumn: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Edit Video").font(.headline)
-                Spacer()
-                Button { editDraft = appliedEdits } label: { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(.plain)
-                    .help("Reset pending changes")
-                    .accessibilityLabel("Reset pending changes")
-                    .disabled(!hasEditChanges || editsBusy)
-            }
-            .padding(Spacing.xl)
-            Divider()
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        editPanelContent
-                            .padding(Spacing.xl)
-                            .disabled(editsBusy)
-                    }
-                    Divider()
-                    editActions
+        HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Edit Video").font(.headline)
+                    Spacer()
+                    Button { editDraft = appliedEdits } label: { Image(systemName: "arrow.counterclockwise") }
+                        .buttonStyle(.plain)
+                        .help("Reset pending changes")
+                        .accessibilityLabel("Reset pending changes")
+                        .disabled(!hasEditChanges || editsBusy)
+                }
+                .padding(Spacing.xl)
+                Divider()
+                ScrollView {
+                    editPanelContent
+                        .padding(Spacing.xl)
+                        .disabled(editsBusy && !voiceOverRecorder.isBusy)
                 }
                 Divider()
-                settingsPanelRail(editing: true)
+                editActions
             }
+            Divider()
+            settingsPanelRail(editing: true)
+                .disabled(voiceOverRecorder.isBusy)
         }
         .tint(DesignColors.accent)
     }
@@ -604,15 +618,10 @@ struct SettingsView: View {
                     }
                 }
             case .audio:
-                settingsSection("Audio") {
-                    Button { openVoiceOverPanel() } label: {
-                        Label("Add Voice Over...", systemImage: "waveform.badge.plus")
-                    }
-                    if let voiceOver = editDraft.voiceOverURL {
-                        attachmentRow(url: voiceOver) { editDraft.voiceOverURL = nil }
-                    }
-                    settingsToggle(icon: "speaker.wave.2.fill", label: "Include Audio", isOn: $editDraft.audioEnabled)
-                }
+                EditorAudioPanel(settings: $editDraft, selectedClip: $selectedVoiceOverID,
+                                 recorder: voiceOverRecorder, duration: editedVideoDuration,
+                                 hasOriginalAudio: hasEditableAudio,
+                                 startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
             case .output:
                 EmptyView()
             }
@@ -696,7 +705,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut("s", modifiers: .command)
-            .disabled(videoURL == nil || isSaving || isShowingSavePanel || isExporting || hasEditChanges || appState.recording.processingStage != nil)
+            .disabled(videoURL == nil || hasEditChanges || editsBusy)
             .accessibilityIdentifier("downloadVideo")
         }
         .padding(Spacing.lg)
@@ -1359,7 +1368,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close video")
-                .disabled(isExporting || isSaving || appState.recording.processingStage != nil)
+                .disabled(editsBusy)
 
                 Spacer()
 
@@ -1387,9 +1396,15 @@ struct SettingsView: View {
                                   mouse: editingRecording ? appState.recording.lastMouseDataURL : nil,
                                   duration: sourceDuration, player: player, source: source,
                                   audio: hasEditableAudio ? previewAudioURL : nil,
+                                  voiceOvers: $editDraft.voiceOvers, selectedVoiceOverID: $selectedVoiceOverID,
+                                  originalMuted: !editDraft.audioEnabled || editDraft.originalAudioVolume == 0,
+                                  voiceOverMuted: !editDraft.voiceOverEnabled || editDraft.voiceOverVolume == 0,
                                   selectedZoomID: $selectedZoomID, automaticZooms: $automaticZooms,
                                   zoomHistory: $zoomHistory, zoomPadding: $zoomPadding)
                     .disabled(editsBusy)
+                    .onChange(of: selectedVoiceOverID) { id in
+                        if id != nil { selectedPanel = .audio }
+                    }
                     .onChange(of: selectedZoomID) { id in
                         if id != nil { selectedPanel = .cursor }
                     }
@@ -1465,14 +1480,44 @@ struct SettingsView: View {
         }
     }
 
+    private var editedVideoDuration: Double {
+        (try? editDraft.trim.timeline(duration: EditorAudio.time(sourceDuration)).duration.seconds) ?? 0
+    }
+
+    private func startVoiceOver() {
+        guard !editsBusy, previewReady, let player = videoPlayer else {
+            voiceOverRecorder.error = "Wait for the video preview to finish loading, then try again."
+            return
+        }
+        voiceOverRecorder.start(player: player, duration: editedVideoDuration) { clip in
+            editDraft.voiceOvers.append(clip)
+            editDraft.voiceOverEnabled = true
+            selectedVoiceOverID = clip.id
+        }
+    }
+
     private func openVoiceOverPanel() {
+        guard !editsBusy else { return }
         let panel = NSOpenPanel()
-        panel.title = "Choose Voice Over"
+        panel.title = "Import Voiceover Audio"
         panel.allowedContentTypes = [.audio]
         panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url {
-            editDraft.voiceOverURL = url
-            editDraft.audioEnabled = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let currentSource = layoutSourceURL
+        let playhead = videoPlayer?.currentTime().seconds ?? 0
+        let start = playhead.isFinite ? max(0, min(max(0, editedVideoDuration - 0.05), playhead)) : 0
+        Task {
+            do {
+                let asset = AVURLAsset(url: url)
+                let duration = try await asset.load(.duration).seconds
+                guard duration.isFinite, duration > 0.05,
+                      !(try await asset.loadTracks(withMediaType: .audio)).isEmpty else { throw CleanupError.noAudio }
+                guard currentSource == layoutSourceURL, !editsBusy else { return }
+                let clip = VoiceOverClip(url: url, start: start, duration: duration, sourceDuration: duration)
+                editDraft.voiceOvers.append(clip)
+                editDraft.voiceOverEnabled = true
+                selectedVoiceOverID = clip.id
+            } catch { voiceOverRecorder.error = error.localizedDescription }
         }
     }
 
@@ -1491,6 +1536,7 @@ struct SettingsView: View {
     }
 
     private func loadVideo(_ url: URL, resetLayoutSource: Bool = true) {
+        guard !voiceOverRecorder.isBusy else { return }
         videoPlayer?.pause()
         videoURL = url
         if resetLayoutSource {
@@ -1504,11 +1550,12 @@ struct SettingsView: View {
             previewAudioURL = rawSource != nil ? (appState.recording.lastUntrimmedRecordingURL ?? url) : url
             previewError = nil
             renderedPreviewTimeline = nil
+            selectedVoiceOverID = nil
+            previewReady = false
             sourceDuration = 0
             sourceVideoSize = nil
             videoPlayer = AVPlayer()
             hasEditableAudio = rawSource != nil && (appState.recording.lastMicAudioURL != nil || appState.recording.lastSystemAudioURL != nil)
-                || editDraft.voiceOverURL != nil
             let source = layoutSourceURL!
             Task {
                 let asset = AVURLAsset(url: source)
@@ -1528,7 +1575,7 @@ struct SettingsView: View {
                 hasEditableAudio = hasEditableAudio || !(tracks?.isEmpty ?? true)
             }
         }
-        videoPlayer?.isMuted = !editDraft.audioEnabled
+        videoPlayer?.isMuted = false
     }
 
     private var livePreviewRequest: LiveVideoPreview.Request? {
@@ -1542,7 +1589,8 @@ struct SettingsView: View {
     }
 
     private func refreshLivePreview() async {
-        guard let request = livePreviewRequest, let player = videoPlayer else { return }
+        guard !voiceOverRecorder.isBusy, let request = livePreviewRequest, let player = videoPlayer else { return }
+        previewReady = false
         do {
             let item = try await LiveVideoPreview.makeItem(request)
             try Task.checkCancellation()
@@ -1555,7 +1603,7 @@ struct SettingsView: View {
             guard !Task.isCancelled, request == livePreviewRequest, player === videoPlayer else { return }
             player.replaceCurrentItem(with: item)
             renderedPreviewTimeline = timeline
-            player.isMuted = !editDraft.audioEnabled
+            player.isMuted = false
             let duration = try await item.asset.load(.duration)
             let mappedTime = timeline.outputTime(at: sourceTime)
             let seekTime = mappedTime.isNumeric ? CMTimeMinimum(mappedTime, duration) : .zero
@@ -1563,6 +1611,7 @@ struct SettingsView: View {
             guard !Task.isCancelled, request == livePreviewRequest, player === videoPlayer else { return }
             if rate > 0 { player.rate = rate }
             previewError = nil
+            previewReady = true
         } catch is CancellationError {
         } catch {
             guard !Task.isCancelled else { return }
@@ -1620,12 +1669,12 @@ struct SettingsView: View {
                 phoneContentMode: settings.phoneMode,
                 forceCanvas: settings.backgroundEnabled
             ))
-            let withVoiceOver = settings.audioEnabled && settings.voiceOverURL != nil
-                ? try await MediaMuxer.mux(videoURL: result, systemAudioURL: nil, micAudioURL: nil,
-                                           voiceOverURL: settings.voiceOverURL, removeSourceAudio: false)
-                : result
-            let trimmed = try await settings.trim.export(source: withVoiceOver)
-            loadVideo(trimmed, resetLayoutSource: false)
+            let trimmed = try await settings.trim.export(source: result)
+            let mixed = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
+                                                     originalVolume: settings.originalAudioVolume,
+                                                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [],
+                                                     voiceOverVolume: settings.voiceOverVolume)
+            loadVideo(mixed, resetLayoutSource: false)
             appliedEdits = settings
         } catch {
             exportError = error.localizedDescription
@@ -1983,7 +2032,7 @@ enum LiveVideoPreview {
         guard let video = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else { throw ExportError.readerSetupFailed }
         try video.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: sourceTrack, at: .zero)
         video.preferredTransform = transform
-        if let audioURL = request.audio {
+        if request.settings.audioEnabled, let audioURL = request.audio {
             let audioAsset = AVURLAsset(url: audioURL)
             for sourceAudio in try await audioAsset.loadTracks(withMediaType: .audio) {
                 let range = try await sourceAudio.load(.timeRange)
@@ -1994,18 +2043,11 @@ enum LiveVideoPreview {
                 }
             }
         }
-        if request.settings.audioEnabled, let voiceOverURL = request.settings.voiceOverURL {
-            let voiceOverAsset = AVURLAsset(url: voiceOverURL)
-            for sourceAudio in try await voiceOverAsset.loadTracks(withMediaType: .audio) {
-                let range = try await sourceAudio.load(.timeRange)
-                let intersection = CMTimeRangeGetIntersection(range, otherRange: CMTimeRange(start: .zero, duration: duration))
-                if intersection.duration > .zero,
-                   let audio = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-                    try audio.insertTimeRange(intersection, of: sourceAudio, at: intersection.start)
-                }
-            }
-        }
         try timeline.apply(to: composition, sourceDuration: duration)
+        let audioMix = try await EditorAudio.mix(into: composition, duration: timeline.duration,
+                                                originalVolume: request.settings.originalAudioVolume,
+                                                clips: request.settings.voiceOverEnabled ? request.settings.voiceOvers : [],
+                                                voiceOverVolume: request.settings.voiceOverVolume)
         let mouse = try request.mouse.map { try JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: Data(contentsOf: $0)) }
         let keyframes: [CameraKeyframe]
         if request.settings.zoomEnabled, let mouseURL = request.mouse {
@@ -2035,6 +2077,7 @@ enum LiveVideoPreview {
         filters.frameDuration = CMTime(value: 1, timescale: 60)
         let item = AVPlayerItem(asset: composition)
         item.videoComposition = filters
+        item.audioMix = audioMix
         return item
     }
 }
@@ -2189,6 +2232,10 @@ private struct TimelineTooltip: ViewModifier {
 }
 
 struct VideoTrimControls: View {
+    @Binding var voiceOvers: [VoiceOverClip]
+    @Binding var selectedVoiceOverID: UUID?
+    var originalMuted: Bool
+    var voiceOverMuted: Bool
     @Binding var trim: VideoTrim
     @Binding var zoomSegments: [ZoomSegment]?
     @Binding var selectedZoomID: UUID?
@@ -2205,6 +2252,8 @@ struct VideoTrimControls: View {
     @MainActor init(trim: Binding<VideoTrim>, zoomSegments: Binding<[ZoomSegment]?> = .constant(nil),
          zoomEnabled: Bool = false, zoomLevel: Double = 2, mouse: URL? = nil,
          duration: Double, player: AVPlayer, source: URL, audio: URL? = nil,
+         voiceOvers: Binding<[VoiceOverClip]> = .constant([]), selectedVoiceOverID: Binding<UUID?> = .constant(nil),
+         originalMuted: Bool = false, voiceOverMuted: Bool = false,
          selectedZoomID: Binding<UUID?> = .constant(nil),
          automaticZooms: Binding<[ZoomSegment]> = .constant([]),
          zoomHistory: Binding<[[ZoomSegment]?]> = .constant([]),
@@ -2223,6 +2272,10 @@ struct VideoTrimControls: View {
         self.player = player
         self.source = source
         self.audio = audio
+        _voiceOvers = voiceOvers
+        _selectedVoiceOverID = selectedVoiceOverID
+        self.originalMuted = originalMuted
+        self.voiceOverMuted = voiceOverMuted
         _silence = StateObject(wrappedValue: silence ?? SilenceReview())
     }
     @StateObject var silence = SilenceReview()
@@ -2326,6 +2379,7 @@ struct VideoTrimControls: View {
     }
 
     private func selectZoom(_ id: UUID) {
+        selectedVoiceOverID = nil
         selectedSegment = nil
         selectedZoomID = id
         focusedZoomID = id
@@ -2467,7 +2521,7 @@ struct VideoTrimControls: View {
                 ScrollView(.horizontal) {
                     filmstrip(width: max(1, geometry.size.width - 24) * zoom)
                 }
-            }.frame(height: zoomEnabled && mouse != nil ? 108 : 84)
+            }.frame(height: timelineHeight + 14)
             if silence.analyzing || !silence.suggestions.isEmpty || silence.message != nil {
                 silenceReviewBar
             }
@@ -2479,7 +2533,11 @@ struct VideoTrimControls: View {
         .focusable()
         .focused($filmstripFocused)
         .onDeleteCommand {
-            if focusedZoomID != nil, focusedZoomID == selectedZoomID {
+            if let id = selectedVoiceOverID {
+                player.pause()
+                voiceOvers.removeAll { $0.id == id }
+                selectedVoiceOverID = nil
+            } else if focusedZoomID != nil, focusedZoomID == selectedZoomID {
                 removeSelectedZoom()
             } else if let removableSelection {
                 commit(removableSelection)
@@ -2574,7 +2632,7 @@ struct VideoTrimControls: View {
     }
 
     private func toolbar(expanded: Bool) -> some View {
-        ZStack {
+        HStack(spacing: 0) {
             HStack(spacing: 4) {
                 Button {
                     var candidate = trim
@@ -2614,8 +2672,9 @@ struct VideoTrimControls: View {
                     }
                 }.disabled(redoHistory.isEmpty)
                     .modifier(TimelineTooltip(text: redoHistory.isEmpty ? "No timeline edits to redo" : "Redo the last timeline edit"))
-                Spacer(minLength: 8)
-                Text("\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))")
+                playbackControls
+                Spacer(minLength: 4)
+                Text(expanded ? "\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(playback.seconds))
                     .font(.system(size: 10, design: .monospaced))
                     .lineLimit(1)
                     .fixedSize()
@@ -2626,13 +2685,19 @@ struct VideoTrimControls: View {
                     .padding(.horizontal, 6)
                 icon("minus", "Zoom timeline out") { zoom = max(1, zoom - 1) }
                     .disabled(zoom <= 1)
-                Slider(value: $zoom, in: 1...8, step: 0.25)
-                    .frame(width: expanded ? 96 : 72)
-                    .accessibilityLabel("Timeline zoom")
+                if expanded {
+                    Slider(value: $zoom, in: 1...8, step: 0.25)
+                        .frame(width: 80)
+                        .accessibilityLabel("Timeline zoom")
+                }
                 icon("plus", "Zoom timeline in") { zoom = min(8, zoom + 1) }
                     .disabled(zoom >= 8)
             }
 
+        }
+    }
+
+    private var playbackControls: some View {
             HStack(spacing: 4) {
                 icon("backward.end.fill", "Go to start") { seekOutput(0) }
                 Button {
@@ -2654,8 +2719,6 @@ struct VideoTrimControls: View {
                 .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
                 icon("forward.end.fill", "Go to end") { seekOutput(editedDuration) }
             }
-        }
-        .frame(height: 32)
     }
 
     private func reviewPause(_ cut: VideoCut, play: Bool = false) {
@@ -2719,6 +2782,31 @@ struct VideoTrimControls: View {
         .frame(minHeight: 28)
     }
 
+    private var videoLaneBottom: Double { zoomEnabled && mouse != nil ? 93 : 70 }
+    private var audioLaneHeight: Double { (audio == nil ? 0 : 50) + (voiceOvers.isEmpty ? 0 : 50) }
+    private var timelineHeight: Double { videoLaneBottom + audioLaneHeight }
+
+    @ViewBuilder
+    private func audioLanes(width: Double, total: Double) -> some View {
+        if let audio {
+            AudioWaveformStrip(url: audio, title: "Original audio", color: .teal, muted: originalMuted,
+                               duration: total, timeline: timeline)
+                .frame(width: width, height: 44)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0).onChanged { seekOutput($0.location.x / width * total) })
+                .offset(x: 12, y: videoLaneBottom)
+        }
+        ForEach($voiceOvers) { $clip in
+            if clip.start < total {
+                VoiceOverTimelineClip(clip: $clip, selected: $selectedVoiceOverID,
+                                      total: total, scale: width / total, muted: voiceOverMuted,
+                                      number: (voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1,
+                                      pause: { player.pause(); selectedSegment = nil; selectedZoomID = nil })
+                    .offset(x: 12 + width * clip.start / total, y: videoLaneBottom + (audio == nil ? 0 : 50))
+            }
+        }
+    }
+
     private func filmstrip(width: Double) -> some View {
         let total = max(0.001, editedDuration)
         return ZStack(alignment: .topLeading) {
@@ -2737,6 +2825,7 @@ struct VideoTrimControls: View {
                     .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
             }
             if zoomEnabled && mouse != nil { zoomLane(width: width, total: total) }
+            audioLanes(width: width, total: total)
             Rectangle().fill(.clear).contentShape(Rectangle())
                 .frame(width: width, height: 24).offset(x: 12)
                 .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
@@ -2788,14 +2877,14 @@ struct VideoTrimControls: View {
             }
             VStack(spacing: 0) {
                 Image(systemName: "arrowtriangle.down.fill").font(.system(size: 9))
-                Rectangle().frame(width: 1, height: zoomEnabled && mouse != nil ? 81 : 58)
+                Rectangle().frame(width: 1, height: timelineHeight - 12)
             }
             .foregroundStyle(DesignColors.primaryLabel)
             .frame(width: 12)
             .offset(x: width * max(0, min(total, playback.seconds)) / total + 6, y: 3)
             .allowsHitTesting(false)
         }
-        .frame(width: width + 24, height: zoomEnabled && mouse != nil ? 93 : 70, alignment: .topLeading)
+        .frame(width: width + 24, height: timelineHeight, alignment: .topLeading)
         .coordinateSpace(name: "trimTimeline")
     }
 
@@ -2968,6 +3057,7 @@ struct VideoTrimControls: View {
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
             .onChanged { gesture in
                 selectedSegment = segment
+                selectedVoiceOverID = nil
                 focusedZoomID = nil
                 filmstripFocused = true
                 player.pause()
@@ -3137,7 +3227,7 @@ struct VideoCutEditor: View {
                 let item = try await LiveVideoPreview.makeItem(fullRequest)
                 try Task.checkCancellation()
                 player.replaceCurrentItem(with: item)
-                player.isMuted = !request.settings.audioEnabled
+                player.isMuted = false
                 cutStart = trim.start
                 cutEnd = min(trim.end ?? duration, cutStart + 1)
             } catch is CancellationError {

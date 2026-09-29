@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     let permissions = PermissionsManager()
     let updates = UpdateChecker()
     @Published var isExportingVideo = false
+    @Published var isRecordingVoiceOver = false
 
     // MARK: - Capture Toolbar
 
@@ -136,7 +137,7 @@ final class AppState: ObservableObject {
     // MARK: - Capture Toolbar
 
     func showCaptureToolbar() async {
-        guard captureToolbarCoordinator == nil, !isRecording,
+        guard captureToolbarCoordinator == nil, !isRecording, !isRecordingVoiceOver,
               recording.processingStage == nil, !updates.isPresenting else { return }
         // Hide the main window
         for window in NSApplication.shared.windows where window.styleMask.contains(.titled) && window.level == .normal {

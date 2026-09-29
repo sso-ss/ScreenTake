@@ -132,7 +132,7 @@ final class UpdateChecker {
     func tick(manual: Bool = false) async {
         guard let appState, Self.canPresent(
             active: NSApplication.shared.isActive,
-            recording: appState.isRecording,
+            recording: appState.isRecording || appState.isRecordingVoiceOver,
             processing: appState.recording.processingStage != nil || appState.isExportingVideo,
             selecting: appState.captureToolbarCoordinator != nil,
             setupComplete: defaults.bool(forKey: "hasCompletedPermissionSetup")
@@ -173,7 +173,7 @@ final class UpdateChecker {
     private func presentIfPossible() {
         guard !isPresenting, let appState,
               Self.canPresent(active: NSApplication.shared.isActive,
-                              recording: appState.isRecording,
+                              recording: appState.isRecording || appState.isRecordingVoiceOver,
                               processing: appState.recording.processingStage != nil || appState.isExportingVideo,
                               selecting: appState.captureToolbarCoordinator != nil,
                               setupComplete: defaults.bool(forKey: "hasCompletedPermissionSetup")),

@@ -23,7 +23,7 @@
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>ScreenTake needs screen recording permission to capture your display or windows.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>ScreenTake needs microphone access to record audio during screen recordings.</string>
+	<string>ScreenTake needs microphone access for screen recordings and voiceover narration.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>ScreenTake needs camera access to show your webcam overlay during recordings.</string>
 	<key>CFBundleDocumentTypes</key>

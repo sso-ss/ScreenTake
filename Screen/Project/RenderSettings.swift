@@ -28,7 +28,10 @@ struct VideoEditSettings: Equatable {
     var webcamSize: PiPSize = .medium
     var videoOverlayURL: URL?
     var audioEnabled = true
-    var voiceOverURL: URL?
+    var originalAudioVolume: Double = 1
+    var voiceOverEnabled = true
+    var voiceOverVolume: Double = 1
+    var voiceOvers: [VoiceOverClip] = []
     var trim = VideoTrim()
 }
 

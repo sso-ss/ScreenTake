@@ -317,7 +317,7 @@ final class RecordingState: ObservableObject {
             }
 
             if settings.audioEnabled {
-                for audioURL in [lastMicAudioURL, lastSystemAudioURL, settings.voiceOverURL].compactMap({ $0 }) {
+                for audioURL in [lastMicAudioURL, lastSystemAudioURL].compactMap({ $0 }) {
                     guard FileManager.default.fileExists(atPath: audioURL.path) else {
                         throw CocoaError(.fileReadNoSuchFile)
                     }
@@ -364,8 +364,8 @@ final class RecordingState: ObservableObject {
                 configuration: config
             )
 
-            // Mux audio into the exported video (after all video processing is done)
-            if settings.audioEnabled && (lastMicAudioURL != nil || lastSystemAudioURL != nil) {
+            // Keep the untrimmed original audio separate from narration and volume edits.
+            if lastMicAudioURL != nil || lastSystemAudioURL != nil {
                 processingProgress = nil
                 processingStage = .mergingAudio
                 do {
@@ -373,7 +373,6 @@ final class RecordingState: ObservableObject {
                         videoURL: resultURL,
                         systemAudioURL: lastSystemAudioURL,
                         micAudioURL: lastMicAudioURL,
-                        voiceOverURL: settings.voiceOverURL,
                         systemAudioStartOffset: lastSystemAudioStartOffset,
                         micAudioStartOffset: lastMicAudioStartOffset,
                         removeSourceAudio: false
@@ -388,6 +387,10 @@ final class RecordingState: ObservableObject {
 
             let untrimmedURL = resultURL
             resultURL = try await settings.trim.export(source: untrimmedURL)
+            resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,
+                                                    originalVolume: settings.originalAudioVolume,
+                                                    clips: settings.voiceOverEnabled ? settings.voiceOvers : [],
+                                                    voiceOverVolume: settings.voiceOverVolume)
             if settings.audioEnabled || lastUntrimmedRecordingURL == nil {
                 lastUntrimmedRecordingURL = untrimmedURL
             }

@@ -41,3 +41,6 @@ targets:
           ENABLE_DEBUG_DYLIB: NO
     entitlements:
       path: Screen/Screen.entitlements
+      properties:
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true

@@ -72,7 +72,7 @@ struct VideoEditTests {
             let tracks = try await asset.loadTracks(withMediaType: .audio)
             let expectedDuration = try draft.trim.timeline(duration: CMTime(seconds: 1, preferredTimescale: 600)).duration.seconds
             precondition(abs(duration.seconds - expectedDuration) < 0.05)
-            let expectedAudioTracks = draft.audioEnabled ? 1 + (draft.voiceOverURL == nil ? 0 : 1) : 0
+            let expectedAudioTracks = draft.audioEnabled || (draft.voiceOverEnabled && !draft.voiceOvers.isEmpty) ? 1 : 0
             precondition(tracks.count == expectedAudioTracks)
             let retainedData = try Data(contentsOf: source)
             precondition(retainedData == originalData)
@@ -159,13 +159,13 @@ struct VideoEditTests {
             precondition(abs(hidden.blueComponent - original.blueComponent) < 0.03)
         }
         print("PASS: imported video overlay can be shown and hidden")
-        settings.voiceOverURL = audio
+        settings.voiceOvers = [VoiceOverClip(url: audio, duration: 1, sourceDuration: 1)]
         settings.audioEnabled = true
         let voiceOverResult = try await render(settings)
         let voiceOverTracks = try await AVURLAsset(url: voiceOverResult).loadTracks(withMediaType: .audio)
-        precondition(voiceOverTracks.count == 2)
+        precondition(voiceOverTracks.count == 1)
         print("PASS: voice-over is added without replacing original audio")
-        settings.voiceOverURL = nil
+        settings.voiceOvers = []
         settings.audioEnabled = false
         _ = try await render(settings)
         settings.audioEnabled = true
@@ -178,6 +178,7 @@ struct VideoEditTests {
         await state.applyAutoZoom(videoURL: source, mouseDataURL: mouse, generateZoom: false, edits: settings)
         precondition(state.processingError != nil && state.lastRecordingURL == previous && state.lastAppliedEdits == applied)
         print("PASS: failed apply retains last successful result and settings")
+        if CommandLine.arguments.contains("--no-ui") { return }
 
         let app = AppState.shared
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 850), styleMask: [.titled], backing: .buffered, defer: false)
