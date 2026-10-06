@@ -44,6 +44,7 @@ struct SettingsView: View {
     @State private var selectedVoiceOverID: UUID?
     @State private var isVideoOverlaySelected = false
     @State private var previewReady = false
+    @State private var faceTrackingPreparationID: UUID?
     @State private var hasEditableAudio = false
     @State private var previewAudioURL: URL?
     @State private var previewError: String?
@@ -970,6 +971,12 @@ struct SettingsView: View {
         cameraLayoutChangeIndex.map { editDraft.cameraLayoutChanges[$0].settings } ?? editDraft.cameraLayout
     }
 
+    private var canTransitionCameraSection: Bool {
+        guard let index = cameraLayoutChangeIndex else { return false }
+        return CameraLayoutChange.canTransition(into: editDraft.cameraLayoutChanges[index],
+                                                initial: editDraft.cameraLayout, changes: editDraft.cameraLayoutChanges)
+    }
+
     private func updateCameraLayout(_ change: (inout CameraLayoutSettings) -> Void) {
         videoPlayer?.pause()
         if let index = cameraLayoutChangeIndex { change(&editDraft.cameraLayoutChanges[index].settings) }
@@ -989,12 +996,19 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("cameraLayout")
-            settingsToggle(icon: "arrow.up.left.and.arrow.down.right", label: "Smooth Transition", isOn: Binding(
-                get: { currentCameraLayout.smoothTransition },
-                set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
-            ))
-            .accessibilityIdentifier("cameraSmoothTransition")
-            .help("Ease into this camera section’s layout and framing over 0.4 seconds. Turn off for a direct cut.")
+            cameraTransitionControls
+            settingsToggle(icon: "viewfinder", label: "Follow face", isOn: Binding(
+                get: { currentCameraLayout.followFace },
+                set: { enabled in updateCameraLayout { $0.followFace = enabled } }
+            ), isProcessing: currentCameraLayout.followFace && faceTrackingPreparationID != nil)
+            .accessibilityIdentifier("cameraFollowFace")
+            if currentCameraLayout.followFace {
+                Text(faceTrackingPreparationID != nil
+                     ? "Preparing face tracking… Longer clips may take a moment."
+                     : "Gently crops to follow one face. If no face is visible, your framing is kept.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(editDraft.cameraLayoutChanges.isEmpty
                  ? "Applies to the entire camera clip."
                  : "Applies to the camera section at the playhead.")
@@ -1002,6 +1016,59 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .help("Select the camera strip and use Split to give each section its own layout.")
+    }
+
+    private var cameraTransitionControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            settingsToggle(icon: "arrow.up.left.and.arrow.down.right", label: "Smooth Transition", isOn: Binding(
+                get: { canTransitionCameraSection && currentCameraLayout.smoothTransition },
+                set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
+            ))
+            .disabled(!canTransitionCameraSection)
+            .accessibilityIdentifier("cameraSmoothTransition")
+            .help("Animate from the previous camera section’s layout or framing. Turn off for a direct cut.")
+            if !canTransitionCameraSection {
+                Text(cameraLayoutChangeIndex == nil
+                     ? "Split the camera clip and change the next section’s layout or framing to add a transition."
+                     : "Change this section’s layout or framing to add a transition from the previous section.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if currentCameraLayout.smoothTransition {
+                VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                    HStack {
+                        cameraSettingLabel("Duration", symbol: "clock")
+                        Spacer()
+                        Text(String(format: "%.2g s", currentCameraLayout.clampedTransitionDuration))
+                            .font(Typography.caption).monospacedDigit()
+                            .foregroundStyle(DesignColors.secondaryLabel)
+                    }
+                    primarySlider(selection: Binding(
+                        get: { currentCameraLayout.clampedTransitionDuration },
+                        set: { value in updateCameraLayout { $0.transitionDuration = (value * 100).rounded() / 100 } }
+                    ), range: 0.1...2, label: "Camera transition duration",
+                       value: String(format: "%.2g seconds", currentCameraLayout.clampedTransitionDuration))
+                    .accessibilityIdentifier("cameraTransitionDuration")
+                }
+                VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                    cameraSettingLabel("Motion", symbol: "waveform.path")
+                    Picker("Transition motion", selection: Binding(
+                        get: { currentCameraLayout.transitionMotion },
+                        set: { motion in updateCameraLayout { $0.transitionMotion = motion } }
+                    )) {
+                        ForEach(CameraTransitionMotion.allCases, id: \.self) { motion in
+                            Text(motion.displayName).tag(motion)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("cameraTransitionMotion")
+                }
+                Text("Applies at the start of this camera section. Short sections use a shorter transition.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private func cameraSettingLabel(_ title: String, symbol: String) -> some View {
@@ -1037,7 +1104,9 @@ struct SettingsView: View {
                               label: "Camera zoom", value: "\(Int((currentCameraLayout.zoom * 100).rounded()))%")
             }
             cameraFramingSlider("Horizontal Framing", symbol: "arrow.left.and.right", keyPath: \.centerX)
+                .disabled(currentCameraLayout.followFace)
             cameraFramingSlider("Vertical Framing", symbol: "arrow.up.and.down", keyPath: \.centerY)
+                .disabled(currentCameraLayout.followFace)
             Button {
                 updateCameraLayout { $0.zoom = 1; $0.centerX = 0.5; $0.centerY = 0.5 }
             } label: {
@@ -1216,7 +1285,8 @@ struct SettingsView: View {
         }
     }
 
-    private func settingsToggle(icon: String, label: String, isOn: Binding<Bool>) -> some View {
+    private func settingsToggle(icon: String, label: String, isOn: Binding<Bool>,
+                                isProcessing: Bool = false) -> some View {
         Button { isOn.wrappedValue.toggle() } label: {
             HStack {
                 Image(systemName: icon)
@@ -1226,6 +1296,14 @@ struct SettingsView: View {
                 Text(label)
                     .font(Typography.body)
                     .foregroundColor(DesignColors.primaryLabel)
+                if isProcessing {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                        .frame(width: 16, height: 16)
+                        .accessibilityLabel("Preparing face tracking")
+                        .accessibilityIdentifier("faceTrackingProgress")
+                }
                 Spacer()
                 ZStack {
                     Capsule()
@@ -1899,8 +1977,18 @@ struct SettingsView: View {
     }
 
     private func refreshLivePreview() async {
-        guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy, let request = livePreviewRequest, let player = videoPlayer else { return }
+        guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy, let request = livePreviewRequest, let player = videoPlayer else {
+            faceTrackingPreparationID = nil
+            return
+        }
+        let preparationID = request.settings.usesFaceTracking && request.webcam != nil ? UUID() : nil
+        faceTrackingPreparationID = preparationID
+        defer {
+            // An older canceled request must not hide a newer request's spinner.
+            if faceTrackingPreparationID == preparationID { faceTrackingPreparationID = nil }
+        }
         previewReady = false
+        previewError = nil
         do {
             let item = try await LiveVideoPreview.makeItem(request)
             try Task.checkCancellation()
@@ -2359,12 +2447,22 @@ enum LiveVideoPreview {
             )
         } else { keyframes = [] }
         try Task.checkCancellation()
-        let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: request.settings, keyframes: keyframes, mouse: mouse)
+        let faceTrack: FaceTrackingTrack?
+        if request.settings.usesFaceTracking, let webcamURL = request.webcam {
+            faceTrack = try await FaceTrackingAnalyzer.shared.track(for: webcamURL)
+        } else { faceTrack = nil }
+        try Task.checkCancellation()
+        let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: request.settings, keyframes: keyframes,
+                                             mouse: mouse, faceTrack: faceTrack)
         let webcam = request.settings.webcamEnabled ? request.webcam.map {
             OverlayVideoFrames(url: $0, maximumSize: request.settings.cameraLayout.layout == .fullScreen
                                || request.settings.cameraLayoutChanges.contains { $0.settings.layout == .fullScreen }
-                               ? .zero : CGSize(width: 960, height: 960))
+                               ? .zero : CGSize(width: 960, height: 960), preciseTiming: faceTrack != nil)
         } : nil
+        let webcamDuration: CMTime?
+        if request.settings.webcamEnabled, let webcamURL = request.webcam {
+            webcamDuration = try await AVURLAsset(url: webcamURL).load(.duration)
+        } else { webcamDuration = nil }
         let context = CIContext(options: [.cacheIntermediates: false])
         let filters = AVMutableVideoComposition(asset: composition) { frame in
             autoreleasepool {
@@ -2376,7 +2474,10 @@ enum LiveVideoPreview {
                     webcamTime = timing.sampleTime(at: frame.compositionTime.seconds)
                 } else { webcamTime = sourceTime }
                 let result = renderer.render(image, at: sourceTime.seconds,
-                                             webcamImage: webcamTime.flatMap { webcam?.image(at: $0) },
+                                             webcamImage: webcamTime.flatMap {
+                                                 guard let webcamDuration, $0 >= .zero, $0 < webcamDuration else { return nil }
+                                                 return webcam?.image(at: $0)
+                                             },
                                              webcamTime: webcamTime?.seconds)
                 frame.finish(with: result, context: context)
             }

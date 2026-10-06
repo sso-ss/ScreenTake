@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA1100000000000000000001 /* FaceTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1100000000000000000002 /* FaceTracking.swift */; };
 		BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */; };
 		06EB51A22013466E9080BA96 /* MediaMuxer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */; };
 		0AF59A63D6292356EBBA5FF2 /* CaptureMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */; };
@@ -64,6 +65,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FA1100000000000000000002 /* FaceTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceTracking.swift; sourceTree = "<group>"; };
 		BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoReplacementState.swift; sourceTree = "<group>"; };
 		02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMode.swift; sourceTree = "<group>"; };
 		0EDBA69C53641A60EBBE715D /* RecordingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinator.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 				7F197F354D7CFC16665AEE29 /* FrameEvaluator.swift */,
 				63D5138D7A1133E7BA0D4278 /* TransformApplicator.swift */,
 				E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */,
+				FA1100000000000000000002 /* FaceTracking.swift */,
 			);
 			path = Render;
 			sourceTree = "<group>";
@@ -415,6 +418,7 @@
 				21CFE4062470564F7999E148 /* VideoWriter.swift in Sources */,
 				F7F9EE71FFAD3720163EBE27 /* VoiceOverRecorder.swift in Sources */,
 				237CA39EA30BB57C484E32B9 /* WebcamCompositor.swift in Sources */,
+				FA1100000000000000000001 /* FaceTracking.swift in Sources */,
 				C8B1A1CDBC09070BB74FAB9D /* WebcamPiPOverlay.swift in Sources */,
 				3BEC63D40FB98F9DFD3F636F /* WebcamRecorder.swift in Sources */,
 				0F225E5E991F68D8E0CF87F8 /* ZoomIndicatorOverlay.swift in Sources */,

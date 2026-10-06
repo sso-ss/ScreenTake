@@ -73,6 +73,12 @@ final class ExportEngine: ObservableObject {
         keyframes: [CameraKeyframe],
         configuration: Configuration
     ) async throws -> URL {
+        let faceTrack: FaceTrackingTrack?
+        if let cameraURL = configuration.webcamVideoURL,
+           configuration.cameraLayout.followFace || configuration.cameraLayoutChanges.contains(where: { $0.settings.followFace }) {
+            faceTrack = try await FaceTrackingAnalyzer.shared.track(for: cameraURL)
+        } else { faceTrack = nil }
+        try Task.checkCancellation()
         let asset = AVURLAsset(url: sourceURL)
         let duration = try await asset.load(.duration)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
@@ -241,6 +247,7 @@ final class ExportEngine: ObservableObject {
         var compositor: WebcamCompositor?
         var overlayFrames: OverlayVideoFrames?
         var webcamDuration: CMTime = .zero
+        var webcamTransform = CGAffineTransform.identity
         let overlayTimeline = try configuration.videoOverlayTrim?.timeline(duration: duration)
 
         if let webcamURL = configuration.webcamVideoURL,
@@ -248,10 +255,11 @@ final class ExportEngine: ObservableObject {
             let webcamAsset = AVURLAsset(url: webcamURL)
             webcamDuration = (try? await webcamAsset.load(.duration)) ?? .zero
             if configuration.videoOverlayTiming != nil {
-                overlayFrames = OverlayVideoFrames(url: webcamURL)
+                overlayFrames = OverlayVideoFrames(url: webcamURL, preciseTiming: faceTrack != nil)
                 compositor = WebcamCompositor(outputSize: outputSize, position: configuration.pipPosition,
                                                pipSize: configuration.pipSize, shape: configuration.pipShape)
             } else if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
+                webcamTransform = (try? await webcamTrack.load(.preferredTransform)) ?? .identity
                 let wReader = try AVAssetReader(asset: webcamAsset)
                 let wOutput = AVAssetReaderTrackOutput(track: webcamTrack, outputSettings: readerSettings)
                 wOutput.alwaysCopiesSampleData = true
@@ -443,7 +451,9 @@ final class ExportEngine: ObservableObject {
                         }
                         guard CMTimeCompare(CMSampleBufferGetPresentationTimeStamp(sample), pts) <= 0 else { break }
                         if let buffer = CMSampleBufferGetImageBuffer(sample) {
-                            currentWebcamImage = CIImage(cvPixelBuffer: buffer)
+                            let upright = CIImage(cvPixelBuffer: buffer).transformed(by: webcamTransform)
+                            currentWebcamImage = upright.transformed(by: CGAffineTransform(
+                                translationX: -upright.extent.minX, y: -upright.extent.minY))
                         }
                         pendingWebcamSample = nil
                     }
@@ -520,6 +530,7 @@ final class ExportEngine: ObservableObject {
                         webcamImage: webcamImage,
                         onto: frameImage,
                         settings: cameraLayout,
+                        faceFocus: faceTrack?.focus(at: cameraTime),
                         transition: cameraTransition
                     )
                 }
@@ -785,19 +796,23 @@ final class OverlayVideoFrames {
     private let lock = NSLock()
     private var cachedTime = -Double.infinity
     private var cachedImage: CIImage?
+    private let preciseTiming: Bool
 
-    init(url: URL, maximumSize: CGSize = .zero) {
+    init(url: URL, maximumSize: CGSize = .zero, preciseTiming: Bool = false) {
+        self.preciseTiming = preciseTiming
         generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = maximumSize
-        generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 30)
-        generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 30)
+        generator.requestedTimeToleranceBefore = preciseTiming ? .zero : CMTime(value: 1, timescale: 30)
+        generator.requestedTimeToleranceAfter = preciseTiming ? .zero : CMTime(value: 1, timescale: 30)
     }
 
     func image(at time: CMTime) -> CIImage? {
         lock.lock()
         defer { lock.unlock() }
-        if abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedImage }
+        // Tracked framing must use the same source frame when playing forward,
+        // seeking backward, and exporting; nearby-frame reuse depends on history.
+        if preciseTiming ? time.seconds == cachedTime : abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedImage }
         if let image = try? generator.copyCGImage(at: time, actualTime: nil) {
             cachedImage = CIImage(cgImage: image)
             cachedTime = time.seconds

@@ -82,6 +82,36 @@ struct CameraLayoutChecks {
         precondition(decodedSmooth == smoothFull)
         print("PASS: eased timing, direct cuts, short sections and legacy transition settings")
 
+        let identical = CameraLayoutChange(start: 1, settings: CameraLayoutSettings(smoothTransition: true,
+                                                                                  transitionDuration: 1.5, transitionMotion: .linear))
+        precondition(!CameraLayoutChange.canTransition(into: identical, initial: CameraLayoutSettings(), changes: [identical]))
+        precondition(CameraLayoutChange.transition(at: 1.2, initial: CameraLayoutSettings(), changes: [identical]) == nil)
+        let noBoundary = CameraLayoutChange(start: 0, settings: smoothFull)
+        precondition(!CameraLayoutChange.canTransition(into: noBoundary, initial: CameraLayoutSettings(), changes: [noBoundary]))
+        let previousMatch = [CameraLayoutChange(start: 0.5, settings: full), CameraLayoutChange(start: 1, settings: smoothFull)]
+        precondition(!CameraLayoutChange.canTransition(into: previousMatch[1], initial: CameraLayoutSettings(), changes: previousMatch))
+        let reframed = CameraLayoutChange(start: 1, settings: right)
+        precondition(CameraLayoutChange.canTransition(into: reframed, initial: left, changes: [reframed]))
+        let unusedOverlayFraming = CameraLayoutChange(start: 1, settings: CameraLayoutSettings(zoom: 2, centerX: 1))
+        precondition(!CameraLayoutChange.canTransition(into: unusedOverlayFraming, initial: CameraLayoutSettings(), changes: [unusedOverlayFraming]))
+        print("PASS: transition availability follows actual layout and framing changes")
+
+        for (motion, expected) in [(CameraTransitionMotion.smooth, 0.15625), (.linear, 0.25), (.easeIn, 0.0625), (.easeOut, 0.4375)] {
+            let target = CameraLayoutSettings(layout: .fullScreen, smoothTransition: true,
+                                              transitionDuration: 1.2, transitionMotion: motion)
+            let change = CameraLayoutChange(start: 1, settings: target)
+            let progress = CameraLayoutChange.transition(at: 1.3, initial: CameraLayoutSettings(), changes: [change])!.progress
+            precondition(abs(progress - expected) < 0.00001)
+            precondition(CameraLayoutChange.transition(at: 2.21, initial: CameraLayoutSettings(), changes: [change]) == nil)
+            let saved = try JSONDecoder().decode(CameraLayoutSettings.self, from: JSONEncoder().encode(target))
+            precondition(saved == target)
+        }
+        precondition(legacy.transitionDuration == 0.4 && legacy.transitionMotion == .smooth)
+        precondition(CameraLayoutSettings(transitionDuration: .nan).clampedTransitionDuration == 0.4)
+        precondition(CameraLayoutSettings(transitionDuration: -1).clampedTransitionDuration == 0.1)
+        precondition(CameraLayoutSettings(transitionDuration: 20).clampedTransitionDuration == 2)
+        print("PASS: configurable duration, all motion presets, safe bounds and backward-compatible settings")
+
         // Green is screen; red/blue are camera. Check corners to detect hidden
         // screen content, wrong crops, letterboxing and held camera end frames.
         for (name, initial, changes, timing, ratio, samples) in [
@@ -171,7 +201,12 @@ struct CameraLayoutChecks {
         for (name, initial, target) in [
             ("expand", CameraLayoutSettings(), smoothFull),
             ("shrink", full, CameraLayoutSettings(smoothTransition: true)),
-            ("reframe", left, CameraLayoutSettings(layout: .fullScreen, zoom: 2, centerX: 1, smoothTransition: true))
+            ("reframe", left, CameraLayoutSettings(layout: .fullScreen, zoom: 2, centerX: 1, smoothTransition: true)),
+            ("linear", CameraLayoutSettings(), CameraLayoutSettings(layout: .fullScreen, smoothTransition: true,
+                                                                    transitionDuration: 0.8, transitionMotion: .linear)),
+            ("ease-in", CameraLayoutSettings(), CameraLayoutSettings(layout: .fullScreen, smoothTransition: true,
+                                                                     transitionDuration: 0.8, transitionMotion: .easeIn)),
+            ("ease-out", full, CameraLayoutSettings(smoothTransition: true, transitionDuration: 0.8, transitionMotion: .easeOut))
         ] {
             let transitions = [CameraLayoutChange(start: 1, settings: target)]
             let take = VideoOverlayTiming(start: 1, duration: 1.5, sourceStart: 0.5)

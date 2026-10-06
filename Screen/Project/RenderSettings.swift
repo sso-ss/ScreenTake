@@ -29,6 +29,9 @@ struct VideoEditSettings: Equatable {
     var cameraLayout = CameraLayoutSettings()
     /// Layout changes follow camera source time, including moved and trimmed takes.
     var cameraLayoutChanges: [CameraLayoutChange] = []
+    var usesFaceTracking: Bool {
+        webcamEnabled && (cameraLayout.followFace || cameraLayoutChanges.contains { $0.settings.followFace })
+    }
     var videoOverlayURL: URL?
     /// Nil for a camera sidecar synchronized to the original recording.
     var videoOverlayTiming: VideoOverlayTiming?
@@ -53,22 +56,54 @@ enum CameraLayout: String, CaseIterable, Codable {
     var displayName: String { self == .overlay ? "Overlay" : "Full Screen" }
 }
 
+enum CameraTransitionMotion: String, CaseIterable, Codable {
+    case smooth, linear, easeIn, easeOut
+
+    var displayName: String {
+        switch self {
+        case .smooth: return "Smooth"
+        case .linear: return "Linear"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        }
+    }
+
+    func progress(at fraction: Double) -> Double {
+        let t = fraction.isFinite ? min(1, max(0, fraction)) : 0
+        switch self {
+        case .smooth: return t * t * (3 - 2 * t)
+        case .linear: return t
+        case .easeIn: return t * t
+        case .easeOut: return 1 - (1 - t) * (1 - t)
+        }
+    }
+}
+
 struct CameraLayoutSettings: Equatable, Codable {
     var layout: CameraLayout = .overlay
     var zoom: Double = 1
     var centerX: Double = 0.5
     var centerY: Double = 0.5
+    var followFace: Bool = false
     var smoothTransition: Bool = false
+    var transitionDuration: Double = CameraLayoutTransition.duration
+    var transitionMotion: CameraTransitionMotion = .smooth
 
-    private enum CodingKeys: String, CodingKey { case layout, zoom, centerX, centerY, smoothTransition }
+    private enum CodingKeys: String, CodingKey {
+        case layout, zoom, centerX, centerY, followFace, smoothTransition, transitionDuration, transitionMotion
+    }
 
     init(layout: CameraLayout = .overlay, zoom: Double = 1, centerX: Double = 0.5,
-         centerY: Double = 0.5, smoothTransition: Bool = false) {
+         centerY: Double = 0.5, followFace: Bool = false, smoothTransition: Bool = false,
+         transitionDuration: Double = CameraLayoutTransition.duration, transitionMotion: CameraTransitionMotion = .smooth) {
         self.layout = layout
         self.zoom = zoom
         self.centerX = centerX
         self.centerY = centerY
+        self.followFace = followFace
         self.smoothTransition = smoothTransition
+        self.transitionDuration = transitionDuration
+        self.transitionMotion = transitionMotion
     }
 
     init(from decoder: Decoder) throws {
@@ -77,7 +112,26 @@ struct CameraLayoutSettings: Equatable, Codable {
         zoom = try values.decodeIfPresent(Double.self, forKey: .zoom) ?? 1
         centerX = try values.decodeIfPresent(Double.self, forKey: .centerX) ?? 0.5
         centerY = try values.decodeIfPresent(Double.self, forKey: .centerY) ?? 0.5
+        followFace = try values.decodeIfPresent(Bool.self, forKey: .followFace) ?? false
         smoothTransition = try values.decodeIfPresent(Bool.self, forKey: .smoothTransition) ?? false
+        transitionDuration = try values.decodeIfPresent(Double.self, forKey: .transitionDuration) ?? CameraLayoutTransition.duration
+        transitionMotion = try values.decodeIfPresent(CameraTransitionMotion.self, forKey: .transitionMotion) ?? .smooth
+    }
+
+    var clampedTransitionDuration: Double {
+        transitionDuration.isFinite ? min(2, max(0.1, transitionDuration)) : CameraLayoutTransition.duration
+    }
+
+    /// Ignore transition options and framing fields that the current layout
+    /// does not use. Changing timing alone must never animate identical views.
+    func hasDifferentFraming(from previous: Self) -> Bool {
+        if layout != previous.layout || followFace != previous.followFace { return true }
+        guard layout == .fullScreen else { return false }
+        func zoomValue(_ value: Double) -> Double { value.isFinite ? min(3, max(1, value)) : 1 }
+        func centerValue(_ value: Double) -> Double { value.isFinite ? min(1, max(0, value)) : 0.5 }
+        if zoomValue(zoom) != zoomValue(previous.zoom) { return true }
+        return !followFace && (centerValue(centerX) != centerValue(previous.centerX)
+                              || centerValue(centerY) != centerValue(previous.centerY))
     }
 
     func crop(in source: CGRect, output: CGSize) -> CGRect {
@@ -103,20 +157,31 @@ struct CameraLayoutChange: Equatable, Codable {
             .max { $0.start < $1.start }?.settings ?? initial
     }
 
+    static func previousSettings(before start: Double, initial: CameraLayoutSettings,
+                                 changes: [Self]) -> CameraLayoutSettings {
+        changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start < start }
+            .max { $0.start < $1.start }?.settings ?? initial
+    }
+
+    static func canTransition(into change: Self, initial: CameraLayoutSettings, changes: [Self]) -> Bool {
+        guard change.start.isFinite, change.start > 0 else { return false }
+        return change.settings.hasDifferentFraming(from: previousSettings(before: change.start, initial: initial, changes: changes))
+    }
+
     /// Resolve in camera source time so seeks, moved takes and exports agree.
     static func transition(at seconds: Double, initial: CameraLayoutSettings,
                            changes: [Self]) -> CameraLayoutTransition? {
         guard seconds.isFinite,
               let change = changes.filter({ $0.start.isFinite && $0.start >= 0 && $0.start <= seconds })
-                .max(by: { $0.start < $1.start }), change.settings.smoothTransition else { return nil }
-        let previous = changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start < change.start }
-            .max { $0.start < $1.start }?.settings ?? initial
+                .max(by: { $0.start < $1.start }), change.settings.smoothTransition,
+              canTransition(into: change, initial: initial, changes: changes) else { return nil }
+        let previous = previousSettings(before: change.start, initial: initial, changes: changes)
         let next = changes.filter { $0.start.isFinite && $0.start > change.start }.map(\.start).min()
-        let duration = min(CameraLayoutTransition.duration, next.map { $0 - change.start } ?? .infinity)
-        guard duration > 0, seconds < change.start + duration, previous != change.settings else { return nil }
+        let duration = min(change.settings.clampedTransitionDuration, next.map { $0 - change.start } ?? .infinity)
+        guard duration > 0, seconds < change.start + duration else { return nil }
         let fraction = min(1, max(0, (seconds - change.start) / duration))
         return CameraLayoutTransition(from: previous, to: change.settings,
-                                      progress: fraction * fraction * (3 - 2 * fraction))
+                                      progress: change.settings.transitionMotion.progress(at: fraction))
     }
 
     static func split(at outputSeconds: Double, in range: VideoOverlayTimelineRange,

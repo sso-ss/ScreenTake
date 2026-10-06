@@ -41,19 +41,22 @@ final class WebcamCompositor {
     /// Composite a webcam frame onto a screen frame.
     func composite(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil) -> CIImage {
         if let transition {
             if transition.progress <= 0 {
-                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.from)
+                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.from, faceFocus: faceFocus)
             }
             if transition.progress >= 1 {
-                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.to)
+                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.to, faceFocus: faceFocus)
             }
-            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition)
+            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, faceFocus: faceFocus)
         }
+        let focus = settings.followFace ? faceFocus : nil
         if settings.layout == .fullScreen {
             let bounds = screenImage.extent
-            let crop = settings.crop(in: webcamImage.extent, output: bounds.size)
+            let manualCrop = settings.crop(in: webcamImage.extent, output: bounds.size)
+            let crop = focus?.crop(in: webcamImage.extent, fallback: manualCrop) ?? manualCrop
             return webcamImage.cropped(to: crop)
                 .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
                 .transformed(by: CGAffineTransform(scaleX: bounds.width / crop.width, y: bounds.height / crop.height))
@@ -65,7 +68,8 @@ final class WebcamCompositor {
         let minSide = min(webcamExtent.width, webcamExtent.height)
         let cropOriginX = webcamExtent.origin.x + (webcamExtent.width - minSide) / 2
         let cropOriginY = webcamExtent.origin.y + (webcamExtent.height - minSide) / 2
-        let squareCrop = CGRect(x: cropOriginX, y: cropOriginY, width: minSide, height: minSide)
+        let centeredCrop = CGRect(x: cropOriginX, y: cropOriginY, width: minSide, height: minSide)
+        let squareCrop = focus?.crop(in: webcamExtent, fallback: centeredCrop) ?? centeredCrop
 
         let scale = diameter / squareCrop.width
         let scaled = webcamImage
@@ -94,7 +98,7 @@ final class WebcamCompositor {
     }
 
     private func transitioning(webcamImage: CIImage, onto screenImage: CIImage,
-                               transition: CameraLayoutTransition) -> CIImage {
+                               transition: CameraLayoutTransition, faceFocus: FaceTrackingTrack.Focus?) -> CIImage {
         let bounds = screenImage.extent
         let source = webcamImage.extent
         let overlay = CGRect(origin: pipOrigin, size: CGSize(width: diameter, height: diameter))
@@ -102,7 +106,8 @@ final class WebcamCompositor {
                             y: source.midY - min(source.width, source.height) / 2,
                             width: min(source.width, source.height), height: min(source.width, source.height))
         func crop(_ settings: CameraLayoutSettings) -> CGRect {
-            settings.layout == .fullScreen ? settings.crop(in: source, output: bounds.size) : square
+            let fallback = settings.layout == .fullScreen ? settings.crop(in: source, output: bounds.size) : square
+            return settings.followFace ? faceFocus?.crop(in: source, fallback: fallback) ?? fallback : fallback
         }
         let amount = CGFloat(transition.progress)
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * amount }

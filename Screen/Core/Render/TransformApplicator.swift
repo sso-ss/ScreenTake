@@ -77,10 +77,12 @@ final class LiveEditFrameRenderer {
     private let positions: [MouseDataRecorder.MousePosition]
     private let padding: CGFloat
     private let cursor: CGImage?
+    private let faceTrack: FaceTrackingTrack?
 
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
-         mouse: MouseDataRecorder.MouseRecording? = nil) {
+         mouse: MouseDataRecorder.MouseRecording? = nil, faceTrack: FaceTrackingTrack? = nil) {
         self.settings = settings
+        self.faceTrack = faceTrack
         cropRect = settings.crop.pixelRect(in: sourceSize)
         normalizedCrop = CGRect(x: cropRect.minX / sourceSize.width,
                                 y: 1 - cropRect.maxY / sourceSize.height,
@@ -144,7 +146,7 @@ final class LiveEditFrameRenderer {
             let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                            changes: settings.cameraLayoutChanges)
             image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
-                                     transition: transition)
+                                     faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition)
         }
         return image.cropped(to: CGRect(origin: .zero, size: outputSize))
     }
