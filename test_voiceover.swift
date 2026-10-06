@@ -133,6 +133,15 @@ struct VoiceOverChecks {
         precondition(!recorder.isBusy && recorder.error != nil)
         recorder.cancel()
         print("PASS: an unready preview does not start microphone recording")
+        do {
+            _ = try VoiceOverRecorder.microphone(for: "missing-microphone-\(UUID().uuidString)")
+            preconditionFailure("A missing selected microphone must not fall back to a different device")
+        } catch {}
+        let clip = VoiceOverRecorder.clip(url: audio, start: 1, limit: 2, offset: 0.2, duration: 3)!
+        precondition(abs(clip.start - 1.2) < 0.0001 && abs(clip.duration - 1.8) < 0.0001 && clip.sourceDuration == 3)
+        precondition(VoiceOverRecorder.clip(url: audio, start: 0, limit: 0.1, offset: 0.2, duration: 1) == nil)
+        precondition(VoiceOverRecorder.clip(url: audio, start: 0, limit: 1, offset: .nan, duration: 1) == nil)
+        print("PASS: selected microphone is required, input latency stays synchronized, and takes stay within the video")
         // Exercise recorded-source exports and ensure narration is never baked into the source audio reference.
         let state = RecordingState()
         state.lastMicAudioURL = nil
@@ -195,6 +204,7 @@ struct AudioUIPreview: View {
             Divider()
             ScrollView {
                 EditorAudioPanel(settings: $fixture.settings, selectedClip: $fixture.selected, recorder: recorder,
+                                 microphoneDeviceID: .constant(""),
                                  duration: 4, hasOriginalAudio: true, startRecording: {}, importAudio: {}).padding(16)
             }.frame(width: 300)
             Divider()

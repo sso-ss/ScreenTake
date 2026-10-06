@@ -687,7 +687,12 @@ struct SettingsView: View {
                 }
             case .audio:
                 EditorAudioPanel(settings: $editDraft, selectedClip: $selectedVoiceOverID,
-                                 recorder: voiceOverRecorder, duration: editedVideoDuration,
+                                 recorder: voiceOverRecorder,
+                                 microphoneDeviceID: Binding(
+                                    get: { appState.capture.selectedMicrophoneDeviceID },
+                                    set: { appState.capture.selectedMicrophoneDeviceID = $0 }
+                                 ), microphones: appState.capture.availableMicrophones,
+                                 duration: editedVideoDuration,
                                  hasOriginalAudio: hasEditableAudio,
                                  startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
             case .output:
@@ -1327,19 +1332,10 @@ struct SettingsView: View {
     }
 
     private var microphonePicker: some View {
-        HStack {
-            Picker("", selection: Binding(
-                get: { appState.capture.selectedMicrophoneDeviceID },
-                set: { appState.capture.selectedMicrophoneDeviceID = $0 }
-            )) {
-                Text("Default").tag("")
-                ForEach(appState.capture.availableMicrophones, id: \.uniqueID) { device in
-                    Text(device.localizedName).tag(device.uniqueID)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-        }
+        MicrophoneDevicePicker(deviceID: Binding(
+            get: { appState.capture.selectedMicrophoneDeviceID },
+            set: { appState.capture.selectedMicrophoneDeviceID = $0 }
+        ), devices: appState.capture.availableMicrophones)
     }
 
     private var frameRatePicker: some View {
@@ -1866,7 +1862,8 @@ struct SettingsView: View {
             voiceOverRecorder.error = "Wait for the video preview to finish loading, then try again."
             return
         }
-        voiceOverRecorder.start(player: player, duration: editedVideoDuration) { clip in
+        voiceOverRecorder.start(player: player, deviceID: appState.capture.selectedMicrophoneDeviceID,
+                                duration: editedVideoDuration) { clip in
             editDraft.voiceOvers.append(clip)
             editDraft.voiceOverEnabled = true
             selectedVoiceOverID = clip.id

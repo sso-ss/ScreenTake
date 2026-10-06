@@ -165,6 +165,22 @@ struct AudioTimingTests {
         print("Delayed microphone: \(delayedFile.length) frames, start offset \(delayedRecorder.startOffset.seconds)s")
         try require(delayedFile.length == 1024, "Microphone PCM was changed to represent the start offset")
         try require(abs(delayedRecorder.startOffset.seconds - 0.5) < 0.000001, "Microphone start offset was discarded")
+        let scheduledURL = FileManager.default.temporaryDirectory.appendingPathComponent("scheduled-mic-\(UUID().uuidString).caf")
+        defer { try? FileManager.default.removeItem(at: scheduledURL) }
+        let scheduledRecorder = MicrophoneRecorder()
+        let scheduledStart = CMTime(seconds: 12.2, preferredTimescale: 48_000)
+        try scheduledRecorder.prepareRecording(to: scheduledURL, startTime: scheduledStart)
+        let scheduledSample = try makeTone(sampleRate: 48_000, channels: 1, frames: 4800)
+        for index in 0..<4 {
+            let pts = CMTime(seconds: 12 + Double(index) / 10, preferredTimescale: 48_000)
+            scheduledRecorder.appendSampleBuffer(scheduledRecorder.rebaseTiming(scheduledSample, pts: pts)!)
+        }
+        guard await scheduledRecorder.stopRecording() != nil else { throw AudioTestError.failed("Scheduled microphone recording failed") }
+        let scheduledFile = try AVAudioFile(forReading: scheduledURL)
+        try require(scheduledRecorder.receivedBuffers == 2 && scheduledFile.length == 9600,
+                    "Scheduled recording included microphone warm-up before video playback")
+        try require(scheduledRecorder.startOffset == .zero, "Scheduled microphone start moved")
+        print("PASS: scheduled microphone recording excludes warm-up audio and keeps playback timing")
         for microphone in [true, false] {
             let pauseURL = FileManager.default.temporaryDirectory.appendingPathComponent("paused-audio-\(UUID().uuidString).caf")
             defer { try? FileManager.default.removeItem(at: pauseURL) }

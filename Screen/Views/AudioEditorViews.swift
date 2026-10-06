@@ -1,24 +1,59 @@
 import SwiftUI
 import AVFoundation
 
+struct MicrophoneDevicePicker: View {
+    @Binding var deviceID: String
+    let devices: [AVCaptureDevice]
+
+    var body: some View {
+        Picker("Microphone device", selection: $deviceID) {
+            Text("Default").tag("")
+            ForEach(devices, id: \.uniqueID) { device in
+                Text(device.localizedName).tag(device.uniqueID)
+            }
+            if !deviceID.isEmpty && !devices.contains(where: { $0.uniqueID == deviceID }) {
+                Text("Unavailable microphone").tag(deviceID)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .accessibilityLabel("Microphone device")
+    }
+}
+
 struct EditorAudioPanel: View {
     @Binding var settings: VideoEditSettings
     @Binding var selectedClip: UUID?
     @ObservedObject var recorder: VoiceOverRecorder
+    @Binding var microphoneDeviceID: String
+    var microphones: [AVCaptureDevice] = []
     let duration: Double
     let hasOriginalAudio: Bool
     let startRecording: () -> Void
     let importAudio: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Voiceover").font(.headline)
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Voiceover")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DesignColors.primaryLabel)
+            VStack(alignment: .leading, spacing: Spacing.featureGap) {
+                recordingControls
+                audioControls
+            }
+        }
+    }
+
+    private var recordingControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             Text("Place the playhead, then record narration while your video plays.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
             if recorder.isBusy {
                 HStack {
                     Circle().fill(.red).frame(width: 8, height: 8)
-                    Text(recorder.isRecording ? String(format: "Recording  %.1fs", recorder.elapsed) : "Preparing microphone…")
+                    Text(recorder.isRecording ? String(format: "Recording  %.1fs", recorder.elapsed)
+                         : (recorder.isFinishing ? "Saving voiceover…" : "Preparing microphone…"))
                         .monospacedDigit()
                 }
                 ProgressView(value: Double(recorder.level)).tint(.red)
@@ -29,59 +64,66 @@ struct EditorAudioPanel: View {
                     Button("Cancel") { recorder.cancel() }.buttonStyle(CompactActionButtonStyle())
                 }
             } else {
-                Button(action: startRecording) {
-                    Label("Record Voiceover", systemImage: "mic.fill")
-                }
-                .buttonStyle(CompactActionButtonStyle())
-                .disabled(duration <= 0)
-                Button(action: importAudio) { Label("Import Audio…", systemImage: "waveform.badge.plus") }
+                MicrophoneDevicePicker(deviceID: $microphoneDeviceID, devices: microphones)
+                VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                    Button(action: startRecording) {
+                        Label("Record Voiceover", systemImage: "mic.fill")
+                    }
                     .buttonStyle(CompactActionButtonStyle())
+                    .disabled(duration <= 0)
+                    Button(action: importAudio) { Label("Import Audio…", systemImage: "waveform.badge.plus") }
+                        .buttonStyle(CompactActionButtonStyle())
+                }
             }
-            Text("Uses your Mac’s default microphone. Preview sound is muted while recording.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text("Preview sound is muted while recording.")
+                .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
             if let error = recorder.error {
                 Text(error).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             }
-            VStack(alignment: .leading, spacing: 16) {
-                if hasOriginalAudio {
-                    Divider()
-                    volumeControl("Original Audio", enabled: $settings.audioEnabled, volume: $settings.originalAudioVolume)
-                }
-                if !settings.voiceOvers.isEmpty {
-                    Divider()
-                    volumeControl("Voiceover", enabled: $settings.voiceOverEnabled, volume: $settings.voiceOverVolume)
-                    ForEach(settings.voiceOvers) { clip in
-                        HStack {
-                            Button {
-                                selectedClip = clip.id
-                            } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text("Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)")
-                                    Text(String(format: "%.1fs – %.1fs", clip.start, clip.end))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(8)
-                                .background(selectedClip == clip.id ? Color.accentColor.opacity(0.18) : Color.clear,
-                                            in: RoundedRectangle(cornerRadius: 5))
-                            }.buttonStyle(.plain)
-                            Button {
-                                settings.voiceOvers.removeAll { $0.id == clip.id }
-                                if selectedClip == clip.id { selectedClip = nil }
-                            } label: { Image(systemName: "trash") }
-                                .buttonStyle(.plain).help("Remove voiceover take")
-                                .accessibilityLabel("Remove voiceover take")
-                        }
-                    }
-                    if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
-                        clipControls(index)
-                    }
-                    Text("Drag a take to move it; drag its edges to trim. Voiceovers keep their timeline positions when video clips change.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .disabled(recorder.isBusy)
         }
+    }
+
+    private var audioControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            if hasOriginalAudio {
+                Divider()
+                volumeControl("Original Audio", enabled: $settings.audioEnabled, volume: $settings.originalAudioVolume)
+            }
+            if !settings.voiceOvers.isEmpty {
+                Divider()
+                volumeControl("Voiceover", enabled: $settings.voiceOverEnabled, volume: $settings.voiceOverVolume)
+                ForEach(settings.voiceOvers) { clip in
+                    HStack {
+                        Button {
+                            selectedClip = clip.id
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)")
+                                Text(String(format: "%.1fs – %.1fs", clip.start, clip.end))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                            .background(selectedClip == clip.id ? Color.accentColor.opacity(0.18) : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: 5))
+                        }.buttonStyle(.plain)
+                        Button {
+                            settings.voiceOvers.removeAll { $0.id == clip.id }
+                            if selectedClip == clip.id { selectedClip = nil }
+                        } label: { Image(systemName: "trash") }
+                            .buttonStyle(.plain).help("Remove voiceover take")
+                            .accessibilityLabel("Remove voiceover take")
+                    }
+                }
+                if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
+                    clipControls(index)
+                }
+                Text("Drag a take to move it; drag its edges to trim. Voiceovers keep their timeline positions when video clips change.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .disabled(recorder.isBusy)
     }
 
     private func volumeControl(_ title: String, enabled: Binding<Bool>, volume: Binding<Double>) -> some View {

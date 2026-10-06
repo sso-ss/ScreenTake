@@ -37,6 +37,12 @@ final class MicrophoneRecorder: NSObject, @unchecked Sendable {
     private var lastInputPTS: CMTime?
     private var lastInputArrival: CMTime?
 
+    /// The capture connection meters the selected device without copying audio.
+    var inputLevel: Float {
+        guard let power = audioOutput?.connection(with: .audio)?.audioChannels.map(\.averagePowerLevel).max() else { return 0 }
+        return min(1, pow(10, power / 20))
+    }
+
     /// Start recording microphone audio.
     func startRecording(to url: URL, device: AVCaptureDevice? = nil, startTime: CMTime? = nil) throws {
         try prepare(device: device)
@@ -330,6 +336,12 @@ extension MicrophoneRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
         }
 
         if isPaused {
+            lock.unlock()
+            return
+        }
+
+        // A scheduled take must not include warm-up audio before playback starts.
+        if let recordingStartTime, rawPTS < recordingStartTime {
             lock.unlock()
             return
         }
