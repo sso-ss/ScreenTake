@@ -729,7 +729,7 @@ struct SettingsView: View {
                 Label("Apply Changes", systemImage: "checkmark")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(CompactActionButtonStyle())
+            .buttonStyle(CompactActionButtonStyle(size: .medium))
             .disabled(!hasEditChanges || !hasValidTimeline || editsBusy || appState.updates.isPresenting)
             .accessibilityIdentifier("applyVideoChanges")
             Button {
@@ -738,7 +738,7 @@ struct SettingsView: View {
                 Label(isSaving ? "Downloading..." : "Download", systemImage: "square.and.arrow.down")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(CompactActionButtonStyle(prominent: true))
+            .buttonStyle(CompactActionButtonStyle(prominent: true, size: .medium))
             .keyboardShortcut("s", modifiers: .command)
             .disabled(videoURL == nil || hasEditChanges || editsBusy)
             .accessibilityIdentifier("downloadVideo")

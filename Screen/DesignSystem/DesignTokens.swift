@@ -88,18 +88,28 @@ enum CornerRadius {
 
 enum ControlMetrics {
     static let actionHeight: CGFloat = 24
+    static let mediumActionHeight: CGFloat = 32
+}
+
+enum ActionButtonSize {
+    case compact, medium
+
+    var height: CGFloat { self == .medium ? ControlMetrics.mediumActionHeight : ControlMetrics.actionHeight }
+    var fontSize: CGFloat { self == .medium ? 13 : 12 }
+    var horizontalPadding: CGFloat { self == .medium ? 12 : 10 }
 }
 
 struct CompactActionButtonStyle: ButtonStyle {
     var prominent = false
+    var size: ActionButtonSize = .compact
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: size.fontSize, weight: .medium))
             .foregroundStyle(prominent ? Color.white : (configuration.role == .destructive ? DesignColors.error : DesignColors.primaryLabel))
-            .padding(.horizontal, 10)
-            .frame(height: ControlMetrics.actionHeight)
+            .padding(.horizontal, size.horizontalPadding)
+            .frame(height: size.height)
             .background(prominent ? DesignColors.accent : DesignColors.inputBackground,
                         in: RoundedRectangle(cornerRadius: CornerRadius.md))
             .contentShape(RoundedRectangle(cornerRadius: CornerRadius.md))
