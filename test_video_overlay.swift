@@ -65,7 +65,28 @@ struct VideoOverlayTests {
         precondition(reordered.split(at: 2, duration: CMTime(seconds: 4, preferredTimescale: 600)))
         precondition(reordered.moveSegment(from: 1, to: 0, duration: CMTime(seconds: 4, preferredTimescale: 600)))
         let trimmed = VideoTrim(start: 1, end: 4)
+        let timeline = try reordered.timeline(duration: CMTime(seconds: 4, preferredTimescale: 600))
+        precondition(VideoOverlayTimelineRange.visible(timing: timing, timeline: timeline, sourceDuration: 2)
+                     == [.init(outputStart: 1, sourceStart: 0, duration: 2)])
+        precondition(VideoOverlayTimelineRange.visible(timing: nil, timeline: timeline, sourceDuration: 4)
+                     == [.init(outputStart: 0, sourceStart: 2, duration: 2), .init(outputStart: 2, sourceStart: 0, duration: 2)])
+        precondition(VideoOverlayTimelineRange.visible(timing: nil, timeline: timeline, sourceDuration: 2)
+                     == [.init(outputStart: 2, sourceStart: 0, duration: 2)])
+        precondition(VideoOverlayTimelineRange.visible(timing: .init(start: 5, duration: 2), timeline: timeline, sourceDuration: 2).isEmpty)
+        let moved = timing.adjusted(by: 0.5, adjustment: .move, total: 4, sourceDuration: 2)
+        precondition(moved == .init(start: 1.5, duration: 2))
+        let beginningTrimmed = timing.adjusted(by: 0.75, adjustment: .trimStart, total: 4, sourceDuration: 2)
+        precondition(beginningTrimmed == .init(start: 1.75, duration: 1.25, sourceStart: 0.75))
+        precondition(beginningTrimmed.sampleTime(at: 2.25)?.seconds == 1.25)
+        precondition(beginningTrimmed.adjusted(by: -100, adjustment: .trimStart, total: 4, sourceDuration: 2) == timing)
+        precondition(timing.adjusted(by: -0.5, adjustment: .trimEnd, total: 4, sourceDuration: 2) == .init(start: 1, duration: 1.5))
+        precondition(timing.adjusted(by: 100, adjustment: .trimEnd, total: 4, sourceDuration: 2) == timing)
+        precondition(timing.adjusted(by: 100, adjustment: .trimStart, total: 4, sourceDuration: 2).duration >= 0.049999)
+        precondition(timing.adjusted(by: -100, adjustment: .move, total: 4, sourceDuration: 2).start == 0)
+        print("PASS: camera filmstrip maps edited time and reordered source sidecars, and move/trim controls preserve source bounds")
         for (name, trim, timing, samples) in [
+            ("camera-beginning-trimmed", VideoTrim(), beginningTrimmed, [(1.5, 1), (1.9, 2), (2.25, 0), (3.5, 1)]),
+            ("camera-moved", VideoTrim(), moved, [(1.25, 1), (1.75, 2), (2.75, 0), (3.75, 1)]),
             ("normal", VideoTrim(), timing, [(0.5, 1), (1.5, 2), (2.5, 0), (3.5, 1)]),
             ("reordered", reordered, timing, [(0.5, 1), (1.5, 2), (2.5, 0), (3.5, 1)]),
             ("trimmed", trimmed, VideoOverlayTiming(start: 0.5, duration: 2), [(0.25, 1), (0.75, 2), (1.75, 0), (2.75, 1)])
@@ -98,6 +119,13 @@ struct VideoOverlayTests {
                 }
             }
             print("PASS: \(name) camera preview/export hides before and after take and samples the correct frames")
+        }
+        if CommandLine.arguments.contains("--keep-fixtures") {
+            let previewDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("camera-track-preview-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: source, to: previewDirectory.appendingPathComponent("screen.mov"))
+            try FileManager.default.copyItem(at: overlay, to: previewDirectory.appendingPathComponent("camera.mov"))
+            print("Preview fixtures: \(previewDirectory.path)")
         }
     }
 }

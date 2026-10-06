@@ -40,12 +40,61 @@ struct VideoEditSettings: Equatable {
 struct VideoOverlayTiming: Equatable {
     var start: Double
     var duration: Double
+    var sourceStart: Double = 0
 
     func sampleTime(at outputSeconds: Double) -> CMTime? {
         let seconds = outputSeconds - start
-        guard seconds.isFinite, start.isFinite, duration.isFinite,
-              seconds >= 0, seconds < duration else { return nil }
-        return CMTime(seconds: seconds, preferredTimescale: 60000)
+        guard seconds.isFinite, start.isFinite, duration.isFinite, sourceStart.isFinite,
+              start >= 0, sourceStart >= 0, seconds >= 0, seconds < duration else { return nil }
+        return CMTime(seconds: sourceStart + seconds, preferredTimescale: 60000)
+    }
+
+    enum Adjustment { case move, trimStart, trimEnd }
+
+    func adjusted(by delta: Double, adjustment: Adjustment, total: Double, sourceDuration: Double) -> Self {
+        guard delta.isFinite, total.isFinite, sourceDuration.isFinite,
+              total > 0.05, sourceDuration > 0.05 else { return self }
+        var result = self
+        switch adjustment {
+        case .move:
+            result.start = min(total - 0.05, max(0, start + delta))
+        case .trimStart:
+            guard start < total - 0.05 else { return self }
+            let shift = min(duration - 0.05, total - start - 0.05,
+                            max(-min(start, sourceStart), delta))
+            result.start += shift
+            result.sourceStart += shift
+            result.duration -= shift
+        case .trimEnd:
+            guard start < total - 0.05 else { return self }
+            result.duration = max(0.05, min(sourceDuration - sourceStart, total - start, duration + delta))
+        }
+        return result
+    }
+}
+
+/// A camera sidecar follows source clips; a separately attached take follows edited time.
+struct VideoOverlayTimelineRange: Equatable {
+    let outputStart: Double
+    let sourceStart: Double
+    let duration: Double
+
+    static func visible(timing: VideoOverlayTiming?, timeline: EditedTimeline, sourceDuration: Double) -> [Self] {
+        guard sourceDuration.isFinite, sourceDuration > 0 else { return [] }
+        if let timing {
+            let length = min(timing.duration, timeline.duration.seconds - timing.start, sourceDuration - timing.sourceStart)
+            guard timing.start.isFinite, timing.sourceStart.isFinite,
+                  timing.start >= 0, timing.sourceStart >= 0, length > 0 else { return [] }
+            return [Self(outputStart: timing.start, sourceStart: timing.sourceStart, duration: length)]
+        }
+        var outputStart: Double = 0
+        return timeline.ranges.compactMap { range in
+            defer { outputStart += range.duration.seconds }
+            let start = max(0, range.start.seconds)
+            let end = min(sourceDuration, range.end.seconds)
+            guard end > start else { return nil }
+            return Self(outputStart: outputStart + start - range.start.seconds, sourceStart: start, duration: end - start)
+        }
     }
 }
 

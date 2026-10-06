@@ -241,3 +241,177 @@ struct VoiceOverTimelineClip: View {
         }
     }
 }
+
+/// A separate thumbnail lane for the editor's camera overlay.
+struct VideoOverlayFilmstrip: View {
+    let url: URL
+    @Binding var timing: VideoOverlayTiming?
+    let timeline: EditedTimeline
+    let width: Double
+    let enabled: Bool
+    let selected: Bool
+    let playhead: Double
+    let select: () -> Void
+    let remove: () -> Void
+    @State private var thumbnails: [CGImage] = []
+    @State private var sourceDuration: Double = 0
+    @State private var thumbnailError = false
+    @State private var dragOrigin: VideoOverlayTiming?
+
+    private var total: Double { max(0.001, timeline.duration.seconds) }
+    private var scale: Double { width / total }
+    private var mediaDuration: Double { sourceDuration > 0 ? sourceDuration : (timing.map { $0.sourceStart + $0.duration } ?? 0) }
+    private var ranges: [VideoOverlayTimelineRange] {
+        VideoOverlayTimelineRange.visible(timing: timing, timeline: timeline, sourceDuration: mediaDuration)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 4).fill(DesignColors.cameraTrack.opacity(0.05))
+            if ranges.isEmpty {
+                Button(action: select) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "video.fill")
+                        Text(sourceDuration == 0 && !thumbnailError ? "Loading camera…" : "Camera · outside visible timeline")
+                        Spacer(minLength: 0)
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .padding(8)
+                    .frame(height: 44)
+                }.buttonStyle(.plain)
+            }
+            ForEach(ranges.indices, id: \.self) { index in
+                clip(ranges[index])
+                    .offset(x: ranges[index].outputStart * scale)
+            }
+        }
+        .frame(width: width, height: 44, alignment: .topLeading)
+        .contextMenu {
+            if timing != nil {
+                Button("Move to Playhead") {
+                    select()
+                    timing?.start = max(0, min(total - 0.05, playhead))
+                }
+            }
+            Button("Remove Camera Overlay", role: .destructive, action: remove)
+        }
+        .task(id: url) { await loadThumbnails() }
+    }
+
+    private func clip(_ range: VideoOverlayTimelineRange) -> some View {
+        let clipWidth = max(2, range.duration * scale)
+        return HStack(spacing: 0) {
+            ForEach(thumbnails.indices, id: \.self) { index in
+                Image(decorative: thumbnails[index], scale: 1)
+                    .resizable().scaledToFill()
+                    .frame(width: max(1, mediaDuration * scale / Double(max(1, thumbnails.count))), height: 44)
+                    .clipped()
+            }
+        }
+        .offset(x: -range.sourceStart * scale)
+        .frame(width: clipWidth, height: 44, alignment: .leading)
+        .background(DesignColors.inputBackground)
+        .clipped()
+        .overlay(alignment: .topLeading) {
+            HStack(spacing: 4) {
+                Image(systemName: enabled ? "video.fill" : "eye.slash.fill")
+                Text(enabled ? "Camera" : "Camera · hidden")
+                    .lineLimit(1)
+            }
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 3))
+            .padding(3)
+            .allowsHitTesting(false)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .opacity(enabled ? 1 : 0.45)
+        .overlay(RoundedRectangle(cornerRadius: 4)
+            .strokeBorder(selected ? Color.white : DesignColors.cameraTrack, lineWidth: selected ? 2 : 1.5))
+        .contentShape(Rectangle())
+        .gesture(drag(.move))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Camera overlay filmstrip")
+        .accessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds%@", range.outputStart, range.duration, enabled ? "" : ", hidden"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { select() }
+        .accessibilityAdjustableAction { direction in
+            select()
+            if let timing { self.timing = timing.adjusted(by: direction == .increment ? 0.1 : -0.1,
+                                                         adjustment: .move, total: total, sourceDuration: mediaDuration) }
+        }
+        .help(timing == nil ? "Camera footage follows the screen recording’s clips. Click to adjust its appearance."
+              : "Click to select; drag to move; drag either edge to trim")
+        .overlay(alignment: .leading) {
+            if timing != nil && selected { handle(.trimStart) }
+        }
+        .overlay(alignment: .trailing) {
+            if timing != nil && selected { handle(.trimEnd) }
+        }
+    }
+
+    private func handle(_ adjustment: VideoOverlayTiming.Adjustment) -> some View {
+        RoundedRectangle(cornerRadius: 1).fill(.white.opacity(0.9))
+            .frame(width: 2, height: 20)
+            .frame(width: 10, height: 44).contentShape(Rectangle())
+            .gesture(drag(adjustment))
+            .accessibilityLabel(adjustment == .trimStart ? "Trim camera beginning" : "Trim camera end")
+            .accessibilityAdjustableAction { direction in
+                select()
+                if let timing { self.timing = timing.adjusted(by: direction == .increment ? 0.1 : -0.1,
+                                                             adjustment: adjustment, total: total, sourceDuration: mediaDuration) }
+            }
+    }
+
+    private func drag(_ adjustment: VideoOverlayTiming.Adjustment) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                select()
+                guard let timing else { return }
+                if dragOrigin == nil { dragOrigin = timing }
+                guard let origin = dragOrigin, abs(value.translation.width) > 0.5 else { return }
+                self.timing = origin.adjusted(by: value.translation.width / max(0.001, scale),
+                                               adjustment: adjustment, total: total, sourceDuration: mediaDuration)
+            }
+            .onEnded { _ in dragOrigin = nil }
+    }
+
+    @MainActor
+    private func loadThumbnails() async {
+        thumbnails = []
+        sourceDuration = 0
+        thumbnailError = false
+        let asset = AVURLAsset(url: url)
+        do {
+            let duration = try await asset.load(.duration).seconds
+            guard duration.isFinite, duration > 0 else { throw ExportError.noVideoTrack }
+            try Task.checkCancellation()
+            sourceDuration = duration
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 160, height: 90)
+            generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 30)
+            generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 30)
+            var images: [CGImage] = []
+            for index in 0..<24 {
+                try Task.checkCancellation()
+                let time = CMTime(seconds: duration * (Double(index) + 0.5) / 24, preferredTimescale: 60000)
+                do {
+                    images.append(try await generator.image(at: time).image)
+                } catch {
+                    // Sparse recordings can have no frame near this thumbnail time.
+                    generator.requestedTimeToleranceBefore = .positiveInfinity
+                    generator.requestedTimeToleranceAfter = .positiveInfinity
+                    images.append(try await generator.image(at: time).image)
+                    generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 30)
+                    generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 30)
+                }
+            }
+            try Task.checkCancellation()
+            thumbnails = images
+        } catch {
+            if !Task.isCancelled { thumbnailError = true }
+        }
+    }
+}

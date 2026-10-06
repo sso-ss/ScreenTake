@@ -41,6 +41,7 @@ struct SettingsView: View {
     @StateObject private var voiceOverRecorder = VoiceOverRecorder()
     @StateObject private var videoOverlayRecorder = VideoOverlayRecorder()
     @State private var selectedVoiceOverID: UUID?
+    @State private var isVideoOverlaySelected = false
     @State private var previewReady = false
     @State private var hasEditableAudio = false
     @State private var previewAudioURL: URL?
@@ -642,6 +643,7 @@ struct SettingsView: View {
                                 editDraft.videoOverlayURL = nil
                                 editDraft.videoOverlayTiming = nil
                                 editDraft.webcamEnabled = false
+                                isVideoOverlaySelected = false
                             }
                             if let timing = editDraft.videoOverlayTiming {
                                 Text(String(format: "%.1fs – %.1fs", timing.start, timing.start + timing.duration))
@@ -1453,13 +1455,20 @@ struct SettingsView: View {
                                   originalMuted: !editDraft.audioEnabled || editDraft.originalAudioVolume == 0,
                                   voiceOverMuted: !editDraft.voiceOverEnabled || editDraft.voiceOverVolume == 0,
                                   selectedZoomID: $selectedZoomID, automaticZooms: $automaticZooms,
-                                  zoomHistory: $zoomHistory, zoomPadding: $zoomPadding)
+                                  zoomHistory: $zoomHistory, zoomPadding: $zoomPadding,
+                                  videoOverlayURL: $editDraft.videoOverlayURL,
+                                  videoOverlayTiming: $editDraft.videoOverlayTiming,
+                                  videoOverlayEnabled: $editDraft.webcamEnabled,
+                                  isVideoOverlaySelected: $isVideoOverlaySelected)
                     .disabled(editsBusy)
                     .onChange(of: selectedVoiceOverID) { id in
                         if id != nil { selectedPanel = .audio }
                     }
                     .onChange(of: selectedZoomID) { id in
                         if id != nil { selectedPanel = .cursor }
+                    }
+                    .onChange(of: isVideoOverlaySelected) { selected in
+                        if selected { selectedPanel = .camera }
                     }
             }
             if let previewError {
@@ -1660,6 +1669,7 @@ struct SettingsView: View {
             previewError = nil
             renderedPreviewTimeline = nil
             selectedVoiceOverID = nil
+            isVideoOverlaySelected = false
             previewReady = false
             sourceDuration = 0
             sourceVideoSize = nil
@@ -2372,6 +2382,10 @@ private struct TimelineTooltip: ViewModifier {
 }
 
 struct VideoTrimControls: View {
+    @Binding var videoOverlayURL: URL?
+    @Binding var videoOverlayTiming: VideoOverlayTiming?
+    @Binding var videoOverlayEnabled: Bool
+    @Binding var isVideoOverlaySelected: Bool
     @Binding var voiceOvers: [VoiceOverClip]
     @Binding var selectedVoiceOverID: UUID?
     var originalMuted: Bool
@@ -2398,7 +2412,15 @@ struct VideoTrimControls: View {
          automaticZooms: Binding<[ZoomSegment]> = .constant([]),
          zoomHistory: Binding<[[ZoomSegment]?]> = .constant([]),
          zoomPadding: Binding<CGFloat> = .constant(0),
+         videoOverlayURL: Binding<URL?> = .constant(nil),
+         videoOverlayTiming: Binding<VideoOverlayTiming?> = .constant(nil),
+         videoOverlayEnabled: Binding<Bool> = .constant(false),
+         isVideoOverlaySelected: Binding<Bool> = .constant(false),
          silence: SilenceReview? = nil) {
+        _videoOverlayURL = videoOverlayURL
+        _videoOverlayTiming = videoOverlayTiming
+        _videoOverlayEnabled = videoOverlayEnabled
+        _isVideoOverlaySelected = isVideoOverlaySelected
         _trim = trim
         _zoomSegments = zoomSegments
         _selectedZoomID = selectedZoomID
@@ -2519,6 +2541,7 @@ struct VideoTrimControls: View {
     }
 
     private func selectZoom(_ id: UUID) {
+        isVideoOverlaySelected = false
         selectedVoiceOverID = nil
         selectedSegment = nil
         selectedZoomID = id
@@ -2673,7 +2696,9 @@ struct VideoTrimControls: View {
         .focusable()
         .focused($filmstripFocused)
         .onDeleteCommand {
-            if let id = selectedVoiceOverID {
+            if isVideoOverlaySelected {
+                removeVideoOverlay()
+            } else if let id = selectedVoiceOverID {
                 player.pause()
                 voiceOvers.removeAll { $0.id == id }
                 selectedVoiceOverID = nil
@@ -2723,6 +2748,10 @@ struct VideoTrimControls: View {
             silence.clear()
         }
         .onChange(of: audio) { _ in silence.clear() }
+        .onChange(of: videoOverlayURL) { _ in isVideoOverlaySelected = false }
+        .onChange(of: selectedVoiceOverID) { id in
+            if id != nil { isVideoOverlaySelected = false }
+        }
         .task(id: "\(mouse?.path ?? "")-\(source.path)-\(zoomLevel)-\(duration)-\(zoomEnabled)") {
             automaticZoomsReady = false
             automaticZooms = []
@@ -2926,7 +2955,37 @@ struct VideoTrimControls: View {
 
     private var videoLaneBottom: Double { zoomEnabled && mouse != nil ? 93 : 70 }
     private var audioLaneHeight: Double { (audio == nil ? 0 : 50) + (voiceOvers.isEmpty ? 0 : 50) }
-    private var timelineHeight: Double { videoLaneBottom + audioLaneHeight }
+    private var cameraLaneHeight: Double { videoOverlayURL == nil ? 0 : 50 }
+    private var audioLaneTop: Double { videoLaneBottom + cameraLaneHeight }
+    private var timelineHeight: Double { audioLaneTop + audioLaneHeight }
+
+    private func selectVideoOverlay() {
+        player.pause()
+        selectedSegment = nil
+        selectedVoiceOverID = nil
+        selectedZoomID = nil
+        focusedZoomID = nil
+        filmstripFocused = true
+        isVideoOverlaySelected = true
+    }
+
+    private func removeVideoOverlay() {
+        player.pause()
+        videoOverlayURL = nil
+        videoOverlayTiming = nil
+        videoOverlayEnabled = false
+        isVideoOverlaySelected = false
+    }
+
+    @ViewBuilder
+    private func cameraLane(width: Double) -> some View {
+        if let url = videoOverlayURL, let timeline {
+            VideoOverlayFilmstrip(url: url, timing: $videoOverlayTiming, timeline: timeline,
+                                  width: width, enabled: videoOverlayEnabled, selected: isVideoOverlaySelected,
+                                  playhead: playback.seconds, select: selectVideoOverlay, remove: removeVideoOverlay)
+                .offset(x: 12, y: videoLaneBottom)
+        }
+    }
 
     @ViewBuilder
     private func audioLanes(width: Double, total: Double) -> some View {
@@ -2936,15 +2995,15 @@ struct VideoTrimControls: View {
                 .frame(width: width, height: 44)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 0).onChanged { seekOutput($0.location.x / width * total) })
-                .offset(x: 12, y: videoLaneBottom)
+                .offset(x: 12, y: audioLaneTop)
         }
         ForEach($voiceOvers) { $clip in
             if clip.start < total {
                 VoiceOverTimelineClip(clip: $clip, selected: $selectedVoiceOverID,
                                       total: total, scale: width / total, muted: voiceOverMuted,
                                       number: (voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1,
-                                      pause: { player.pause(); selectedSegment = nil; selectedZoomID = nil })
-                    .offset(x: 12 + width * clip.start / total, y: videoLaneBottom + (audio == nil ? 0 : 50))
+                                      pause: { player.pause(); selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false })
+                    .offset(x: 12 + width * clip.start / total, y: audioLaneTop + (audio == nil ? 0 : 50))
             }
         }
     }
@@ -2967,6 +3026,7 @@ struct VideoTrimControls: View {
                     .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
             }
             if zoomEnabled && mouse != nil { zoomLane(width: width, total: total) }
+            cameraLane(width: width)
             audioLanes(width: width, total: total)
             Rectangle().fill(.clear).contentShape(Rectangle())
                 .frame(width: width, height: 24).offset(x: 12)
@@ -3199,6 +3259,7 @@ struct VideoTrimControls: View {
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
             .onChanged { gesture in
                 selectedSegment = segment
+                isVideoOverlaySelected = false
                 selectedVoiceOverID = nil
                 focusedZoomID = nil
                 filmstripFocused = true
