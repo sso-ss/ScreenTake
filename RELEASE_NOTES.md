@@ -1,22 +1,18 @@
-# ScreenTake 0.1.12 — Beta
+# ScreenTake 0.1.13 — Beta
 
-More control over your camera, clearer exports, and the microphone you choose.
+A fresh ScreenTake icon, from your Dock to your next recording.
 
-**[Download ScreenTake 0.1.12 (build 14)](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.12-build14.dmg)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**[Download ScreenTake 0.1.13 (build 15)](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.13-build15.dmg)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
 ## What’s new
 
-- Choose **Overlay** or **Full Screen** per camera section, with full-screen zoom and framing controls.
-- Optionally **Follow face** to gently crop around one face. Your framing is kept when no face is detected.
-- Use the main **Split** button for camera sections. Splitting a screen recording also splits its camera presentation.
-- Add **Smooth Transition** between camera sections, with adjustable duration and motion, or turn it off for a direct cut.
-- Preview the camera directly in the recording canvas. Enabling the camera turns the microphone on; you can still turn it off or use the microphone on its own.
-- Choose a microphone above **Record Voiceover**, using the same saved selection as the recording controls.
-- Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.
+- A new three-panel purple screen and play logo, with soft gradients and aligned panel edges.
+- Matching branding in the app, Dock icon, website, and download dialog.
+- Includes the camera layouts, smooth transitions, microphone selection, and capture/export improvements introduced in 0.1.12.
 
 ## Install
 
-Save your work and quit ScreenTake. Open **ScreenTake-0.1.12-build14.dmg**, drag **ScreenTake.app** into **Applications**, eject the installer, and reopen the app. Update reminders open the release page; installation is manual.
+Save your work and quit ScreenTake. Open **ScreenTake-0.1.13-build15.dmg**, drag **ScreenTake.app** into **Applications**, eject the installer, and reopen the app. Update reminders open the release page; installation is manual.
 
 ## Verification and beta notes
 

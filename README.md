@@ -1,12 +1,18 @@
 # ScreenTake
 
+<img src="assets/app-icon.png" alt="ScreenTake app icon" width="96" height="96">
+
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.12 (build 14)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.13 (build 15)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.12-build14.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.13-build15.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.12
+## New in 0.1.13
+
+- A new three-panel purple screen and play logo, with matching app, Dock, and website icons.
+
+## Camera and audio improvements from 0.1.12
 
 - Switch camera sections between **Overlay** and **Full Screen**, adjust full-screen zoom and framing, and optionally follow one face.
 - Use the main **Split** button to give camera sections their own layout. Splitting a screen recording also splits its camera presentation.
