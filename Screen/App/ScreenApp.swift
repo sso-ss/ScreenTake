@@ -50,6 +50,7 @@ struct ScreenApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .accentColor(DesignColors.accent)
                 .frame(minWidth: 800, minHeight: 500)
                 .onAppear {
                     GlobalHotkeyManager.shared.registerHotkeys()
