@@ -98,10 +98,8 @@ final class UpdateChecker {
         do {
             let release = try await fetch()
             if release.isNewer(than: installedVersion) {
-                if manual || defaults.string(forKey: "updates.skippedVersion") != release.tag_name {
-                    pendingRelease = release
-                    feedback = nil
-                }
+                pendingRelease = release
+                feedback = nil
             } else if manual {
                 feedback = "No newer downloadable test build was found. You are running ScreenTake \(installedVersion)."
             }
@@ -112,10 +110,7 @@ final class UpdateChecker {
         }
     }
 
-    func dismissUpdate(skip: Bool) {
-        if skip, let release = pendingRelease {
-            defaults.set(release.tag_name, forKey: "updates.skippedVersion")
-        }
+    func dismissUpdate() {
         defaults.set(now(), forKey: "updates.lastCheck")
         pendingRelease = nil
     }
@@ -164,9 +159,10 @@ final class UpdateChecker {
         textView.string = String((release.body ?? "A new test build is available.").prefix(12000))
         scrollView.documentView = textView
         alert.accessoryView = scrollView
-        alert.addButton(withTitle: "Download Update")
+        let downloadButton = alert.addButton(withTitle: "Download Update")
+        downloadButton.keyEquivalent = "\r"
+        downloadButton.bezelColor = .controlAccentColor
         alert.addButton(withTitle: "Remind Me Later").keyEquivalent = "\u{1b}"
-        alert.addButton(withTitle: "Skip This Version")
         return alert
     }
 
@@ -194,7 +190,7 @@ final class UpdateChecker {
                 if response == .alertFirstButtonReturn {
                     NSWorkspace.shared.open(release.html_url)
                 }
-                self.dismissUpdate(skip: response == .alertThirdButtonReturn)
+                self.dismissUpdate()
             }
             self.feedback = nil
             self.isPresenting = false
