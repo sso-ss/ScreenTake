@@ -61,6 +61,10 @@ enum Typography {
 // MARK: - Spacing
 
 enum Spacing {
+    // Official settings layout: label to control, then feature to feature.
+    static let labelToControl: CGFloat = 12
+    static let featureGap: CGFloat = 20
+
     static let xs: CGFloat = 2
     static let sm: CGFloat = 4
     static let md: CGFloat = 8

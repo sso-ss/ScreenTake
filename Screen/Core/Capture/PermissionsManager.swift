@@ -65,6 +65,14 @@ final class PermissionsManager: ObservableObject {
     }
 
     func requestMicrophone() {
+        // macOS does not show the permission prompt again after a denial.
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .denied {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+            return
+        }
+
         AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
             Task { @MainActor [weak self] in
                 self?.microphoneGranted = granted

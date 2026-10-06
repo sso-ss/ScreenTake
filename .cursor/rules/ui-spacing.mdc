@@ -1,0 +1,16 @@
+---
+description: Official ScreenTake UI spacing guide
+alwaysApply: true
+---
+
+# UI spacing
+
+Apply this guide when creating or updating ScreenTake settings UI:
+
+- Use 12 points between a label and its associated control, horizontally or vertically.
+- Use 20 points between separate features or settings groups.
+- Use `Spacing.labelToControl` and `Spacing.featureGap` from the design tokens.
+- Set spacing explicitly; do not rely on native picker label spacing.
+- Keep icon-to-label and spacing inside a single control separate from these rules.
+
+SwiftUI uses logical points for these design dimensions (12px / 20px in the design guide).

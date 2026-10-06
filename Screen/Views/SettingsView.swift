@@ -128,7 +128,7 @@ struct SettingsView: View {
                 Group {
                     if videoURL != nil { editControlsColumn } else { controlsColumn }
                 }
-                    .frame(width: 368)
+                    .frame(width: 388)
             }
             .frame(maxHeight: .infinity)
         }
@@ -277,7 +277,8 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 5)
                 .background(
-                    Capsule().fill(DesignColors.accent)
+                    RoundedRectangle(cornerRadius: CornerRadius.md)
+                        .fill(DesignColors.accent)
                 )
             }
             .buttonStyle(.plain)
@@ -499,7 +500,7 @@ struct SettingsView: View {
     }
 
     private func settingsPanelRail(editing: Bool) -> some View {
-        VStack(spacing: Spacing.sm) {
+        VStack(spacing: Spacing.featureGap) {
             ForEach(SettingsPanel.allCases, id: \.self) { panel in
                 let available = isPanelAvailable(panel, editing: editing)
                 Button {
@@ -510,11 +511,12 @@ struct SettingsView: View {
                             .font(.system(size: 16, weight: .medium))
                             .frame(height: 20)
                         Text(panel.rawValue)
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                     }
                     .foregroundStyle(selectedPanel == panel ? DesignColors.primaryLabel : DesignColors.secondaryLabel)
-                    .frame(width: 60, height: 54)
-                    .background(selectedPanel == panel ? DesignColors.inputBackground : .clear, in: RoundedRectangle(cornerRadius: 6))
+                    .frame(width: 72, height: 64)
+                    .background(selectedPanel == panel ? DesignColors.inputBackground : .clear, in: RoundedRectangle(cornerRadius: CornerRadius.lg))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(!available)
@@ -524,9 +526,9 @@ struct SettingsView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, Spacing.sm)
+        .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.lg)
-        .frame(width: 68)
+        .frame(width: 88)
         .background(DesignColors.controlBackground.opacity(0.5))
     }
 
@@ -546,17 +548,7 @@ struct SettingsView: View {
             switch selectedPanel {
             case .canvas:
                 settingsSection("Canvas") {
-                    HStack {
-                        Image(systemName: "aspectratio")
-                            .font(.system(size: 13))
-                            .foregroundColor(DesignColors.secondaryLabel)
-                            .frame(width: 20)
-                            .accessibilityHidden(true)
-                        Picker("Ratio", selection: $editDraft.ratio) {
-                            ForEach(CanvasRatio.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                        }
-                        .pickerStyle(.menu)
-                    }
+                    ratioPicker(selection: $editDraft.ratio)
                     deviceLayoutPicker(selection: $editDraft.layout)
                     if !editDraft.layout.isPhone {
                         desktopCornerRadiusSlider(selection: $editDraft.desktopCornerRadius)
@@ -718,20 +710,10 @@ struct SettingsView: View {
             switch selectedPanel {
             case .canvas:
                 settingsSection("Canvas") {
-                    HStack {
-                        Image(systemName: "aspectratio")
-                            .font(.system(size: 13))
-                            .foregroundColor(DesignColors.secondaryLabel)
-                            .frame(width: 20)
-                            .accessibilityHidden(true)
-                        Picker("Ratio", selection: Binding(
-                            get: { appState.capture.canvasRatio },
-                            set: { appState.capture.canvasRatio = $0 }
-                        )) {
-                            ForEach(CanvasRatio.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                        }
-                        .pickerStyle(.menu)
-                    }
+                    ratioPicker(selection: Binding(
+                        get: { appState.capture.canvasRatio },
+                        set: { appState.capture.canvasRatio = $0 }
+                    ))
                     deviceLayoutPicker(selection: Binding(
                         get: { appState.capture.deviceLayout },
                         set: { appState.capture.deviceLayout = $0 }
@@ -819,9 +801,14 @@ struct SettingsView: View {
                             cameraPreview.start(device: appState.capture.selectedWebcamDevice)
                         } label: {
                             Label("Preview Camera", systemImage: "video")
-                                .frame(maxWidth: .infinity)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(DesignColors.primaryLabel)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(DesignColors.inputBackground,
+                                            in: RoundedRectangle(cornerRadius: CornerRadius.lg))
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("previewCamera")
                     }
                 }
@@ -847,7 +834,7 @@ struct SettingsView: View {
     // MARK: - Settings Components
 
     private var cameraPreviewSheet: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+        VStack(spacing: Spacing.labelToControl) {
             HStack {
                 Text("Camera Preview")
                     .font(.headline)
@@ -864,7 +851,7 @@ struct SettingsView: View {
             }
 
             ZStack {
-                Color.black
+                DesignColors.windowBackground
                 if let session = cameraPreview.session {
                     CameraFeedView(session: session, rotationAngle: cameraPreview.rotationAngle)
                         .clipShape(RoundedRectangle(cornerRadius: appState.capture.webcamPiPShape == .circle ? 180 : 65))
@@ -887,7 +874,8 @@ struct SettingsView: View {
             }
             .frame(width: 360, height: 360)
         }
-        .padding(Spacing.lg)
+        .frame(width: 360)
+        .padding(Spacing.labelToControl)
         .background(DesignColors.windowBackground)
         .preferredColorScheme(.dark)
     }
@@ -969,13 +957,35 @@ struct SettingsView: View {
         }
     }
 
+    private func ratioPicker(selection: Binding<CanvasRatio>) -> some View {
+        HStack(spacing: Spacing.labelToControl) {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "aspectratio")
+                    .font(.system(size: 13))
+                    .foregroundColor(DesignColors.secondaryLabel)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
+                Text("Ratio")
+                    .font(Typography.body)
+                    .foregroundColor(DesignColors.primaryLabel)
+            }
+            Picker("Ratio", selection: selection) {
+                ForEach(CanvasRatio.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+        }
+    }
+
     private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(DesignColors.primaryLabel)
 
-            content()
+            VStack(alignment: .leading, spacing: Spacing.featureGap) {
+                content()
+            }
         }
     }
 
@@ -1031,7 +1041,7 @@ struct SettingsView: View {
     }
 
     private var frameRatePicker: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "speedometer")
                     .font(.system(size: 13))
@@ -1068,7 +1078,7 @@ struct SettingsView: View {
         let canvasSize = ratio.size(source: source)
         let content = CanvasGeometry(size: canvasSize, layout: layout, sourceSize: source).desktop
         let pixels = Int(((content.map { min($0.width, $0.height) } ?? 0) * selection.wrappedValue).rounded())
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
+        return VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "rectangle.roundedtop")
                     .font(.system(size: 13))
@@ -1090,7 +1100,7 @@ struct SettingsView: View {
     }
 
     private func cursorSizeSlider(selection: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 13))
@@ -1179,7 +1189,7 @@ struct SettingsView: View {
     }
 
     private func webcamShapePicker(selection: Binding<PiPShape>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "circle.square")
                     .font(.system(size: 13))
@@ -1220,7 +1230,7 @@ struct SettingsView: View {
     }
 
     private func webcamPositionPicker(selection: Binding<PiPPosition>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "square.dashed.inset.filled")
                     .font(.system(size: 13))
@@ -1260,7 +1270,7 @@ struct SettingsView: View {
     }
 
     private func webcamSizePicker(selection: Binding<PiPSize>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 13))
