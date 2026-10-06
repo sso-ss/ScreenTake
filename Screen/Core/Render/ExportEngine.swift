@@ -36,6 +36,8 @@ final class ExportEngine: ObservableObject {
         var pipPosition: PiPPosition = .bottomRight
         var pipSize: PiPSize = .medium
         var pipShape: PiPShape = .circle
+        var cameraLayout = CameraLayoutSettings()
+        var cameraLayoutChanges: [CameraLayoutChange] = []
 
         /// Mouse data for cursor overlay on fill frames
         var mouseDataURL: URL?
@@ -238,11 +240,13 @@ final class ExportEngine: ObservableObject {
         var webcamReaderOutput: AVAssetReaderTrackOutput?
         var compositor: WebcamCompositor?
         var overlayFrames: OverlayVideoFrames?
+        var webcamDuration: CMTime = .zero
         let overlayTimeline = try configuration.videoOverlayTrim?.timeline(duration: duration)
 
         if let webcamURL = configuration.webcamVideoURL,
            FileManager.default.fileExists(atPath: webcamURL.path) {
             let webcamAsset = AVURLAsset(url: webcamURL)
+            webcamDuration = (try? await webcamAsset.load(.duration)) ?? .zero
             if configuration.videoOverlayTiming != nil {
                 overlayFrames = OverlayVideoFrames(url: webcamURL)
                 compositor = WebcamCompositor(outputSize: outputSize, position: configuration.pipPosition,
@@ -266,6 +270,7 @@ final class ExportEngine: ObservableObject {
                 }
             }
         }
+        let hasCameraFrames = webcamReaderOutput != nil || overlayFrames != nil
 
         // Process frames
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -447,7 +452,14 @@ final class ExportEngine: ObservableObject {
                 if let timing = configuration.videoOverlayTiming, let overlayFrames {
                     let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
                     currentWebcamImage = timing.sampleTime(at: outputTime.seconds).flatMap { overlayFrames.image(at: $0) }
+                } else if webcamReaderOutput != nil, pts >= webcamDuration {
+                    currentWebcamImage = nil
                 }
+                let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
+                let cameraTime = configuration.videoOverlayTiming?.sampleTime(at: outputTime.seconds)?.seconds ?? pts.seconds
+                let cameraLayout = CameraLayoutChange.settings(at: cameraTime, initial: configuration.cameraLayout,
+                                                               changes: configuration.cameraLayoutChanges)
+                let cameraFillsCanvas = compositor != nil && currentWebcamImage != nil && cameraLayout.layout == .fullScreen
 
                 var frameImage = image
 
@@ -485,7 +497,8 @@ final class ExportEngine: ObservableObject {
                    let webcamImage = currentWebcamImage {
                     frameImage = compositor.composite(
                         webcamImage: webcamImage,
-                        onto: frameImage
+                        onto: frameImage,
+                        settings: cameraLayout
                     )
                 }
 
@@ -504,7 +517,7 @@ final class ExportEngine: ObservableObject {
                 ciContext.render(frameImage, to: outBuffer)
 
                 // Draw cursor from mouse position data on every frame
-                if time >= 0, canvas == nil {
+                if time >= 0, canvas == nil, !cameraFillsCanvas {
                     drawCursor(on: outBuffer, transform: transform, atTime: time)
                 }
 
@@ -525,7 +538,7 @@ final class ExportEngine: ObservableObject {
                 while videoInput.isReadyForMoreMediaData {
                     let shouldContinue = autoreleasepool { () -> Bool in
                     guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
-                        if let image = lastSourceImage, hasCursorAnimation || webcamReaderOutput != nil || phoneReader != nil || !keyframes.isEmpty {
+                        if let image = lastSourceImage, hasCursorAnimation || hasCameraFrames || phoneReader != nil || !keyframes.isEmpty {
                             var fillTime = hasCursorAnimation
                                 ? Double(nextCursorFrameIndex) / 60
                                 : CMTimeGetSeconds(lastAppendedPTS) + fillFrameInterval
@@ -608,7 +621,7 @@ final class ExportEngine: ObservableObject {
                                 sampleT += sampleStep
                             }
 
-                            if hasCursorAnimation || hasZoomActivity || webcamReaderOutput != nil || phoneReader != nil {
+                            if hasCursorAnimation || hasZoomActivity || hasCameraFrames || phoneReader != nil {
                                 // Generate fill frames at ~30fps through the gap
                                 var fillCount = 0
                                 var fillTime = lastAppendedSeconds + fillFrameInterval

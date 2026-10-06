@@ -37,7 +37,17 @@ final class WebcamCompositor {
     }
 
     /// Composite a webcam frame onto a screen frame.
-    func composite(webcamImage: CIImage, onto screenImage: CIImage) -> CIImage {
+    func composite(webcamImage: CIImage, onto screenImage: CIImage,
+                   settings: CameraLayoutSettings = CameraLayoutSettings()) -> CIImage {
+        if settings.layout == .fullScreen {
+            let bounds = screenImage.extent
+            let crop = settings.crop(in: webcamImage.extent, output: bounds.size)
+            return webcamImage.cropped(to: crop)
+                .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+                .transformed(by: CGAffineTransform(scaleX: bounds.width / crop.width, y: bounds.height / crop.height))
+                .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY))
+                .cropped(to: bounds)
+        }
         // Center-crop the webcam to a square, then scale to target diameter
         let webcamExtent = webcamImage.extent
         let minSide = min(webcamExtent.width, webcamExtent.height)

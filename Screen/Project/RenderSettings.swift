@@ -26,6 +26,9 @@ struct VideoEditSettings: Equatable {
     var webcamShape: PiPShape = .circle
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
+    var cameraLayout = CameraLayoutSettings()
+    /// Layout changes follow camera source time, including moved and trimmed takes.
+    var cameraLayoutChanges: [CameraLayoutChange] = []
     var videoOverlayURL: URL?
     /// Nil for a camera sidecar synchronized to the original recording.
     var videoOverlayTiming: VideoOverlayTiming?
@@ -42,6 +45,54 @@ struct VideoEditSettings: Equatable {
     func outputSize(source: CGSize) -> CGSize {
         exportResolution.size(source: source, crop: crop, ratio: ratio, layout: layout,
                               usesCanvas: usesCanvas, phoneMode: phoneMode)
+    }
+}
+
+enum CameraLayout: String, CaseIterable, Codable {
+    case overlay, fullScreen
+    var displayName: String { self == .overlay ? "Overlay" : "Full Screen" }
+}
+
+struct CameraLayoutSettings: Equatable, Codable {
+    var layout: CameraLayout = .overlay
+    var zoom: Double = 1
+    var centerX: Double = 0.5
+    var centerY: Double = 0.5
+
+    func crop(in source: CGRect, output: CGSize) -> CGRect {
+        guard source.width > 0, source.height > 0, output.width > 0, output.height > 0 else { return source }
+        let scale = max(output.width / source.width, output.height / source.height)
+            * CGFloat(zoom.isFinite ? min(3, max(1, zoom)) : 1)
+        let size = CGSize(width: output.width / scale, height: output.height / scale)
+        let horizontal = CGFloat(centerX.isFinite ? min(1, max(0, centerX)) : 0.5)
+        let vertical = CGFloat(centerY.isFinite ? min(1, max(0, centerY)) : 0.5)
+        return CGRect(x: source.minX + (source.width - size.width) * horizontal,
+                      y: source.minY + (source.height - size.height) * (1 - vertical),
+                      width: size.width, height: size.height)
+    }
+}
+
+struct CameraLayoutChange: Equatable, Codable {
+    var start: Double
+    var settings: CameraLayoutSettings
+
+    static func settings(at seconds: Double, initial: CameraLayoutSettings,
+                         changes: [Self]) -> CameraLayoutSettings {
+        changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start <= seconds }
+            .max { $0.start < $1.start }?.settings ?? initial
+    }
+
+    static func split(at outputSeconds: Double, in range: VideoOverlayTimelineRange,
+                      initial: CameraLayoutSettings, changes: [Self]) -> Self? {
+        guard outputSeconds.isFinite, range.sourceStart.isFinite, range.duration.isFinite,
+              outputSeconds >= range.outputStart, outputSeconds < range.outputStart + range.duration else { return nil }
+        let sourceTime = range.sourceStart + outputSeconds - range.outputStart
+        let boundaries = changes.map(\.start).filter { $0.isFinite && $0 >= 0 }
+        let start = max(range.sourceStart, boundaries.filter { $0 <= sourceTime }.max() ?? range.sourceStart)
+        let end = min(range.sourceStart + range.duration,
+                      boundaries.filter { $0 > sourceTime }.min() ?? range.sourceStart + range.duration)
+        guard sourceTime - start >= 1.0 / 30, end - sourceTime >= 1.0 / 30 else { return nil }
+        return Self(start: sourceTime, settings: settings(at: sourceTime, initial: initial, changes: changes))
     }
 }
 

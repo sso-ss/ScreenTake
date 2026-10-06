@@ -250,9 +250,12 @@ struct VideoOverlayFilmstrip: View {
     let width: Double
     let enabled: Bool
     let selected: Bool
+    var cameraLayout = CameraLayoutSettings()
+    var cameraLayoutChanges: [CameraLayoutChange] = []
     let playhead: Double
     let select: () -> Void
     let remove: () -> Void
+    var seek: ((Double) -> Void)? = nil
     @State private var thumbnails: [CGImage] = []
     @State private var sourceDuration: Double = 0
     @State private var thumbnailError = false
@@ -262,7 +265,15 @@ struct VideoOverlayFilmstrip: View {
     private var scale: Double { width / total }
     private var mediaDuration: Double { sourceDuration > 0 ? sourceDuration : (timing.map { $0.sourceStart + $0.duration } ?? 0) }
     private var ranges: [VideoOverlayTimelineRange] {
-        VideoOverlayTimelineRange.visible(timing: timing, timeline: timeline, sourceDuration: mediaDuration)
+        VideoOverlayTimelineRange.visible(timing: timing, timeline: timeline, sourceDuration: mediaDuration).flatMap { range in
+            let boundaries = [range.sourceStart] + cameraLayoutChanges.map(\.start).filter {
+                $0 > range.sourceStart && $0 < range.sourceStart + range.duration
+            }.sorted() + [range.sourceStart + range.duration]
+            return zip(boundaries, boundaries.dropFirst()).map { start, end in
+                VideoOverlayTimelineRange(outputStart: range.outputStart + start - range.sourceStart,
+                                          sourceStart: start, duration: end - start)
+            }
+        }
     }
 
     var body: some View {
@@ -300,6 +311,9 @@ struct VideoOverlayFilmstrip: View {
 
     private func clip(_ range: VideoOverlayTimelineRange) -> some View {
         let clipWidth = max(2, range.duration * scale)
+        let sectionSelected = selected && playhead >= range.outputStart && playhead < range.outputStart + range.duration
+        let layout = CameraLayoutChange.settings(at: range.sourceStart, initial: cameraLayout,
+                                                changes: cameraLayoutChanges).layout
         return HStack(spacing: 0) {
             ForEach(thumbnails.indices, id: \.self) { index in
                 Image(decorative: thumbnails[index], scale: 1)
@@ -315,7 +329,7 @@ struct VideoOverlayFilmstrip: View {
         .overlay(alignment: .topLeading) {
             HStack(spacing: 4) {
                 Image(systemName: enabled ? "video.fill" : "eye.slash.fill")
-                Text(enabled ? "Camera" : "Camera · hidden")
+                Text(enabled ? "Camera · \(layout.displayName)" : "Camera · hidden")
                     .lineLimit(1)
             }
             .font(.system(size: 9, weight: .medium))
@@ -328,14 +342,17 @@ struct VideoOverlayFilmstrip: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(enabled ? 1 : 0.45)
         .overlay(RoundedRectangle(cornerRadius: 4)
-            .strokeBorder(selected ? Color.white : DesignColors.cameraTrack, lineWidth: selected ? 2 : 1.5))
+            .strokeBorder(sectionSelected ? Color.white : DesignColors.cameraTrack, lineWidth: sectionSelected ? 2 : 1.5))
         .contentShape(Rectangle())
-        .gesture(drag(.move))
+        .gesture(drag(.move, range: range))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Camera overlay filmstrip")
+        .accessibilityLabel("Camera \(layout.displayName) section")
         .accessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds%@", range.outputStart, range.duration, enabled ? "" : ", hidden"))
         .accessibilityAddTraits(.isButton)
-        .accessibilityAction { select() }
+        .accessibilityAction {
+            select()
+            seek?(range.outputStart + min(0.01, range.duration / 2))
+        }
         .accessibilityAdjustableAction { direction in
             select()
             if let timing { self.timing = timing.adjusted(by: direction == .increment ? 0.1 : -0.1,
@@ -344,10 +361,10 @@ struct VideoOverlayFilmstrip: View {
         .help(timing == nil ? "Camera footage follows the screen recording’s clips. Click to adjust its appearance."
               : "Click to select; drag to move; drag either edge to trim")
         .overlay(alignment: .leading) {
-            if timing != nil && selected { handle(.trimStart) }
+            if timing != nil && selected, range.sourceStart == ranges.first?.sourceStart { handle(.trimStart) }
         }
         .overlay(alignment: .trailing) {
-            if timing != nil && selected { handle(.trimEnd) }
+            if timing != nil && selected, range.outputStart == ranges.last?.outputStart { handle(.trimEnd) }
         }
     }
 
@@ -364,10 +381,13 @@ struct VideoOverlayFilmstrip: View {
             }
     }
 
-    private func drag(_ adjustment: VideoOverlayTiming.Adjustment) -> some Gesture {
+    private func drag(_ adjustment: VideoOverlayTiming.Adjustment, range: VideoOverlayTimelineRange? = nil) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 select()
+                if dragOrigin == nil, let range, abs(value.translation.width) < 0.5 {
+                    seek?(range.outputStart + min(max(0, value.location.x / scale), max(0, range.duration - 0.001)))
+                }
                 guard let timing else { return }
                 if dragOrigin == nil { dragOrigin = timing }
                 guard let origin = dragOrigin, abs(value.translation.width) > 0.5 else { return }

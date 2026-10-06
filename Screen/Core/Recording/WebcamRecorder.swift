@@ -56,7 +56,6 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
         }
 
         let captureSession = AVCaptureSession()
-        captureSession.sessionPreset = .medium // 480p — sufficient for PiP
 
         let input = try AVCaptureDeviceInput(device: camera)
         guard captureSession.canAddInput(input) else {
@@ -73,6 +72,14 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
             throw WebcamRecorderError.outputConfigFailed
         }
         captureSession.addOutput(output)
+
+        // Keep a high-quality camera master: an overlay can become full screen
+        // later in the editor. Negotiate against the connected camera so older
+        // devices can fall back to their supported capture quality.
+        let presets: [AVCaptureSession.Preset] = [.hd1920x1080, .high, .hd1280x720, .medium]
+        if let preset = presets.first(where: { captureSession.canSetSessionPreset($0) }) {
+            captureSession.sessionPreset = preset
+        }
 
         let dimensions = CMVideoFormatDescriptionGetDimensions(camera.activeFormat.formatDescription)
         let requestedAngle: CGFloat = dimensions.height > dimensions.width ? 90 : 0
@@ -139,7 +146,8 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
             AVVideoWidthKey: captureWidth,
             AVVideoHeightKey: captureHeight,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 2_000_000,
+                // About 12 Mbps at 1080p; retain detail for cropping and export.
+                AVVideoAverageBitRateKey: max(2_000_000, captureWidth * captureHeight * 6),
                 AVVideoMaxKeyFrameIntervalKey: 30,
             ] as [String: Any],
         ]

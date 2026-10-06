@@ -102,7 +102,8 @@ final class LiveEditFrameRenderer {
                                    pipSize: settings.webcamSize, shape: settings.webcamShape) : nil
     }
 
-    func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil) -> CIImage {
+    func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
+                webcamTime: Double? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -137,7 +138,11 @@ final class LiveEditFrameRenderer {
             }
         }
         if let canvas { image = canvas.composite(primary: image, camera: transform, primaryOverlay: cursorLayer) }
-        if let webcam, let webcamImage { image = webcam.composite(webcamImage: webcamImage, onto: image) }
+        if let webcam, let webcamImage {
+            let layout = CameraLayoutChange.settings(at: webcamTime ?? time, initial: settings.cameraLayout,
+                                                     changes: settings.cameraLayoutChanges)
+            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout)
+        }
         return image.cropped(to: CGRect(origin: .zero, size: outputSize))
     }
 

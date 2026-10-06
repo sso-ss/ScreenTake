@@ -342,6 +342,8 @@ final class RecordingState: ObservableObject {
                 pipPosition: settings.webcamPosition,
                 pipSize: settings.webcamSize,
                 pipShape: settings.webcamShape,
+                cameraLayout: settings.cameraLayout,
+                cameraLayoutChanges: settings.cameraLayoutChanges,
                 mouseDataURL: mouseDataURL,
                 cursorScale: settings.cursorScale,
                 cursorShape: settings.cursorShape,

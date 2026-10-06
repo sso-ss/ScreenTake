@@ -73,6 +73,7 @@ struct SettingsView: View {
     // Export state
     @StateObject private var exportEngine = ExportEngine()
     @StateObject private var cameraPreview = CameraPreviewController()
+    @StateObject private var cameraLayoutPlayback = TimelinePlayback()
     @State private var isShowingCameraPreview = false
     @State private var isExporting = false
     @State private var exportError: String?
@@ -181,6 +182,7 @@ struct SettingsView: View {
         .onChange(of: voiceOverRecorder.isBusy) { busy in appState.isRecordingVoiceOver = busy }
         .onChange(of: videoOverlayRecorder.isBusy) { busy in appState.isRecordingCameraOverlay = busy }
         .onDisappear {
+            cameraLayoutPlayback.detach()
             appState.updateUnsavedVideoWork(session: videoSessionID, hasUnsavedWork: false)
             voiceOverRecorder.cancel()
             videoOverlayRecorder.cancel()
@@ -666,13 +668,18 @@ struct SettingsView: View {
                             }
                         }
                         .disabled(videoOverlayRecorder.isBusy)
-                        settingsToggle(icon: "video.fill", label: "Show Overlay", isOn: $editDraft.webcamEnabled)
+                        settingsToggle(icon: "video.fill", label: "Show Camera", isOn: $editDraft.webcamEnabled)
                             .disabled(videoOverlayRecorder.isBusy)
                         if editDraft.webcamEnabled {
                             Group {
-                                webcamShapePicker(selection: $editDraft.webcamShape)
-                                webcamPositionPicker(selection: $editDraft.webcamPosition)
-                                webcamSizePicker(selection: $editDraft.webcamSize)
+                                cameraLayoutControls
+                                if currentCameraLayout.layout == .overlay {
+                                    webcamShapePicker(selection: $editDraft.webcamShape)
+                                    webcamPositionPicker(selection: $editDraft.webcamPosition)
+                                    webcamSizePicker(selection: $editDraft.webcamSize)
+                                } else {
+                                    cameraFramingControls
+                                }
                             }.disabled(videoOverlayRecorder.isBusy)
                         }
                     }
@@ -753,13 +760,6 @@ struct SettingsView: View {
 
     private var editActions: some View {
         VStack(spacing: 10) {
-            if let sourceVideoSize {
-                let size = editDraft.outputSize(source: sourceVideoSize)
-                Text("Export: \(Int(size.width)) × \(Int(size.height))")
-                    .font(Typography.caption)
-                    .foregroundStyle(DesignColors.secondaryLabel)
-                    .accessibilityIdentifier("exportDimensions")
-            }
             if isExporting || appState.recording.processingStage != nil {
                 let progress = editingRecording ? appState.recording.processingProgress : exportEngine.progress
                 ProgressView(value: progress, total: 1)
@@ -951,6 +951,105 @@ struct SettingsView: View {
     }
 
     // MARK: - Settings Components
+
+    private var cameraSourceTime: Double? {
+        let time = CMTime(seconds: cameraLayoutPlayback.seconds, preferredTimescale: 60000)
+        if let timing = editDraft.videoOverlayTiming {
+            return timing.sampleTime(at: time.seconds)?.seconds
+        }
+        return renderedPreviewTimeline?.sourceTime(at: time).seconds
+    }
+
+    private var cameraLayoutChangeIndex: Int? {
+        guard let time = cameraSourceTime else { return nil }
+        return editDraft.cameraLayoutChanges.indices.filter { editDraft.cameraLayoutChanges[$0].start <= time + 0.0001 }
+            .max { editDraft.cameraLayoutChanges[$0].start < editDraft.cameraLayoutChanges[$1].start }
+    }
+
+    private var currentCameraLayout: CameraLayoutSettings {
+        cameraLayoutChangeIndex.map { editDraft.cameraLayoutChanges[$0].settings } ?? editDraft.cameraLayout
+    }
+
+    private func updateCameraLayout(_ change: (inout CameraLayoutSettings) -> Void) {
+        videoPlayer?.pause()
+        if let index = cameraLayoutChangeIndex { change(&editDraft.cameraLayoutChanges[index].settings) }
+        else { change(&editDraft.cameraLayout) }
+    }
+
+    private var cameraLayoutControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            cameraSettingLabel("Layout", symbol: "rectangle.on.rectangle")
+            Picker("Camera layout", selection: Binding(
+                get: { currentCameraLayout.layout },
+                set: { layout in updateCameraLayout { $0.layout = layout } }
+            )) {
+                ForEach(CameraLayout.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("cameraLayout")
+            Text(editDraft.cameraLayoutChanges.isEmpty
+                 ? "Applies to the entire camera clip."
+                 : "Applies to the camera section at the playhead.")
+                .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .help("Select the camera strip and use Split to give each section its own layout.")
+    }
+
+    private func cameraSettingLabel(_ title: String, symbol: String) -> some View {
+        HStack {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(Typography.body)
+                .foregroundStyle(DesignColors.primaryLabel)
+        }
+    }
+
+    private func cameraFramingBinding(_ keyPath: WritableKeyPath<CameraLayoutSettings, Double>) -> Binding<Double> {
+        Binding(get: { currentCameraLayout[keyPath: keyPath] },
+                set: { value in updateCameraLayout { $0[keyPath: keyPath] = value } })
+    }
+
+    private var cameraFramingControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                HStack {
+                    cameraSettingLabel("Zoom", symbol: "plus.magnifyingglass")
+                    Spacer()
+                    NumericSettingInput(value: Binding(
+                        get: { Int((currentCameraLayout.zoom * 100).rounded()) },
+                        set: { value in updateCameraLayout { $0.zoom = Double(value) / 100 } }
+                    ), range: 100...300, unit: "%", label: "Camera zoom in percent")
+                }
+                primarySlider(selection: cameraFramingBinding(\.zoom), range: 1...3,
+                              label: "Camera zoom", value: "\(Int((currentCameraLayout.zoom * 100).rounded()))%")
+            }
+            cameraFramingSlider("Horizontal Framing", symbol: "arrow.left.and.right", keyPath: \.centerX)
+            cameraFramingSlider("Vertical Framing", symbol: "arrow.up.and.down", keyPath: \.centerY)
+            Button {
+                updateCameraLayout { $0.zoom = 1; $0.centerX = 0.5; $0.centerY = 0.5 }
+            } label: {
+                Label("Reset Framing", systemImage: "arrow.counterclockwise")
+            }
+            .buttonStyle(CompactActionButtonStyle())
+        }
+    }
+
+    private func cameraFramingSlider(_ title: String, symbol: String,
+                                     keyPath: WritableKeyPath<CameraLayoutSettings, Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            cameraSettingLabel(title, symbol: symbol)
+            primarySlider(selection: cameraFramingBinding(keyPath), range: 0...1,
+                          label: "Camera \(title.lowercased())",
+                          value: "\(Int((currentCameraLayout[keyPath: keyPath] * 100).rounded()))%")
+        }
+    }
 
     private var cropScreenButton: some View {
         Button {
@@ -1478,6 +1577,7 @@ struct SettingsView: View {
                 Button {
                     videoPlayer?.pause()
                     videoPlayer = nil
+                    cameraLayoutPlayback.detach()
                     videoURL = nil
                     layoutSourceURL = nil
                 } label: {
@@ -1534,6 +1634,8 @@ struct SettingsView: View {
                                   videoOverlayURL: $editDraft.videoOverlayURL,
                                   videoOverlayTiming: $editDraft.videoOverlayTiming,
                                   videoOverlayEnabled: $editDraft.webcamEnabled,
+                                  cameraLayout: editDraft.cameraLayout,
+                                  cameraLayoutChanges: $editDraft.cameraLayoutChanges,
                                   isVideoOverlaySelected: $isVideoOverlaySelected)
                     .disabled(editsBusy)
                     .onChange(of: selectedVoiceOverID) { id in
@@ -1640,6 +1742,8 @@ struct SettingsView: View {
             editDraft.videoOverlayURL = url
             editDraft.videoOverlayTiming = timing
             editDraft.webcamEnabled = true
+            editDraft.cameraLayout = CameraLayoutSettings()
+            editDraft.cameraLayoutChanges = []
         }
     }
 
@@ -1661,6 +1765,8 @@ struct SettingsView: View {
                     editDraft.videoOverlayURL = url
                     editDraft.videoOverlayTiming = VideoOverlayTiming(start: 0, duration: duration)
                     editDraft.webcamEnabled = true
+                    editDraft.cameraLayout = CameraLayoutSettings()
+                    editDraft.cameraLayoutChanges = []
                     videoOverlayRecorder.error = nil
                 } catch { videoOverlayRecorder.error = error.localizedDescription }
             }
@@ -1750,6 +1856,7 @@ struct SettingsView: View {
             sourceDuration = 0
             sourceVideoSize = nil
             videoPlayer = AVPlayer()
+            if let videoPlayer { cameraLayoutPlayback.attach(videoPlayer) }
             hasEditableAudio = rawSource != nil && (appState.recording.lastMicAudioURL != nil || appState.recording.lastSystemAudioURL != nil)
             let source = layoutSourceURL!
             Task {
@@ -1858,6 +1965,8 @@ struct SettingsView: View {
                 pipPosition: settings.webcamPosition,
                 pipSize: settings.webcamSize,
                 pipShape: settings.webcamShape,
+                cameraLayout: settings.cameraLayout,
+                cameraLayoutChanges: settings.cameraLayoutChanges,
                 showCursor: false,
                 canvasRatio: settings.ratio,
                 deviceLayout: settings.layout,
@@ -2246,7 +2355,9 @@ enum LiveVideoPreview {
         try Task.checkCancellation()
         let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: request.settings, keyframes: keyframes, mouse: mouse)
         let webcam = request.settings.webcamEnabled ? request.webcam.map {
-            OverlayVideoFrames(url: $0, maximumSize: CGSize(width: 960, height: 960))
+            OverlayVideoFrames(url: $0, maximumSize: request.settings.cameraLayout.layout == .fullScreen
+                               || request.settings.cameraLayoutChanges.contains { $0.settings.layout == .fullScreen }
+                               ? .zero : CGSize(width: 960, height: 960))
         } : nil
         let context = CIContext(options: [.cacheIntermediates: false])
         let filters = AVMutableVideoComposition(asset: composition) { frame in
@@ -2259,7 +2370,8 @@ enum LiveVideoPreview {
                     webcamTime = timing.sampleTime(at: frame.compositionTime.seconds)
                 } else { webcamTime = sourceTime }
                 let result = renderer.render(image, at: sourceTime.seconds,
-                                             webcamImage: webcamTime.flatMap { webcam?.image(at: $0) })
+                                             webcamImage: webcamTime.flatMap { webcam?.image(at: $0) },
+                                             webcamTime: webcamTime?.seconds)
                 frame.finish(with: result, context: context)
             }
         }
@@ -2401,6 +2513,8 @@ struct VideoTrimControls: View {
     @Binding var videoOverlayURL: URL?
     @Binding var videoOverlayTiming: VideoOverlayTiming?
     @Binding var videoOverlayEnabled: Bool
+    let cameraLayout: CameraLayoutSettings
+    @Binding var cameraLayoutChanges: [CameraLayoutChange]
     @Binding var isVideoOverlaySelected: Bool
     @Binding var voiceOvers: [VoiceOverClip]
     @Binding var selectedVoiceOverID: UUID?
@@ -2430,12 +2544,16 @@ struct VideoTrimControls: View {
          zoomPadding: Binding<CGFloat> = .constant(0),
          videoOverlayURL: Binding<URL?> = .constant(nil),
          videoOverlayTiming: Binding<VideoOverlayTiming?> = .constant(nil),
-         videoOverlayEnabled: Binding<Bool> = .constant(false),
+        videoOverlayEnabled: Binding<Bool> = .constant(false),
+         cameraLayout: CameraLayoutSettings = CameraLayoutSettings(),
+         cameraLayoutChanges: Binding<[CameraLayoutChange]> = .constant([]),
          isVideoOverlaySelected: Binding<Bool> = .constant(false),
          silence: SilenceReview? = nil) {
         _videoOverlayURL = videoOverlayURL
         _videoOverlayTiming = videoOverlayTiming
         _videoOverlayEnabled = videoOverlayEnabled
+        self.cameraLayout = cameraLayout
+        _cameraLayoutChanges = cameraLayoutChanges
         _isVideoOverlaySelected = isVideoOverlaySelected
         _trim = trim
         _zoomSegments = zoomSegments
@@ -2462,8 +2580,22 @@ struct VideoTrimControls: View {
     @State private var thumbnails: [CGImage] = []
     @State private var zoom: Double = 1
     @State private var selectedSegment: CMTimeRange?
-    @State private var history: [VideoTrim] = []
-    @State private var redoHistory: [VideoTrim] = []
+    private enum TimelineEdit {
+        case screen(VideoTrim)
+        case camera([CameraLayoutChange])
+        case recording(VideoTrim, [CameraLayoutChange])
+
+        var withoutCamera: Self? {
+            switch self {
+            case .screen: return self
+            case .camera: return nil
+            case .recording(let trim, _): return .screen(trim)
+            }
+        }
+    }
+    @State private var history: [TimelineEdit] = []
+    @State private var redoHistory: [TimelineEdit] = []
+    @State private var cameraDuration: Double = 0
     @State private var movingSegment: Int?
     @State private var moveDestination: Int?
     @State private var draggingZooms: [ZoomSegment]?
@@ -2621,8 +2753,61 @@ struct VideoTrimControls: View {
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
     private var canSplit: Bool {
+        if isVideoOverlaySelected { return cameraSplit != nil }
+        guard selectedVoiceOverID == nil, selectedZoomID == nil else { return false }
         var candidate = trim
         return candidate.split(at: sourceSeconds, duration: mediaDuration)
+    }
+
+    private var cameraSplit: CameraLayoutChange? {
+        guard videoOverlayURL != nil, let timeline else { return nil }
+        return VideoOverlayTimelineRange.visible(timing: videoOverlayTiming, timeline: timeline,
+                                                sourceDuration: cameraDuration).compactMap {
+            CameraLayoutChange.split(at: playback.seconds, in: $0, initial: cameraLayout, changes: cameraLayoutChanges)
+        }.first
+    }
+
+    private var splitLabel: String { isVideoOverlaySelected ? "Split Camera" : "Split Screen" }
+
+    private func splitSelectedTrack() {
+        guard canSplit else { return }
+        if isVideoOverlaySelected, let split = cameraSplit {
+            player.pause()
+            history.append(.camera(cameraLayoutChanges))
+            redoHistory = []
+            cameraLayoutChanges.append(split)
+            cameraLayoutChanges.sort { $0.start < $1.start }
+        } else {
+            var candidate = trim
+            if candidate.split(at: sourceSeconds, duration: mediaDuration) {
+                commit(candidate, cameraSplit: cameraSplit)
+            }
+        }
+    }
+
+    private func restore(_ edit: TimelineEdit) -> TimelineEdit {
+        player.pause()
+        switch edit {
+        case .screen(let value):
+            let previous = trim
+            trim = value
+            selectedSegment = nil
+            return .screen(previous)
+        case .camera(let value):
+            let previous = cameraLayoutChanges
+            cameraLayoutChanges = value
+            selectVideoOverlay()
+            return .camera(previous)
+        case .recording(let value, let changes):
+            let previous = TimelineEdit.recording(trim, cameraLayoutChanges)
+            trim = value
+            cameraLayoutChanges = changes
+            selectedSegment = nil
+            isVideoOverlaySelected = false
+            selectedVoiceOverID = nil
+            selectedZoomID = nil
+            return previous
+        }
     }
     private var removableSelection: VideoTrim? {
         guard let selectedSegment, segments.contains(selectedSegment) else { return nil }
@@ -2631,12 +2816,16 @@ struct VideoTrimControls: View {
         return (try? candidate.timeline(duration: mediaDuration)) == nil ? nil : candidate
     }
 
-    private func commit(_ value: VideoTrim) {
+    private func commit(_ value: VideoTrim, cameraSplit: CameraLayoutChange? = nil) {
         guard value != trim else { return }
         player.pause()
-        history.append(trim)
+        history.append(cameraSplit == nil ? .screen(trim) : .recording(trim, cameraLayoutChanges))
         redoHistory = []
         trim = value
+        if let cameraSplit {
+            cameraLayoutChanges.append(cameraSplit)
+            cameraLayoutChanges.sort { $0.start < $1.start }
+        }
         selectedSegment = nil
     }
 
@@ -2764,9 +2953,21 @@ struct VideoTrimControls: View {
             silence.clear()
         }
         .onChange(of: audio) { _ in silence.clear() }
-        .onChange(of: videoOverlayURL) { _ in isVideoOverlaySelected = false }
+        .onChange(of: videoOverlayURL) { _ in
+            isVideoOverlaySelected = false
+            history = history.compactMap(\.withoutCamera)
+            redoHistory = redoHistory.compactMap(\.withoutCamera)
+        }
         .onChange(of: selectedVoiceOverID) { id in
             if id != nil { isVideoOverlaySelected = false }
+        }
+        .task(id: videoOverlayURL) {
+            cameraDuration = 0
+            guard let url = videoOverlayURL else { return }
+            let duration = try? await AVURLAsset(url: url).load(.duration).seconds
+            guard !Task.isCancelled, url == videoOverlayURL,
+                  let duration, duration.isFinite, duration > 0 else { return }
+            cameraDuration = duration
         }
         .task(id: "\(mouse?.path ?? "")-\(source.path)-\(zoomLevel)-\(duration)-\(zoomEnabled)") {
             automaticZoomsReady = false
@@ -2819,10 +3020,7 @@ struct VideoTrimControls: View {
     private func toolbar(expanded: Bool) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 4) {
-                Button {
-                    var candidate = trim
-                    if candidate.split(at: sourceSeconds, duration: mediaDuration) { commit(candidate) }
-                } label: {
+                Button(action: splitSelectedTrack) {
                     HStack(spacing: 2) {
                         RoundedRectangle(cornerRadius: 1.5)
                             .stroke(lineWidth: 1)
@@ -2835,25 +3033,20 @@ struct VideoTrimControls: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Split")
+                .accessibilityLabel(splitLabel)
                 .accessibilityIdentifier("splitAtPlayhead")
                 .disabled(!canSplit)
-                .modifier(TimelineTooltip(text: canSplit ? "Split the section at the playhead" : "Move the playhead inside a section to split it"))
+                .modifier(TimelineTooltip(text: canSplit ? "\(splitLabel) at the playhead"
+                    : "Select a screen or camera section and move the playhead inside it to split"))
                 icon("arrow.uturn.backward", "Undo timeline edit") {
                     if let previous = history.popLast() {
-                        player.pause()
-                        redoHistory.append(trim)
-                        trim = previous
-                        selectedSegment = nil
+                        redoHistory.append(restore(previous))
                     }
                 }.disabled(history.isEmpty)
                     .modifier(TimelineTooltip(text: history.isEmpty ? "No timeline edits to undo" : "Undo the last split, removal, trim, or reorder"))
                 icon("arrow.uturn.forward", "Redo timeline edit") {
                     if let next = redoHistory.popLast() {
-                        player.pause()
-                        history.append(trim)
-                        trim = next
-                        selectedSegment = nil
+                        history.append(restore(next))
                     }
                 }.disabled(redoHistory.isEmpty)
                     .modifier(TimelineTooltip(text: redoHistory.isEmpty ? "No timeline edits to redo" : "Redo the last timeline edit"))
@@ -2998,7 +3191,9 @@ struct VideoTrimControls: View {
         if let url = videoOverlayURL, let timeline {
             VideoOverlayFilmstrip(url: url, timing: $videoOverlayTiming, timeline: timeline,
                                   width: width, enabled: videoOverlayEnabled, selected: isVideoOverlaySelected,
-                                  playhead: playback.seconds, select: selectVideoOverlay, remove: removeVideoOverlay)
+                                  cameraLayout: cameraLayout, cameraLayoutChanges: cameraLayoutChanges,
+                                  playhead: playback.seconds, select: selectVideoOverlay, remove: removeVideoOverlay,
+                                  seek: seekOutput)
                 .offset(x: 12, y: videoLaneBottom)
         }
     }
@@ -3277,6 +3472,7 @@ struct VideoTrimControls: View {
                 selectedSegment = segment
                 isVideoOverlaySelected = false
                 selectedVoiceOverID = nil
+                selectedZoomID = nil
                 focusedZoomID = nil
                 filmstripFocused = true
                 player.pause()
