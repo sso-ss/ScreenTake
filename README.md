@@ -2,9 +2,18 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.11 (build 13)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.12 (build 14)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.11/ScreenTake-0.1.11-build13.dmg) · [Release notes](https://github.com/sso-ss/ScreenTake/releases/tag/v0.1.11)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.12-build14.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+
+## New in 0.1.12
+
+- Switch camera sections between **Overlay** and **Full Screen**, adjust full-screen zoom and framing, and optionally follow one face.
+- Use the main **Split** button to give camera sections their own layout. Splitting a screen recording also splits its camera presentation.
+- Add optional smooth camera transitions with adjustable duration and motion.
+- Preview your camera directly in the recording canvas. Enabling the camera turns on the microphone; you can still turn it off or use the microphone on its own.
+- Choose a microphone above **Record Voiceover**, using the same saved device selection as the recording controls.
+- Preserve source resolution through screen exports and use higher-quality camera capture for full-screen layouts.
 
 ## See the app
 
@@ -25,18 +34,18 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Area | Features in the Mac app |
 | --- | --- |
 | Screen capture | Choose a display or window; record at 30 or 60 FPS; pause, resume, and stop from the native capture toolbar or keyboard shortcuts. |
-| Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. |
-| Voiceover | Record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
+| Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
+| Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Undo and redo timeline edits; zoom the timeline and scrub the preview. |
 | Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
 | Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor; adjust zoom strength and focus for eligible recordings. |
-| Camera and overlays | Record a webcam overlay or import a video overlay. Adjust its shape, size, and position. |
+| Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop corners, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose built-in wallpapers, including Prism, Lagoon, Ember, and Midnight. Toggle the background for an original-size desktop canvas. |
 | Preview and export | Preview your edits, apply changes, and save a MOV file. Playback controls stay centered beneath the video. Recordings and editable source files stay on your Mac. |
 
-Voiceover recording uses your Mac’s default microphone and mutes preview sound while recording. Takes keep their timeline positions when video clips change, so check narration alignment after rearranging your video.
+Select your microphone above **Record Voiceover** in the Audio panel. The selection is shared with the recording controls. **Default** follows your Mac’s default input. Preview sound is muted while recording. Takes keep their timeline positions when video clips change, so check narration alignment after rearranging your video.
 
 ## Install
 
@@ -64,7 +73,7 @@ The recording shortcuts work across apps. Plain Z and Space also toggle zoom and
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
 - Cursor and zoom re-editing need capture data retained in the current app session. Imported finished videos and recordings reopened after quitting do not restore that data.
 - Editable source media uses local disk space. Saving a finished MOV does not preserve all capture data for later editing.
-- ScreenTake checks this repository for new releases about once a day while the app is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page; installation is manual. Version 0.1.10 checks the previous repository, where 0.1.11 is also published to bridge existing installations.
+- ScreenTake checks this repository for new releases about once a day while the app is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page; installation is manual. Version 0.1.10 can update to 0.1.11 through the previous repository, then use the current ScreenTake release page for later updates.
 
 ## Feedback
 

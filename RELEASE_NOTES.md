@@ -1,9 +1,27 @@
-# ScreenTake 0.1.11 · build 13
+# ScreenTake 0.1.12 — Beta
 
-This update restores update reminders for the current ScreenTake releases. The app checks for a new version about once a day while it is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page so you can download and install the update manually.
+More control over your camera, clearer exports, and the microphone you choose.
 
-The feedback shortcut now opens the current ScreenTake issue page. The recording and editing features are the same as 0.1.10.
+**[Download ScreenTake 0.1.12 (build 14)](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.12-build14.dmg)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-This Apple Silicon beta requires macOS 13 or later. The DMG contains a Developer ID signed app and is notarized by Apple. Save your work, quit the old app, and drag ScreenTake into Applications. Make a short test recording and check the export before sharing.
+## What’s new
 
-SHA-256 of the DMG: `28081a7849930f23b1e4b3b567c566a738c48105b615807c5acbc66076f6c02b`
+- Choose **Overlay** or **Full Screen** per camera section, with full-screen zoom and framing controls.
+- Optionally **Follow face** to gently crop around one face. Your framing is kept when no face is detected.
+- Use the main **Split** button for camera sections. Splitting a screen recording also splits its camera presentation.
+- Add **Smooth Transition** between camera sections, with adjustable duration and motion, or turn it off for a direct cut.
+- Preview the camera directly in the recording canvas. Enabling the camera turns the microphone on; you can still turn it off or use the microphone on its own.
+- Choose a microphone above **Record Voiceover**, using the same saved selection as the recording controls.
+- Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.
+
+## Install
+
+Save your work and quit ScreenTake. Open **ScreenTake-0.1.12-build14.dmg**, drag **ScreenTake.app** into **Applications**, eject the installer, and reopen the app. Update reminders open the release page; installation is manual.
+
+## Verification and beta notes
+
+The app and installer are signed with **Developer ID Application: So Eun Ahn (43LSH32H5S)**. Apple accepted the installer for notarization, its approval ticket is attached, and macOS Gatekeeper and disk-image integrity checks passed. The website download contains the exact same DMG.
+
+Make a short test recording and review your exported video and audio before sharing. Device reliability and smart zoom are still being refined. Face tracking follows one visible face; longer clips may take a moment to prepare. Cursor and zoom re-editing require the original capture data retained in the current app session; imported or reopened finished videos do not restore it.
+
+[Report an issue](https://github.com/sso-ss/ScreenTake/issues)
