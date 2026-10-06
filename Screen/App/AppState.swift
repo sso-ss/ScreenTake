@@ -22,10 +22,23 @@ final class AppState: ObservableObject {
     let updates = UpdateChecker()
     @Published var isExportingVideo = false
     @Published var isRecordingVoiceOver = false
+    @Published var isRecordingCameraOverlay = false
+    var isRecordingEditorMedia: Bool { isRecordingVoiceOver || isRecordingCameraOverlay }
 
     // MARK: - Capture Toolbar
 
     var captureToolbarCoordinator: CaptureToolbarCoordinator?
+    @Published private var unsavedVideoSessions = Set<UUID>()
+    var hasUnsavedVideoWork: Bool { !unsavedVideoSessions.isEmpty }
+    private(set) var isConfirmingVideoReplacement = false
+
+    func updateUnsavedVideoWork(session: UUID, hasUnsavedWork: Bool) {
+        if hasUnsavedWork {
+            unsavedVideoSessions.insert(session)
+        } else {
+            unsavedVideoSessions.remove(session)
+        }
+    }
 
     // MARK: - Private
 
@@ -137,8 +150,16 @@ final class AppState: ObservableObject {
     // MARK: - Capture Toolbar
 
     func showCaptureToolbar() async {
-        guard captureToolbarCoordinator == nil, !isRecording, !isRecordingVoiceOver,
-              recording.processingStage == nil, !updates.isPresenting else { return }
+        guard captureToolbarCoordinator == nil, !isRecording, !isRecordingEditorMedia,
+              recording.processingStage == nil, !updates.isPresenting,
+              !isExportingVideo, !isConfirmingVideoReplacement,
+              NSApplication.shared.modalWindow == nil,
+              !NSApplication.shared.windows.contains(where: { $0.attachedSheet != nil }) else { return }
+        if hasUnsavedVideoWork {
+            let approved = await confirmVideoReplacement(.record)
+            guard approved, captureToolbarCoordinator == nil, !isRecording,
+                  recording.processingStage == nil, !isExportingVideo else { return }
+        }
         // Hide the main window
         for window in NSApplication.shared.windows where window.styleMask.contains(.titled) && window.level == .normal {
             window.orderOut(nil)
@@ -147,6 +168,49 @@ final class AppState: ObservableObject {
         let coordinator = CaptureToolbarCoordinator(appState: self)
         self.captureToolbarCoordinator = coordinator
         await coordinator.showToolbar()
+    }
+
+    func confirmVideoReplacement(_ action: VideoReplacementAction) async -> Bool {
+        guard !isConfirmingVideoReplacement else { return false }
+        isConfirmingVideoReplacement = true
+        defer { isConfirmingVideoReplacement = false }
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        let editorWindows = NSApplication.shared.windows.filter {
+            $0.styleMask.contains(.titled) && $0.level == .normal && !($0 is NSPanel)
+        }
+        let window = editorWindows.first(where: { $0.isKeyWindow })
+            ?? editorWindows.first(where: { $0.isMainWindow })
+            ?? editorWindows.first
+        let panel = NSPanel(contentRect: CGRect(x: 0, y: 0, width: 440, height: 210),
+                            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.isReleasedWhenClosed = false
+        let content = NSHostingView(rootView: VideoReplacementDialog(action: action) { discard in
+            let response: NSApplication.ModalResponse = discard ? .OK : .cancel
+            if let window {
+                window.endSheet(panel, returnCode: response)
+            } else {
+                NSApplication.shared.stopModal(withCode: response)
+            }
+        })
+        panel.contentView = content
+        panel.setContentSize(content.fittingSize)
+        defer { panel.orderOut(nil); panel.contentView = nil }
+        if let window {
+            window.makeKeyAndOrderFront(nil)
+            return await withCheckedContinuation { decision in
+                window.beginSheet(panel) { response in
+                    decision.resume(returning: response == .OK)
+                }
+            }
+        }
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        return NSApplication.shared.runModal(for: panel) == .OK
     }
 
     func dismissCaptureToolbar() {

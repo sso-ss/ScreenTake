@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */; };
 		06EB51A22013466E9080BA96 /* MediaMuxer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */; };
 		0AF59A63D6292356EBBA5FF2 /* CaptureMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */; };
 		0BE99912DC2EC57789666D18 /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8303EE077B22AE6A1E42F4 /* PermissionsManager.swift */; };
@@ -63,6 +64,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoReplacementState.swift; sourceTree = "<group>"; };
 		02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMode.swift; sourceTree = "<group>"; };
 		0EDBA69C53641A60EBBE715D /* RecordingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinator.swift; sourceTree = "<group>"; };
 		1023AEA77834B62F61A85132 /* CursorImageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorImageProvider.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 				5BFD069330C6A6AF2F3D7626 /* CaptureToolbarCoordinator.swift */,
 				C71BC748567A61120D433587 /* Log.swift */,
 				97861B5425D6513A778B1B33 /* NavigationState.swift */,
+				BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */,
 				A6F6E4B4AF86D43F888DD8ED /* RecordingState.swift */,
 				102DD963F4C94915F0CB1525 /* ScreenApp.swift */,
 				E2042CA2A3BFADC44ED932C4 /* UpdateChecker.swift */,
@@ -393,6 +396,7 @@
 				902412A6947CDE924EEA4251 /* MicrophoneRecorder.swift in Sources */,
 				ED62B763570DC589CEA40015 /* MouseDataRecorder.swift in Sources */,
 				1C392DF8E721ABDF72E1E563 /* NavigationState.swift in Sources */,
+				BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */,
 				5427F3A799B85A284210C0EE /* ObjCExceptionCatcher.m in Sources */,
 				A61C71D2524A31E6712E402A /* PermissionSetupWizardView.swift in Sources */,
 				0BE99912DC2EC57789666D18 /* PermissionsManager.swift in Sources */,

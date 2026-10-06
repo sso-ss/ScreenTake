@@ -27,12 +27,26 @@ struct VideoEditSettings: Equatable {
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
     var videoOverlayURL: URL?
+    /// Nil for a camera sidecar synchronized to the original recording.
+    var videoOverlayTiming: VideoOverlayTiming?
     var audioEnabled = true
     var originalAudioVolume: Double = 1
     var voiceOverEnabled = true
     var voiceOverVolume: Double = 1
     var voiceOvers: [VoiceOverClip] = []
     var trim = VideoTrim()
+}
+
+struct VideoOverlayTiming: Equatable {
+    var start: Double
+    var duration: Double
+
+    func sampleTime(at outputSeconds: Double) -> CMTime? {
+        let seconds = outputSeconds - start
+        guard seconds.isFinite, start.isFinite, duration.isFinite,
+              seconds >= 0, seconds < duration else { return nil }
+        return CMTime(seconds: seconds, preferredTimescale: 60000)
+    }
 }
 
 struct ZoomSegment: Equatable, Identifiable {

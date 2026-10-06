@@ -84,6 +84,29 @@ enum CornerRadius {
     static let xxl: CGFloat = 12
 }
 
+// MARK: - Compact Actions
+
+enum ControlMetrics {
+    static let actionHeight: CGFloat = 24
+}
+
+struct CompactActionButtonStyle: ButtonStyle {
+    var prominent = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(prominent ? Color.white : (configuration.role == .destructive ? DesignColors.error : DesignColors.primaryLabel))
+            .padding(.horizontal, 10)
+            .frame(height: ControlMetrics.actionHeight)
+            .background(prominent ? DesignColors.accent : DesignColors.inputBackground,
+                        in: RoundedRectangle(cornerRadius: CornerRadius.md))
+            .contentShape(RoundedRectangle(cornerRadius: CornerRadius.md))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+    }
+}
+
 // MARK: - Window Chrome (from mockup-tool)
 
 enum WindowChrome {

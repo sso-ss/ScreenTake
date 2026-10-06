@@ -3,6 +3,9 @@ import CoreImage
 import AppKit
 import AVFoundation
 import SwiftUI
+#if SCREEN_APP_MODULE
+@testable import ScreenTake
+#endif
 
 @main
 struct PhoneCropTests {
@@ -74,6 +77,37 @@ struct PhoneCropTests {
             clicks: [], keys: [], scrolls: [], zoomMarkers: [],
             screenBounds: .init(from: CGRect(origin: .zero, size: sourceSize)), scaleFactor: 1, sampleInterval: 1.0 / 60)
         try JSONEncoder().encode(mouse).write(to: mouseURL)
+        for background in [false, true] {
+            let settings = VideoEditSettings(layout: .desktop, backgroundEnabled: background,
+                                             crop: selectedCrop, showCursor: false)
+            let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: settings, keyframes: [])
+            let expectedSize = background ? sourceSize : CGSize(width: 320, height: 320)
+            precondition(renderer.outputSize == expectedSize, "Desktop preview must use cropped dimensions when Background is off")
+            let frame = CIImage(color: .green).cropped(to: sourceRect).composited(over: CIImage(color: .red).cropped(to: CGRect(origin: .zero, size: sourceSize)))
+            let preview = renderer.render(frame, at: 0)
+            let output = directory.appendingPathComponent("desktop-\(background).mov")
+            _ = try await ExportEngine().export(sourceURL: source, keyframes: [], configuration: .init(
+                outputURL: output, showCursor: false, deviceLayout: .desktop,
+                phoneCrop: selectedCrop, forceCanvas: background))
+            let asset = AVURLAsset(url: output)
+            let track = try await asset.loadTracks(withMediaType: .video).first!
+            let exportedSize = try await track.load(.naturalSize)
+            precondition(exportedSize == expectedSize, "Desktop export dimensions must match the crop preview")
+            let exportedDuration = try await asset.load(.duration).seconds
+            precondition(abs(exportedDuration - 1) < 0.05)
+            let exported = CIImage(cgImage: try await AVAssetImageGenerator(asset: asset).image(at: .zero).image)
+            let content = background ? CanvasGeometry(size: expectedSize, layout: .desktop, sourceSize: sourceRect.size).desktop! : CGRect(origin: .zero, size: expectedSize)
+            for (imageIndex, image) in [preview, exported].enumerated() {
+                for x in [content.minX + content.width * 0.1, content.midX, content.maxX - content.width * 0.1] {
+                    var pixel = [UInt8](repeating: 0, count: 4)
+                    context.render(image, toBitmap: &pixel, rowBytes: 4,
+                                   bounds: CGRect(x: x, y: content.midY, width: 1, height: 1),
+                                   format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+                    precondition(pixel[1] > 180 && Int(pixel[1]) - Int(pixel[0]) > 100, "Desktop crop must remove excluded red borders: background=\(background), image=\(imageIndex), point=\(x), pixel=\(pixel)")
+                }
+            }
+            print("PASS: Desktop crop with Background \(background ? "on" : "off") matches preview/export dimensions and excludes borders")
+        }
         for (layout, mode) in DeviceLayout.allCases.filter(\.isPhone).flatMap({ layout in PhoneContentMode.allCases.map { (layout, $0) } }) {
             let decodedLayout = try JSONDecoder().decode(DeviceLayout.self, from: JSONEncoder().encode(layout))
             precondition(decodedLayout == layout)
@@ -101,18 +135,20 @@ struct PhoneCropTests {
             let scale = mode == .fit ? min(content.width / sourceRect.width, content.height / sourceRect.height)
                                     : max(content.width / sourceRect.width, content.height / sourceRect.height)
             let cursor = CGPoint(x: content.midX + (0.375 - 0.5) * sourceRect.width * scale, y: content.midY)
-            var darkPixels = 0
+            // The circle cursor is a translucent white lens over the green fixture.
+            var cursorPixels = 0
             for offsetY in -8...8 {
                 for offsetX in -8...8 {
                     let color = pixel(CGPoint(x: cursor.x + CGFloat(offsetX), y: cursor.y + CGFloat(offsetY)))
-                    if max(color.redComponent, color.greenComponent, color.blueComponent) < 0.15 { darkPixels += 1 }
+                    if color.redComponent > 0.15 && color.blueComponent > 0.15 && color.greenComponent > 0.7 { cursorPixels += 1 }
                 }
             }
-            precondition(darkPixels > 10, "Cursor missing or misaligned after crop")
+            precondition(cursorPixels > 10, "Cursor missing or misaligned after crop")
             print("PASS: \(layout.displayName) \(mode.rawValue) export excludes borders, preserves duration, and aligns the cursor")
         }
 
-        for layout in DeviceLayout.allCases.filter(\.isPhone) {
+        if CommandLine.arguments.contains("--render-only") { return }
+        for layout in DeviceLayout.allCases {
         let host = NSHostingView(rootView: PhoneCropEditor(sourceURL: source, initialCrop: selectedCrop, initialMode: .fit,
             ratio: .portrait, wallpaper: .lagoon, layout: layout, onApply: { _, _ in }))
         let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled], backing: .buffered, defer: false)

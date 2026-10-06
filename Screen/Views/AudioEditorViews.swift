@@ -24,15 +24,18 @@ struct EditorAudioPanel: View {
                 ProgressView(value: Double(recorder.level)).tint(.red)
                     .accessibilityLabel("Microphone level")
                 HStack {
-                    Button("Stop & Keep") { recorder.stop() }.disabled(!recorder.isRecording)
-                    Button("Cancel") { recorder.cancel() }
+                    Button("Stop & Keep") { recorder.stop() }
+                        .buttonStyle(CompactActionButtonStyle()).disabled(!recorder.isRecording)
+                    Button("Cancel") { recorder.cancel() }.buttonStyle(CompactActionButtonStyle())
                 }
             } else {
                 Button(action: startRecording) {
                     Label("Record Voiceover", systemImage: "mic.fill")
                 }
+                .buttonStyle(CompactActionButtonStyle())
                 .disabled(duration <= 0)
                 Button(action: importAudio) { Label("Import Audio…", systemImage: "waveform.badge.plus") }
+                    .buttonStyle(CompactActionButtonStyle())
             }
             Text("Uses your Mac’s default microphone. Preview sound is muted while recording.")
                 .font(.caption).foregroundStyle(.secondary)

@@ -12,5 +12,6 @@ Apply this guide when creating or updating ScreenTake settings UI:
 - Use `Spacing.labelToControl` and `Spacing.featureGap` from the design tokens.
 - Set spacing explicitly; do not rely on native picker label spacing.
 - Keep icon-to-label and spacing inside a single control separate from these rules.
+- Settings sidebar buttons use 40 × 40 point targets, with 20 points between items.
 
 SwiftUI uses logical points for these design dimensions (12px / 20px in the design guide).

@@ -74,13 +74,13 @@ struct ScreenApp: App {
                     openVideoFile()
                 }
                 .keyboardShortcut("o", modifiers: .command)
-                .disabled(appState.isRecordingVoiceOver)
+                .disabled(appState.isRecordingEditorMedia)
 
                 Button("Open Project…") {
                     openProjectFile()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
-                .disabled(appState.isRecordingVoiceOver)
+                .disabled(appState.isRecordingEditorMedia)
             }
 
             CommandGroup(after: .newItem) {
@@ -92,7 +92,7 @@ struct ScreenApp: App {
                     }
                 }
                 .keyboardShortcut("r", modifiers: .command)
-                .disabled(appState.isRecording || appState.isRecordingVoiceOver)
+                .disabled(appState.isRecording || appState.isRecordingEditorMedia)
             }
         }
     }

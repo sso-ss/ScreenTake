@@ -13,6 +13,7 @@ final class RecordingState: ObservableObject {
     @Published var isPaused: Bool = false
     @Published var recordingDuration: TimeInterval = 0
     @Published var lastRecordingURL: URL?
+    private(set) var lastSavedRecordingURL: URL?
     @Published private(set) var lastSourceRecordingURL: URL?
     private var lastRecordingUsedZoom = false
     @Published private(set) var lastAppliedEdits: VideoEditSettings?
@@ -84,6 +85,7 @@ final class RecordingState: ObservableObject {
         }
         if lastRecordingURL == source {
             lastRecordingURL = destination
+            lastSavedRecordingURL = destination
         }
     }
 
@@ -334,7 +336,9 @@ final class RecordingState: ObservableObject {
                 codec: .hevc,
                 fileType: .mov,
                 bitRate: 20_000_000,
-                webcamVideoURL: settings.webcamEnabled ? (settings.videoOverlayURL ?? lastWebcamVideoURL) : nil,
+                webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,
+                videoOverlayTiming: settings.videoOverlayTiming,
+                videoOverlayTrim: settings.trim,
                 pipPosition: settings.webcamPosition,
                 pipSize: settings.webcamSize,
                 pipShape: settings.webcamShape,

@@ -30,6 +30,8 @@ final class ExportEngine: ObservableObject {
 
         /// Webcam PiP overlay settings
         var webcamVideoURL: URL?
+        var videoOverlayTiming: VideoOverlayTiming?
+        var videoOverlayTrim: VideoTrim?
         var pipPosition: PiPPosition = .bottomRight
         var pipSize: PiPSize = .medium
         var pipShape: PiPShape = .circle
@@ -81,11 +83,13 @@ final class ExportEngine: ObservableObject {
             width: abs(orientedBounds.width),
             height: abs(orientedBounds.height)
         )
-        let cropRect = (configuration.deviceLayout.isPhone ? configuration.phoneCrop : PhoneCrop()).pixelRect(in: originalSize)
+        let cropRect = configuration.phoneCrop.pixelRect(in: originalSize)
         let sourceSize = cropRect.size
         let normalizedCrop = CGRect(x: cropRect.minX / originalSize.width, y: 1 - cropRect.maxY / originalSize.height,
                                     width: cropRect.width / originalSize.width, height: cropRect.height / originalSize.height)
-        let outputSize = configuration.outputSize ?? configuration.canvasRatio.size(source: originalSize)
+        let automaticSize = configuration.canvasRatio.size(source: configuration.usesCanvas ? originalSize : sourceSize)
+        let outputSize = configuration.outputSize ?? CGSize(width: max(2, floor((automaticSize.width + 0.000001) / 2) * 2),
+                                                           height: max(2, floor((automaticSize.height + 0.000001) / 2) * 2))
         let canvas = configuration.usesCanvas
             ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout, wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode, desktopCornerRadius: CGFloat(configuration.desktopCornerRadius)) : nil
         var phoneReader: TimedVideoReader?
@@ -227,11 +231,17 @@ final class ExportEngine: ObservableObject {
         var webcamReader: AVAssetReader?
         var webcamReaderOutput: AVAssetReaderTrackOutput?
         var compositor: WebcamCompositor?
+        var overlayFrames: OverlayVideoFrames?
+        let overlayTimeline = try configuration.videoOverlayTrim?.timeline(duration: duration)
 
         if let webcamURL = configuration.webcamVideoURL,
            FileManager.default.fileExists(atPath: webcamURL.path) {
             let webcamAsset = AVURLAsset(url: webcamURL)
-            if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
+            if configuration.videoOverlayTiming != nil {
+                overlayFrames = OverlayVideoFrames(url: webcamURL)
+                compositor = WebcamCompositor(outputSize: outputSize, position: configuration.pipPosition,
+                                               pipSize: configuration.pipSize, shape: configuration.pipShape)
+            } else if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
                 let wReader = try AVAssetReader(asset: webcamAsset)
                 let wOutput = AVAssetReaderTrackOutput(track: webcamTrack, outputSettings: readerSettings)
                 wOutput.alwaysCopiesSampleData = true
@@ -426,6 +436,11 @@ final class ExportEngine: ObservableObject {
                         }
                         pendingWebcamSample = nil
                     }
+                }
+
+                if let timing = configuration.videoOverlayTiming, let overlayFrames {
+                    let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
+                    currentWebcamImage = timing.sampleTime(at: outputTime.seconds).flatMap { overlayFrames.image(at: $0) }
                 }
 
                 var frameImage = image
@@ -721,5 +736,31 @@ enum ExportError: LocalizedError {
         case .missingPhoneVideo: return "Choose a phone video for the Duo layout."
         case .incompleteFrames: return "Some video frames could not be rendered. The original video has been kept."
         }
+    }
+}
+
+final class OverlayVideoFrames {
+    private let generator: AVAssetImageGenerator
+    private let lock = NSLock()
+    private var cachedTime = -Double.infinity
+    private var cachedImage: CIImage?
+
+    init(url: URL) {
+        generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 480, height: 480)
+        generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 30)
+        generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 30)
+    }
+
+    func image(at time: CMTime) -> CIImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        if abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedImage }
+        if let image = try? generator.copyCGImage(at: time, actualTime: nil) {
+            cachedImage = CIImage(cgImage: image)
+            cachedTime = time.seconds
+        }
+        return cachedTime == time.seconds ? cachedImage : nil
     }
 }

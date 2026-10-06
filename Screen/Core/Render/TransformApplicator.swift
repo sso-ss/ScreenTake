@@ -81,14 +81,14 @@ final class LiveEditFrameRenderer {
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
          mouse: MouseDataRecorder.MouseRecording? = nil) {
         self.settings = settings
-        cropRect = settings.layout.isPhone ? settings.crop.pixelRect(in: sourceSize) : CGRect(origin: .zero, size: sourceSize)
+        cropRect = settings.crop.pixelRect(in: sourceSize)
         normalizedCrop = CGRect(x: cropRect.minX / sourceSize.width,
                                 y: 1 - cropRect.maxY / sourceSize.height,
                                 width: cropRect.width / sourceSize.width, height: cropRect.height / sourceSize.height)
-        let dimensions = settings.ratio.size(source: sourceSize)
+        let dimensions = settings.ratio.size(source: settings.layout == .desktop && !settings.backgroundEnabled && settings.ratio == .original ? cropRect.size : sourceSize)
         let scale = min(1, 2560 / max(dimensions.width, dimensions.height))
-        outputSize = CGSize(width: max(2, floor(dimensions.width * scale / 2) * 2),
-                            height: max(2, floor(dimensions.height * scale / 2) * 2))
+        outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
+                            height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
         positions = mouse?.positions ?? []
         let captureWidth = (mouse?.screenBounds.width ?? Double(sourceSize.width)) * (mouse?.scaleFactor ?? 1)
