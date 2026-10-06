@@ -35,7 +35,8 @@ struct SettingsView: View {
     @State private var isDragging = false
     @State private var layoutSourceURL: URL?
     @State private var layoutKeyframes: [CameraKeyframe] = []
-    @State private var isShowingPhoneCrop = false
+    @State private var isCroppingScreen = false
+    @State private var cropFrameTime = CMTime.zero
     @State private var editDraft = VideoEditSettings()
     @State private var appliedEdits = VideoEditSettings()
     @StateObject private var voiceOverRecorder = VoiceOverRecorder()
@@ -192,17 +193,6 @@ struct SettingsView: View {
         )
         .onDrop(of: [.movie, .fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers)
-        }
-        .sheet(isPresented: $isShowingPhoneCrop) {
-            if let source = phoneCropSource {
-                PhoneCropEditor(sourceURL: source, initialCrop: editDraft.crop,
-                                initialMode: editDraft.phoneMode,
-                                ratio: editDraft.ratio, wallpaper: editDraft.wallpaper, layout: editDraft.layout,
-                                backgroundEnabled: editDraft.backgroundEnabled, desktopCornerRadius: editDraft.desktopCornerRadius) { crop, mode in
-                    editDraft.crop = crop
-                    editDraft.phoneMode = mode
-                }
-            }
         }
         .sheet(isPresented: $isShowingCameraPreview, onDismiss: { cameraPreview.stop() }) {
             cameraPreviewSheet
@@ -451,7 +441,7 @@ struct SettingsView: View {
     }
 
     private var editsBusy: Bool {
-        isExporting || isSaving || isShowingSavePanel || appState.isRecording || appState.recording.processingStage != nil || voiceOverRecorder.isBusy || videoOverlayRecorder.isBusy
+        isCroppingScreen || isExporting || isSaving || isShowingSavePanel || appState.isRecording || appState.recording.processingStage != nil || voiceOverRecorder.isBusy || videoOverlayRecorder.isBusy
     }
 
     private var hasEditChanges: Bool { editDraft != appliedEdits }
@@ -884,12 +874,14 @@ struct SettingsView: View {
 
     private var cropScreenButton: some View {
         Button {
-            videoPlayer?.pause()
-            isShowingPhoneCrop = true
-        } label: { Label("Crop Screen…", systemImage: "crop") }
+            guard !editsBusy, previewReady, let player = videoPlayer else { return }
+            player.pause()
+            cropFrameTime = renderedPreviewTimeline?.sourceTime(at: player.currentTime()) ?? .zero
+            isCroppingScreen = true
+        } label: { Label("Crop Screen", systemImage: "crop") }
         .buttonStyle(CompactActionButtonStyle())
-        .disabled(phoneCropSource == nil)
-        .help(phoneCropSource == nil ? "Import or record a video to crop its screen." : "Crop the source video.")
+        .disabled(phoneCropSource == nil || !previewReady || editsBusy)
+        .help(phoneCropSource == nil ? "Import or record a video to crop its screen." : "Adjust the crop directly in the preview.")
     }
 
     private var cameraPreviewSheet: some View {
@@ -1440,7 +1432,14 @@ struct SettingsView: View {
 
             Divider()
 
-            if let player = videoPlayer {
+            if isCroppingScreen, let source = phoneCropSource {
+                InlineScreenCropEditor(sourceURL: source, sourceTime: cropFrameTime, initialCrop: editDraft.crop,
+                                       onCancel: { isCroppingScreen = false }, onApply: { crop in
+                    editDraft.crop = crop
+                    isCroppingScreen = false
+                })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let player = videoPlayer {
                 NativeVideoPlayerView(player: player, showsControls: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -1650,6 +1649,7 @@ struct SettingsView: View {
     private func loadVideo(_ url: URL, resetLayoutSource: Bool = true) {
         guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy else { return }
         videoPlayer?.pause()
+        isCroppingScreen = false
         videoURL = url
         if resetLayoutSource {
             let rawSource = url == appState.recording.lastRecordingURL ? appState.recording.lastSourceRecordingURL : nil
@@ -1960,137 +1960,91 @@ struct VideoReplacementDialog: View {
     }
 }
 
-struct PhoneCropEditor: View {
+/// Crop mode lives in the main preview; only Done changes the pending video edits.
+struct InlineScreenCropEditor: View {
     let sourceURL: URL
-    let ratio: CanvasRatio
-    let wallpaper: BackgroundStyle.WallpaperPreset
-    let layout: DeviceLayout
-    let backgroundEnabled: Bool
-    let desktopCornerRadius: Double
-    let onApply: (PhoneCrop, PhoneContentMode) -> Void
-    @Environment(\.dismiss) private var dismiss
+    var sourceTime: CMTime = .zero
+    let onCancel: () -> Void
+    let onApply: (PhoneCrop) -> Void
     @State private var crop: PhoneCrop
-    @State private var mode: PhoneContentMode
     @State private var image: CGImage?
     @State private var error: String?
 
-    init(sourceURL: URL, initialCrop: PhoneCrop, initialMode: PhoneContentMode,
-            ratio: CanvasRatio, wallpaper: BackgroundStyle.WallpaperPreset, layout: DeviceLayout = .iPhone,
-            backgroundEnabled: Bool = true, desktopCornerRadius: Double = 0.025,
-         onApply: @escaping (PhoneCrop, PhoneContentMode) -> Void) {
+    init(sourceURL: URL, sourceTime: CMTime = .zero, initialCrop: PhoneCrop,
+         onCancel: @escaping () -> Void, onApply: @escaping (PhoneCrop) -> Void) {
         self.sourceURL = sourceURL
-        self.ratio = ratio
-        self.wallpaper = wallpaper
-        self.layout = layout
-        self.backgroundEnabled = backgroundEnabled
-        self.desktopCornerRadius = desktopCornerRadius
+        self.sourceTime = sourceTime
+        self.onCancel = onCancel
         self.onApply = onApply
         _crop = State(initialValue: initialCrop)
-        _mode = State(initialValue: initialMode)
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("Crop Screen").font(.headline)
+        VStack(spacing: 0) {
+            HStack(spacing: Spacing.md) {
+                Label("Crop Screen", systemImage: "crop")
+                    .font(Typography.body)
+                    .foregroundStyle(DesignColors.primaryLabel)
                 Spacer()
-                Button { crop = PhoneCrop() } label: { Image(systemName: "arrow.counterclockwise") }
+                Button("Reset") { crop = PhoneCrop() }
                     .buttonStyle(CompactActionButtonStyle())
-                    .help("Reset crop")
-                    .accessibilityLabel("Reset crop")
+                    .disabled(image == nil)
+                    .help("Restore the full source frame")
             }
+            .padding(Spacing.lg)
+
             if let image {
-                HStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Source").font(.caption).foregroundStyle(.secondary)
-                        PhoneCropSelection(image: image, crop: $crop)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    VStack(spacing: 12) {
-                        Text("\(layout.displayName) Preview").font(.caption).foregroundStyle(.secondary)
-                        PhoneCropPreview(image: image, crop: crop, mode: mode, ratio: ratio, wallpaper: wallpaper, layout: layout,
-                                         backgroundEnabled: backgroundEnabled, desktopCornerRadius: desktopCornerRadius)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        if layout.isPhone {
-                            Picker("Content", selection: $mode) {
-                                ForEach(PhoneContentMode.allCases, id: \.self) { mode in
-                                    Text(mode.displayName).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                    }
-                    .frame(width: 200)
-                }
-                HStack(spacing: 12) {
-                    insetControl("Left", edge: .leading)
-                    insetControl("Top", edge: .top)
-                    insetControl("Right", edge: .trailing)
-                    insetControl("Bottom", edge: .bottom)
-                }
+                PhoneCropSelection(image: image, crop: $crop)
+                    .padding(.horizontal, Spacing.lg)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error {
-                Text(error).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(error)
+                    .font(Typography.body)
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .padding(Spacing.lg)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView()
+                    .accessibilityLabel("Loading crop preview")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            Divider()
-            HStack {
-                Button("Cancel") { dismiss() }
+
+            HStack(spacing: Spacing.md) {
+                Text("Drag the corners to crop. Drag inside to reposition.")
+                    .font(Typography.caption)
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Cancel", action: onCancel)
                     .buttonStyle(CompactActionButtonStyle())
                     .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Done") {
-                    onApply(crop, mode)
-                    dismiss()
-                }
-                .buttonStyle(CompactActionButtonStyle(prominent: true))
-                .keyboardShortcut(.defaultAction)
-                .disabled(image == nil)
+                Button("Done") { onApply(crop) }
+                    .buttonStyle(CompactActionButtonStyle(prominent: true))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(image == nil)
             }
+            .padding(Spacing.lg)
         }
-        .padding(20)
-        .frame(width: 700, height: 430)
-        .background(DesignColors.windowBackground)
-        .preferredColorScheme(.dark)
-        .task {
+        .background(Color.black.opacity(0.3))
+        .task(id: sourceURL) {
             do {
-                let generator = AVAssetImageGenerator(asset: AVURLAsset(url: sourceURL))
+                let asset = AVURLAsset(url: sourceURL)
+                let duration = try await asset.load(.duration).seconds
+                let seconds = sourceTime.seconds.isFinite ? sourceTime.seconds : 0
+                let time = CMTime(seconds: min(max(0, duration - 1.0 / 600), max(0, seconds)), preferredTimescale: 60000)
+                let generator = AVAssetImageGenerator(asset: asset)
                 generator.appliesPreferredTrackTransform = true
-                generator.maximumSize = CGSize(width: 1600, height: 1600)
-                image = try await generator.image(at: .zero).image
+                generator.maximumSize = CGSize(width: 2000, height: 2000)
+                // Sparse recordings may not have a sample at the exact playhead time.
+                generator.requestedTimeToleranceBefore = .positiveInfinity
+                generator.requestedTimeToleranceAfter = .zero
+                let frame = try await generator.image(at: time).image
+                try Task.checkCancellation()
+                image = frame
+            } catch is CancellationError {
             } catch {
-                self.error = "Could not load the source video. \(error.localizedDescription)"
+                self.error = "Could not load this frame. Cancel and try another point in the video."
             }
         }
-    }
-
-    private func insetControl(_ title: String, edge: Edge) -> some View {
-        let rect = crop.normalized
-        let value: CGFloat
-        let maximum: CGFloat
-        switch edge {
-        case .leading: value = rect.minX; maximum = rect.maxX - 0.02
-        case .top: value = rect.minY; maximum = rect.maxY - 0.02
-        case .trailing: value = 1 - rect.maxX; maximum = 1 - rect.minX - 0.02
-        case .bottom: value = 1 - rect.maxY; maximum = 1 - rect.minY - 0.02
-        }
-        return Stepper(value: Binding(get: { Double(value * 100) }, set: { percent in
-            var changed = crop.normalized
-            let fraction = CGFloat(percent / 100)
-            switch edge {
-            case .leading: changed.origin.x = fraction; changed.size.width = rect.maxX - fraction
-            case .top: changed.origin.y = fraction; changed.size.height = rect.maxY - fraction
-            case .trailing: changed.size.width = 1 - rect.minX - fraction
-            case .bottom: changed.size.height = 1 - rect.minY - fraction
-            }
-            crop = PhoneCrop(rect: changed)
-        }), in: 0...Double(max(0, maximum) * 100), step: 0.5) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption).foregroundStyle(.secondary)
-                Text(String(format: "%.1f%%", value * 100)).monospacedDigit()
-            }
-        }
-        .accessibilityLabel("\(title) crop percentage")
     }
 }
 
@@ -2116,10 +2070,23 @@ struct PhoneCropSelection: View {
                 Rectangle().fill(.clear)
                     .contentShape(Rectangle())
                     .overlay(Rectangle().stroke(.white, lineWidth: 1))
+                    .overlay {
+                        Path { path in
+                            for fraction in [CGFloat(1.0 / 3), CGFloat(2.0 / 3)] {
+                                path.move(to: CGPoint(x: selection.width * fraction, y: 0))
+                                path.addLine(to: CGPoint(x: selection.width * fraction, y: selection.height))
+                                path.move(to: CGPoint(x: 0, y: selection.height * fraction))
+                                path.addLine(to: CGPoint(x: selection.width, y: selection.height * fraction))
+                            }
+                        }
+                        .stroke(.white.opacity(0.35), lineWidth: 1)
+                        .allowsHitTesting(false)
+                    }
                     .frame(width: selection.width, height: selection.height)
                     .position(x: selection.midX, y: selection.midY)
                     .gesture(drag(size: fitted.size))
-        .accessibilityLabel("Selected crop area")
+                    .accessibilityLabel("Selected crop area")
+                    .help("Drag to reposition the crop")
                 ForEach(Array(PhoneCrop.Corner.allCases.enumerated()), id: \.offset) { _, corner in
                     let left = corner == .topLeft || corner == .bottomLeft
                     let top = corner == .topLeft || corner == .topRight
@@ -2130,6 +2097,7 @@ struct PhoneCropSelection: View {
                         .contentShape(Rectangle())
                         .position(x: left ? selection.minX : selection.maxX, y: top ? selection.minY : selection.maxY)
                         .gesture(drag(size: fitted.size, corner: corner))
+                        .accessibilityLabel("\(left ? "Left" : "Right") \(top ? "top" : "bottom") crop handle")
                 }
             }
             .frame(width: fitted.width, height: fitted.height)
@@ -2145,37 +2113,6 @@ struct PhoneCropSelection: View {
                                                             height: value.translation.height / size.height), corner: corner)
             }
             .onEnded { _ in dragStart = nil }
-    }
-}
-
-struct PhoneCropPreview: View {
-    let image: CGImage
-    let crop: PhoneCrop
-    let mode: PhoneContentMode
-    let ratio: CanvasRatio
-    let wallpaper: BackgroundStyle.WallpaperPreset
-    var layout: DeviceLayout = .iPhone
-    var backgroundEnabled = true
-    var desktopCornerRadius = 0.025
-
-    var body: some View {
-        GeometryReader { geometry in
-            let source = CIImage(cgImage: image)
-            let renderer = LiveEditFrameRenderer(sourceSize: source.extent.size,
-                settings: VideoEditSettings(ratio: ratio, layout: layout, wallpaper: wallpaper,
-                                           desktopCornerRadius: desktopCornerRadius, backgroundEnabled: backgroundEnabled,
-                                           crop: crop, phoneMode: mode, showCursor: false), keyframes: [])
-            let output = renderer.outputSize
-            let fitted = CanvasGeometry.fit(output, in: CGRect(origin: .zero, size: geometry.size))
-            let size = CGSize(width: max(2, floor(fitted.width * 2)), height: max(2, floor(fitted.height * 2)))
-            let result = renderer.render(source, at: 0)
-                .transformed(by: CGAffineTransform(scaleX: size.width / output.width, y: size.height / output.height))
-            if let bitmap = CIContext().createCGImage(result, from: result.extent) {
-                Image(decorative: bitmap, scale: 2).resizable()
-                    .frame(width: fitted.width, height: fitted.height)
-                    .position(x: fitted.midX, y: fitted.midY)
-            }
-        }
     }
 }
 

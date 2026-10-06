@@ -149,8 +149,7 @@ struct PhoneCropTests {
 
         if CommandLine.arguments.contains("--render-only") { return }
         for layout in DeviceLayout.allCases {
-        let host = NSHostingView(rootView: PhoneCropEditor(sourceURL: source, initialCrop: selectedCrop, initialMode: .fit,
-            ratio: .portrait, wallpaper: .lagoon, layout: layout, onApply: { _, _ in }))
+        let host = NSHostingView(rootView: InlineScreenCropEditor(sourceURL: source, initialCrop: selectedCrop, onCancel: {}, onApply: { _ in }))
         let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = host
@@ -167,7 +166,7 @@ struct PhoneCropTests {
         try captureProcess.run()
         captureProcess.waitUntilExit()
         window.orderOut(nil)
-        print("PASS: \(layout.displayName) native crop editor rendered at 700x430")
+        print("PASS: \(layout.displayName) inline crop preview rendered at 700x430")
         }
     }
 }
