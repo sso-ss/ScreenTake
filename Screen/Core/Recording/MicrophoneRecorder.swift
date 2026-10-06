@@ -18,6 +18,7 @@ final class MicrophoneRecorder: NSObject, @unchecked Sendable {
     private let recordingQueue = DispatchQueue(label: "com.screen.mic-recorder", qos: .userInteractive)
     private var isRecording = false
     private var isPaused = false
+    private var isMuted = false
     private var writerReady = false
     private let lock = NSLock()
     private var outputURL: URL?
@@ -148,6 +149,7 @@ final class MicrophoneRecorder: NSObject, @unchecked Sendable {
         writerReady = false
         isRecording = true
         isPaused = false
+        isMuted = false
         firstPTS = nil
         recordingStartTime = startTime
         startOffset = .zero
@@ -212,6 +214,11 @@ final class MicrophoneRecorder: NSObject, @unchecked Sendable {
             pauseStartPTS = time
         }
         lock.unlock()
+    }
+
+    /// Keep muted intervals silent without removing time from the audio track.
+    func setMuted(_ muted: Bool) {
+        lock.withLock { isMuted = muted }
     }
 
     func resume(at time: CMTime = CMClockGetTime(CMClockGetHostTimeClock())) {
@@ -338,12 +345,18 @@ extension MicrophoneRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
         let pauseOffset = totalPausedDuration
         let ready = writerReady
         let failed = writerFailed
+        let muted = isMuted
         lock.unlock()
 
         guard !failed else { return }
 
         let rebasedPTS = CMTimeSubtract(CMTimeSubtract(rawPTS, basePTS), pauseOffset)
         guard let buffer = rebaseTiming(sampleBuffer, pts: rebasedPTS) else { return }
+        if muted {
+            guard let data = CMSampleBufferGetDataBuffer(buffer),
+                  CMBlockBufferFillDataBytes(with: 0, blockBuffer: data, offsetIntoDestination: 0,
+                                            dataLength: CMBlockBufferGetDataLength(data)) == noErr else { return }
+        }
 
         // Lazy writer init on first sample
         if !ready {
@@ -413,6 +426,7 @@ extension MicrophoneRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
 }
 
 enum MicrophoneRecorderError: LocalizedError {
+    case permissionDenied
     case noDeviceAvailable
     case inputConfigFailed
     case outputConfigFailed
@@ -422,6 +436,7 @@ enum MicrophoneRecorderError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .permissionDenied: return "Allow microphone access for ScreenTake in System Settings."
         case .noDeviceAvailable: return "No microphone device available"
         case .inputConfigFailed: return "Failed to configure audio input"
         case .outputConfigFailed: return "Failed to configure audio output"

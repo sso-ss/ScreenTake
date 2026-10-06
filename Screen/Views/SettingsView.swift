@@ -194,10 +194,21 @@ struct SettingsView: View {
         .onDrop(of: [.movie, .fileURL], isTargeted: $isDragging) { providers in
             handleDrop(providers)
         }
-        .sheet(isPresented: $isShowingCameraPreview, onDismiss: { cameraPreview.stop() }) {
-            cameraPreviewSheet
+        .onDisappear { stopCameraPreview() }
+        .onChange(of: appState.capture.isWebcamEnabled) { enabled in
+            if !enabled { stopCameraPreview() }
         }
-        .onDisappear { cameraPreview.stop() }
+        .onChange(of: appState.capture.selectedWebcamDeviceID) { _ in
+            if isShowingCameraPreview {
+                cameraPreview.start(device: appState.capture.selectedWebcamDevice)
+            }
+        }
+        .onChange(of: appState.isRecording) { recording in
+            if recording { stopCameraPreview() }
+        }
+        .onChange(of: videoURL) { url in
+            if url != nil { stopCameraPreview() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openVideoFile)) { notification in
             if !editsBusy, let url = notification.userInfo?["url"] as? URL {
                 requestImport(url)
@@ -261,6 +272,7 @@ struct SettingsView: View {
 
             // Record button
             Button {
+                stopCameraPreview()
                 onStartRecording?()
             } label: {
                 HStack(spacing: 6) {
@@ -312,9 +324,9 @@ struct SettingsView: View {
                             .offset(x: previewWidth * 0.15, y: previewHeight * 0.12)
                     }
 
-                    // Mock webcam PiP circle
+                    // Camera placement preview, with a live feed on request.
                     if appState.capture.isWebcamEnabled {
-                        mockWebcamPiP(previewWidth: previewWidth, previewHeight: previewHeight)
+                        webcamPreviewPiP(previewWidth: previewWidth, previewHeight: previewHeight)
                     }
                 }
 
@@ -344,9 +356,9 @@ struct SettingsView: View {
         .accessibilityLabel("Cursor preview, scale \(Int(appState.capture.cursorScale * 100))%")
     }
 
-    // MARK: - Mock Webcam PiP
+    // MARK: - Webcam Preview PiP
 
-    private func mockWebcamPiP(previewWidth: CGFloat, previewHeight: CGFloat) -> some View {
+    private func webcamPreviewPiP(previewWidth: CGFloat, previewHeight: CGFloat) -> some View {
         let diameter = previewHeight * appState.capture.webcamPiPSize.fraction
         let padding: CGFloat = 8
         let position = appState.capture.webcamPiPPosition
@@ -354,23 +366,36 @@ struct SettingsView: View {
         let yOffset = (previewHeight - diameter - 2 * padding) * (position.verticalFraction - 0.5)
 
         let shape = appState.capture.webcamPiPShape
-        return RoundedRectangle(cornerRadius: shape == .circle ? diameter / 2 : diameter * 0.18)
-            .fill(
+        let outline = RoundedRectangle(cornerRadius: shape == .circle ? diameter / 2 : diameter * 0.18)
+        return ZStack {
+            outline.fill(
                 LinearGradient(
                     colors: [Color.blue.opacity(0.4), Color.purple.opacity(0.3)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
             )
-            .overlay(
+            if isShowingCameraPreview, let session = cameraPreview.session {
+                CameraFeedView(session: session, rotationAngle: cameraPreview.rotationAngle)
+                    .accessibilityLabel("Live camera preview")
+                    .accessibilityIdentifier("inlineCameraPreview")
+            } else if isShowingCameraPreview, cameraPreview.isStarting {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("Preparing camera preview")
+            } else if isShowingCameraPreview, cameraPreview.errorMessage != nil {
+                Image(systemName: "video.slash.fill")
+                    .font(.system(size: diameter * 0.3))
+                    .foregroundColor(.white.opacity(0.7))
+                    .accessibilityLabel("Camera preview unavailable")
+            } else {
                 Image(systemName: "person.fill")
                     .font(.system(size: diameter * 0.35))
                     .foregroundColor(.white.opacity(0.7))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: shape == .circle ? diameter / 2 : diameter * 0.18)
-                    .stroke(Color.white.opacity(0.6), lineWidth: 1.5)
-            )
+            }
+        }
             .frame(width: diameter, height: diameter)
+            .clipShape(outline)
+            .overlay(outline.stroke(Color.white.opacity(0.6), lineWidth: 1.5))
             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
             .offset(x: xOffset, y: yOffset)
             .animation(.easeInOut(duration: 0.2), value: position)
@@ -821,6 +846,11 @@ struct SettingsView: View {
                         set: { appState.capture.isWebcamEnabled = $0 }
                     ))
                     if appState.capture.isWebcamEnabled {
+                        Text(appState.capture.isMicrophoneEnabled
+                             ? "Microphone is on. Manage it in Audio."
+                             : "Microphone is off. Manage it in Audio.")
+                            .font(Typography.caption)
+                            .foregroundStyle(DesignColors.secondaryLabel)
                         webcamDevicePicker
                         webcamShapePicker(selection: Binding(
                             get: { appState.capture.webcamPiPShape },
@@ -836,19 +866,37 @@ struct SettingsView: View {
                         ))
                         Divider()
                         Button {
-                            isShowingCameraPreview = true
-                            cameraPreview.start(device: appState.capture.selectedWebcamDevice)
+                            if isShowingCameraPreview {
+                                stopCameraPreview()
+                            } else {
+                                isShowingCameraPreview = true
+                                cameraPreview.start(device: appState.capture.selectedWebcamDevice)
+                            }
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "video")
                                     .font(.system(size: 11))
-                                Text("Preview Camera")
+                                Text(isShowingCameraPreview ? "Stop Preview" : "Preview Camera")
                                     .font(.system(size: 12, weight: .medium))
                             }
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(CompactActionButtonStyle())
                         .accessibilityIdentifier("previewCamera")
+                        .help("Show your live camera in the recording preview.")
+                        if let error = cameraPreview.errorMessage {
+                            Text(error)
+                                .font(Typography.caption)
+                                .foregroundStyle(DesignColors.secondaryLabel)
+                            if cameraPreview.needsPermission {
+                                Button("Camera Settings") {
+                                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
+                                .buttonStyle(CompactActionButtonStyle())
+                            }
+                        }
                     }
                 }
             case .audio:
@@ -884,51 +932,9 @@ struct SettingsView: View {
         .help(phoneCropSource == nil ? "Import or record a video to crop its screen." : "Adjust the crop directly in the preview.")
     }
 
-    private var cameraPreviewSheet: some View {
-        VStack(spacing: Spacing.labelToControl) {
-            HStack {
-                Text("Camera Preview")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    cameraPreview.stop()
-                    isShowingCameraPreview = false
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-                .help("Close preview")
-                .accessibilityLabel("Close camera preview")
-            }
-
-            ZStack {
-                DesignColors.windowBackground
-                if let session = cameraPreview.session {
-                    CameraFeedView(session: session, rotationAngle: cameraPreview.rotationAngle)
-                        .clipShape(RoundedRectangle(cornerRadius: appState.capture.webcamPiPShape == .circle ? 180 : 65))
-                        .accessibilityLabel("Live camera preview")
-                } else if cameraPreview.isStarting {
-                    ProgressView()
-                } else if let error = cameraPreview.errorMessage {
-                    VStack(spacing: Spacing.md) {
-                        Text(error).multilineTextAlignment(.center)
-                        if cameraPreview.needsPermission {
-                            Button("Camera Settings") {
-                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
-                                    NSWorkspace.shared.open(url)
-                                }
-                            }
-                        }
-                    }
-                    .padding(Spacing.lg)
-                }
-            }
-            .frame(width: 360, height: 360)
-        }
-        .frame(width: 360)
-        .padding(Spacing.labelToControl)
-        .background(DesignColors.windowBackground)
-        .preferredColorScheme(.dark)
+    private func stopCameraPreview() {
+        isShowingCameraPreview = false
+        cameraPreview.stop()
     }
 
     private func deviceLayoutPicker(selection: Binding<DeviceLayout>) -> some View {
@@ -3409,11 +3415,15 @@ private final class CameraPreviewController: ObservableObject {
 
     private var recorder: WebcamRecorder?
     private var startTask: Task<Void, Never>?
+    private var stopTask: Task<Void, Never>?
 
     func start(device: AVCaptureDevice?) {
         stop()
         isStarting = true
+        let previousStop = stopTask
         startTask = Task { [weak self] in
+            await previousStop?.value
+            guard !Task.isCancelled else { return }
             guard await AVCaptureDevice.requestAccess(for: .video) else {
                 if !Task.isCancelled {
                     self?.errorMessage = "Camera access is off. Enable it in System Settings."
@@ -3448,6 +3458,8 @@ private final class CameraPreviewController: ObservableObject {
     }
 
     func stop() {
+        let previousStart = startTask
+        let previousStop = stopTask
         startTask?.cancel()
         startTask = nil
         session = nil
@@ -3455,9 +3467,12 @@ private final class CameraPreviewController: ObservableObject {
         isStarting = false
         errorMessage = nil
         needsPermission = false
-        if let recorder {
-            self.recorder = nil
-            Task.detached { recorder.tearDown() }
+        let recorder = self.recorder
+        self.recorder = nil
+        stopTask = Task.detached {
+            await previousStop?.value
+            await previousStart?.value
+            recorder?.tearDown()
         }
     }
 }

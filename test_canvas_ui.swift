@@ -12,6 +12,7 @@ struct CanvasUIPreview {
         let originalCornerRadius = appState.capture.desktopCornerRadius
         let originalWallpaper = appState.capture.selectedWallpaper
         let originalWebcamEnabled = appState.capture.isWebcamEnabled
+        let originalMicrophoneEnabled = appState.capture.isMicrophoneEnabled
         let originalWebcamShape = appState.capture.webcamPiPShape
         let originalWebcamPosition = appState.capture.webcamPiPPosition
         defer {
@@ -20,6 +21,7 @@ struct CanvasUIPreview {
             appState.capture.desktopCornerRadius = originalCornerRadius
             appState.capture.selectedWallpaper = originalWallpaper
             appState.capture.isWebcamEnabled = originalWebcamEnabled
+            appState.capture.isMicrophoneEnabled = originalMicrophoneEnabled
             appState.capture.webcamPiPShape = originalWebcamShape
             appState.capture.webcamPiPPosition = originalWebcamPosition
         }

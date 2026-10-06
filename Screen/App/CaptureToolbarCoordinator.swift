@@ -35,6 +35,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
 
     // Options state
     @Published var isMicrophoneEnabled: Bool = false
+    @Published private(set) var isUpdatingMicrophone: Bool = false
     @Published var isSystemAudioEnabled: Bool = true
     @Published var currentFrameRate: Int = 60
     @Published var needsRelaunch: Bool = false
@@ -48,6 +49,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
     private let webcamPiPOverlay = WebcamPiPOverlay()
     private weak var appState: AppState?
     private var cancellables = Set<AnyCancellable>()
+    private var microphoneUpdateTask: Task<Void, Never>?
 
     init(appState: AppState) {
         self.appState = appState
@@ -109,8 +111,38 @@ final class CaptureToolbarCoordinator: ObservableObject {
     // MARK: - Options
 
     func toggleMicrophone() {
+        guard !isUpdatingMicrophone else { return }
         isMicrophoneEnabled.toggle()
         appState?.capture.isMicrophoneEnabled = isMicrophoneEnabled
+        updateRecordingMicrophoneIfNeeded()
+    }
+
+    private func updateRecordingMicrophoneIfNeeded() {
+        guard toolbarPhase == .recording, let appState,
+              let recording = appState.recording.recordingCoordinator else { return }
+        let enabled = isMicrophoneEnabled
+        isUpdatingMicrophone = true
+        if enabled && !recording.isMicrophoneEnabled {
+            statusMessage = "Preparing microphone…"
+        }
+        microphoneUpdateTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                self.isUpdatingMicrophone = false
+                self.microphoneUpdateTask = nil
+            }
+            do {
+                try await recording.setMicrophoneEnabled(enabled, device: appState.capture.selectedMicrophoneDevice)
+                self.statusMessage = ""
+            } catch is CancellationError {
+                return
+            } catch {
+                self.statusMessage = error.localizedDescription
+                Log.recording.warning("Microphone toggle failed: \(error)")
+            }
+            self.isMicrophoneEnabled = recording.isMicrophoneEnabled
+            appState.capture.isMicrophoneEnabled = self.isMicrophoneEnabled
+        }
     }
 
     func toggleSystemAudio() {
@@ -248,7 +280,10 @@ final class CaptureToolbarCoordinator: ObservableObject {
             do {
                 try await appState.recording.startRecording(appState: appState)
                 self.toolbarPhase = .recording
-                self.statusMessage = ""
+                self.isMicrophoneEnabled = appState.recording.recordingCoordinator?.isMicrophoneEnabled ?? false
+                self.statusMessage = appState.capture.isMicrophoneEnabled && !self.isMicrophoneEnabled
+                    ? "Microphone is unavailable. Check Audio settings and microphone access."
+                    : ""
                 Log.recording.info("Recording started")
                 self.zoomIndicator.showBorder(captureBounds: self.captureTargetBounds())
                 self.showWebcamPiPIfNeeded()
@@ -268,6 +303,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
         guard let appState, !isStarting, appState.isRecording,
               appState.recording.processingStage == nil else { return }
         stopRecordingShortcuts()
+        microphoneUpdateTask?.cancel()
         webcamPiPOverlay.hide()
 
         Task { [weak self] in
@@ -296,10 +332,13 @@ final class CaptureToolbarCoordinator: ObservableObject {
     }
 
     func toggleWebcam() {
+        guard !isUpdatingMicrophone else { return }
         isWebcamActive.toggle()
         appState?.capture.isWebcamEnabled = isWebcamActive
 
         if isWebcamActive {
+            isMicrophoneEnabled = appState?.capture.isMicrophoneEnabled ?? true
+            updateRecordingMicrophoneIfNeeded()
             // If webcam was toggled ON mid-recording but the recorder wasn't prepared
             // at recording start, prepare it now on-the-fly.
             if toolbarPhase == .recording,
@@ -429,6 +468,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
     }
 
     private func safeDismiss() {
+        microphoneUpdateTask?.cancel()
         zoomIndicator.deactivate()
         webcamPiPOverlay.hide()
         overlayController.deactivate()

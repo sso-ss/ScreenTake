@@ -12,14 +12,12 @@ struct CaptureToolbarView: View {
     var body: some View {
         VStack(spacing: 8) {
             // Status / mode label above the toolbar
-            if coordinator.toolbarPhase == .selecting {
-                if !coordinator.statusMessage.isEmpty {
-                    statusBanner
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                } else {
-                    modeLabel
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
+            if !coordinator.statusMessage.isEmpty {
+                statusBanner
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else if coordinator.toolbarPhase == .selecting {
+                modeLabel
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             // Main toolbar pill
@@ -203,10 +201,27 @@ struct CaptureToolbarView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(coordinator.isUpdatingMicrophone)
                 .accessibilityLabel(coordinator.isWebcamActive ? "Disable webcam" : "Enable webcam")
                 .help(coordinator.isWebcamActive ? "Webcam On" : "Webcam Off")
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isWebcamActive)
             }
+
+            Button {
+                coordinator.toggleMicrophone()
+            } label: {
+                Image(systemName: coordinator.isMicrophoneEnabled ? "mic.fill" : "mic.slash.fill")
+                    .font(.system(size: 14, weight: coordinator.isMicrophoneEnabled ? .bold : .regular))
+                    .foregroundStyle(coordinator.isMicrophoneEnabled ? .white : .secondary)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(coordinator.isMicrophoneEnabled ? systemAccent.opacity(0.8) : Color.clear))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(coordinator.isUpdatingMicrophone)
+            .accessibilityLabel(coordinator.isMicrophoneEnabled ? "Turn microphone off" : "Turn microphone on")
+            .help(coordinator.isUpdatingMicrophone ? "Preparing microphone…" : (coordinator.isMicrophoneEnabled ? "Microphone On" : "Microphone Off"))
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isMicrophoneEnabled)
 
             // Stop
             Button {

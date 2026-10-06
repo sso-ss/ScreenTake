@@ -198,6 +198,31 @@ struct AudioTimingTests {
             }
             print("PASS: \(microphone ? "microphone" : "system audio") pause without samples, \(file.length) frames")
         }
+        let muteURL = FileManager.default.temporaryDirectory.appendingPathComponent("muted-mic-\(UUID().uuidString).caf")
+        defer { try? FileManager.default.removeItem(at: muteURL) }
+        let muteRecorder = MicrophoneRecorder()
+        try muteRecorder.prepareRecording(to: muteURL)
+        let tone = try makeTone(sampleRate: 48_000, channels: 2, frames: 1024)
+        for index in 0..<3 {
+            muteRecorder.setMuted(index == 1)
+            let pts = CMTimeAdd(CMSampleBufferGetPresentationTimeStamp(tone), CMTime(value: Int64(index * 1024), timescale: 48_000))
+            let sample = muteRecorder.rebaseTiming(tone, pts: pts)!
+            muteRecorder.appendSampleBuffer(sample)
+        }
+        try require(await muteRecorder.stopRecording() != nil, "Muted microphone writer failed")
+        let muteFile = try AVAudioFile(forReading: muteURL)
+        try require(muteFile.length == 3072, "Muting changed microphone duration")
+        let mutePCM = AVAudioPCMBuffer(pcmFormat: muteFile.processingFormat, frameCapacity: 3072)!
+        try muteFile.read(into: mutePCM)
+        for channel in 0..<2 {
+            for frame in 0..<3072 {
+                let expected: Float = frame >= 1024 && frame < 2048
+                    ? 0 : Float(0.25 * sin(2 * .pi * Double(440 + channel * 220) * Double(frame % 1024) / 48_000))
+                try require(abs(mutePCM.floatChannelData![channel][frame] - expected) < 0.000001,
+                            "Mic mute/unmute lost silence, changed narration, or shifted timing")
+            }
+        }
+        print("PASS: microphone mute preserves silent intervals, stereo narration and timing after unmute")
         print("PASS: audio duration, timestamps, channel layout and PCM waveform")
     }
 }

@@ -33,6 +33,7 @@ final class RecordingCoordinator: ObservableObject {
     @Published private(set) var isRecording = false
     @Published private(set) var isPaused = false
     @Published private(set) var currentDuration: TimeInterval = 0
+    private(set) var isMicrophoneEnabled = false
 
     // MARK: - Private Properties
 
@@ -49,6 +50,9 @@ final class RecordingCoordinator: ObservableObject {
 
     private var durationTimer: Timer?
     private var recordingStartTime: Date?
+    private var mediaStartTime: CMTime?
+    private var pauseStartTime: CMTime?
+    private var completedPausedDuration: CMTime = .zero
     private var captureConfiguration: CaptureConfiguration?
     private var captureTarget: CaptureTarget?
     private var captureBounds: CGRect = .zero
@@ -104,9 +108,10 @@ final class RecordingCoordinator: ObservableObject {
         // Ensure microphone and camera permissions are granted before starting
         // devices. This prevents the system permission dialog from appearing
         // mid-recording and blocking capture sessions.
+        var microphoneAccessGranted = false
         if isMicrophoneEnabled {
-            let micGranted = await AVCaptureDevice.requestAccess(for: .audio)
-            if !micGranted {
+            microphoneAccessGranted = await AVCaptureDevice.requestAccess(for: .audio)
+            if !microphoneAccessGranted {
                 Log.recording.warning("Microphone permission denied — skipping mic recording")
             }
         }
@@ -128,7 +133,7 @@ final class RecordingCoordinator: ObservableObject {
             }
         }
 
-        if isMicrophoneEnabled {
+        if microphoneAccessGranted {
             let micRecorder = MicrophoneRecorder()
             do {
                 try micRecorder.prepare(device: microphoneDevice, outputURL: Self.generateMicOutputURL(for: outputURL))
@@ -191,6 +196,9 @@ final class RecordingCoordinator: ObservableObject {
 
         // Start mouse recording
         let mediaStartTime = captureManager?.recordingManager?.startTime
+        self.mediaStartTime = mediaStartTime
+        pauseStartTime = nil
+        completedPausedDuration = .zero
         if let mediaStartTime {
             systemAudioRecorder?.setRecordingStartTime(mediaStartTime)
         }
@@ -225,6 +233,7 @@ final class RecordingCoordinator: ObservableObject {
         }
 
         isRecording = true
+        self.isMicrophoneEnabled = microphoneRecorder != nil
         isPaused = false
         recordingStartTime = Date()
         startupCompleted = true
@@ -240,6 +249,7 @@ final class RecordingCoordinator: ObservableObject {
         }
 
         isRecording = false
+        isMicrophoneEnabled = false
         isPaused = false
         let stopTime = CMClockGetTime(CMClockGetHostTimeClock())
 
@@ -293,8 +303,43 @@ final class RecordingCoordinator: ObservableObject {
 
     // MARK: - Pause/Resume
 
+    func setMicrophoneEnabled(_ enabled: Bool, device: AVCaptureDevice?) async throws {
+        try Task.checkCancellation()
+        guard isRecording else { throw CancellationError() }
+        if let microphoneRecorder {
+            microphoneRecorder.setMuted(!enabled)
+            isMicrophoneEnabled = enabled
+            return
+        }
+        guard enabled else { return }
+        guard await AVCaptureDevice.requestAccess(for: .audio) else {
+            throw MicrophoneRecorderError.permissionDenied
+        }
+        try Task.checkCancellation()
+        guard isRecording, let outputURL else { throw CancellationError() }
+
+        let recorder = MicrophoneRecorder()
+        var adopted = false
+        defer { if !adopted { recorder.tearDown() } }
+        let micURL = Self.generateMicOutputURL(for: outputURL)
+        try recorder.prepare(device: device, outputURL: micURL)
+        try await recorder.waitUntilReady()
+        try Task.checkCancellation()
+        guard isRecording else { throw CancellationError() }
+
+        // A mic enabled later uses the screen timeline, excluding earlier pauses.
+        let origin = mediaStartTime.map { CMTimeAdd($0, completedPausedDuration) }
+        try recorder.startWriting(to: micURL, startTime: origin)
+        if let pauseStartTime { recorder.pause(at: pauseStartTime) }
+        microphoneRecorder = recorder
+        isMicrophoneEnabled = true
+        adopted = true
+    }
+
     func pauseRecording() {
+        guard isRecording, !isPaused else { return }
         let time = CMClockGetTime(CMClockGetHostTimeClock())
+        pauseStartTime = time
         isPaused = true
         captureManager?.recordingManager?.pause(at: time)
         mouseDataRecorder?.pause(at: time)
@@ -305,7 +350,12 @@ final class RecordingCoordinator: ObservableObject {
     }
 
     func resumeRecording() {
+        guard isRecording, isPaused else { return }
         let time = CMClockGetTime(CMClockGetHostTimeClock())
+        if let pauseStartTime {
+            completedPausedDuration = CMTimeAdd(completedPausedDuration, CMTimeSubtract(time, pauseStartTime))
+        }
+        pauseStartTime = nil
         isPaused = false
         captureManager?.recordingManager?.resume(at: time)
         mouseDataRecorder?.resume(at: time)

@@ -86,7 +86,19 @@ final class CaptureSettings: ObservableObject {
 
     // MARK: - Webcam
 
-    @AppStorage("isWebcamEnabled") var isWebcamEnabled: Bool = false
+    @AppStorage("isWebcamEnabled") private var webcamEnabled: Bool = false
+
+    var isWebcamEnabled: Bool {
+        get { webcamEnabled }
+        set {
+            guard newValue != webcamEnabled else { return }
+            objectWillChange.send()
+            webcamEnabled = newValue
+            // Enable narration when the camera is switched on. Afterwards the
+            // microphone remains independent, including when the camera is off.
+            if newValue { isMicrophoneEnabled = true }
+        }
+    }
     @AppStorage("selectedWebcamDeviceID") var selectedWebcamDeviceID: String = ""
     @AppStorage("webcamPiPPositionRaw") var webcamPiPPositionRaw: String = PiPPosition.bottomRight.rawValue
     @AppStorage("webcamPiPSizeRaw") var webcamPiPSizeRaw: String = PiPSize.medium.rawValue
