@@ -43,7 +43,7 @@ struct CaptureToolbarView: View {
     private var statusBanner: some View {
         Text(coordinator.statusMessage)
             .font(.system(size: 12, weight: .medium))
-            .foregroundColor(.orange)
+            .foregroundStyle(.primary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: 360)
             .padding(.horizontal, 12)

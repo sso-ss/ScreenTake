@@ -12,12 +12,14 @@ struct ToolbarAppearanceTest {
             ("dark", .dark, false, false),
             ("contrast", .light, true, false),
             ("recording", .dark, false, true),
-            ("status", .light, false, false)
+            ("status", .light, false, false),
+            ("status-dark", .dark, false, false),
+            ("status-contrast", .light, true, false)
         ]
         for (name, scheme, highContrast, recording) in cases {
             coordinator.toolbarPhase = recording ? .recording : .selecting
             coordinator.isWebcamAvailable = recording
-            coordinator.statusMessage = name == "status" ? "Screen recording permission is required. Enable it in System Settings, then try again." : ""
+            coordinator.statusMessage = name.hasPrefix("status") ? "Screen recording permission is required. Enable it in System Settings, then try again." : ""
             let view = CaptureToolbarView(coordinator: coordinator)
                 .environment(\.colorScheme, scheme)
             let host = NSHostingView(rootView: view)
