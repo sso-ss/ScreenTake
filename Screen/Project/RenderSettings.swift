@@ -58,6 +58,27 @@ struct CameraLayoutSettings: Equatable, Codable {
     var zoom: Double = 1
     var centerX: Double = 0.5
     var centerY: Double = 0.5
+    var smoothTransition: Bool = false
+
+    private enum CodingKeys: String, CodingKey { case layout, zoom, centerX, centerY, smoothTransition }
+
+    init(layout: CameraLayout = .overlay, zoom: Double = 1, centerX: Double = 0.5,
+         centerY: Double = 0.5, smoothTransition: Bool = false) {
+        self.layout = layout
+        self.zoom = zoom
+        self.centerX = centerX
+        self.centerY = centerY
+        self.smoothTransition = smoothTransition
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        layout = try values.decodeIfPresent(CameraLayout.self, forKey: .layout) ?? .overlay
+        zoom = try values.decodeIfPresent(Double.self, forKey: .zoom) ?? 1
+        centerX = try values.decodeIfPresent(Double.self, forKey: .centerX) ?? 0.5
+        centerY = try values.decodeIfPresent(Double.self, forKey: .centerY) ?? 0.5
+        smoothTransition = try values.decodeIfPresent(Bool.self, forKey: .smoothTransition) ?? false
+    }
 
     func crop(in source: CGRect, output: CGSize) -> CGRect {
         guard source.width > 0, source.height > 0, output.width > 0, output.height > 0 else { return source }
@@ -82,6 +103,22 @@ struct CameraLayoutChange: Equatable, Codable {
             .max { $0.start < $1.start }?.settings ?? initial
     }
 
+    /// Resolve in camera source time so seeks, moved takes and exports agree.
+    static func transition(at seconds: Double, initial: CameraLayoutSettings,
+                           changes: [Self]) -> CameraLayoutTransition? {
+        guard seconds.isFinite,
+              let change = changes.filter({ $0.start.isFinite && $0.start >= 0 && $0.start <= seconds })
+                .max(by: { $0.start < $1.start }), change.settings.smoothTransition else { return nil }
+        let previous = changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start < change.start }
+            .max { $0.start < $1.start }?.settings ?? initial
+        let next = changes.filter { $0.start.isFinite && $0.start > change.start }.map(\.start).min()
+        let duration = min(CameraLayoutTransition.duration, next.map { $0 - change.start } ?? .infinity)
+        guard duration > 0, seconds < change.start + duration, previous != change.settings else { return nil }
+        let fraction = min(1, max(0, (seconds - change.start) / duration))
+        return CameraLayoutTransition(from: previous, to: change.settings,
+                                      progress: fraction * fraction * (3 - 2 * fraction))
+    }
+
     static func split(at outputSeconds: Double, in range: VideoOverlayTimelineRange,
                       initial: CameraLayoutSettings, changes: [Self]) -> Self? {
         guard outputSeconds.isFinite, range.sourceStart.isFinite, range.duration.isFinite,
@@ -94,6 +131,13 @@ struct CameraLayoutChange: Equatable, Codable {
         guard sourceTime - start >= 1.0 / 30, end - sourceTime >= 1.0 / 30 else { return nil }
         return Self(start: sourceTime, settings: settings(at: sourceTime, initial: initial, changes: changes))
     }
+}
+
+struct CameraLayoutTransition {
+    static let duration: Double = 0.4
+    var from: CameraLayoutSettings
+    var to: CameraLayoutSettings
+    var progress: Double
 }
 
 struct VideoOverlayTiming: Equatable {

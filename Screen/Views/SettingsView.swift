@@ -989,6 +989,12 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("cameraLayout")
+            settingsToggle(icon: "arrow.up.left.and.arrow.down.right", label: "Smooth Transition", isOn: Binding(
+                get: { currentCameraLayout.smoothTransition },
+                set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
+            ))
+            .accessibilityIdentifier("cameraSmoothTransition")
+            .help("Ease into this camera section’s layout and framing over 0.4 seconds. Turn off for a direct cut.")
             Text(editDraft.cameraLayoutChanges.isEmpty
                  ? "Applies to the entire camera clip."
                  : "Applies to the camera section at the playhead.")

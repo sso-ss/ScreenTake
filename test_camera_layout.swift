@@ -66,6 +66,22 @@ struct CameraLayoutChecks {
         precondition(invalid.crop(in: bounds, output: bounds.size) == bounds)
         print("PASS: camera crop boundaries and layout switch timing")
 
+        let smoothFull = CameraLayoutSettings(layout: .fullScreen, smoothTransition: true)
+        let smoothChanges = [CameraLayoutChange(start: 1, settings: smoothFull)]
+        let halfway = CameraLayoutChange.transition(at: 1.2, initial: CameraLayoutSettings(), changes: smoothChanges)!
+        precondition(abs(halfway.progress - 0.5) < 0.0001)
+        precondition(CameraLayoutChange.transition(at: 0.9, initial: CameraLayoutSettings(), changes: smoothChanges) == nil)
+        precondition(CameraLayoutChange.transition(at: 1.4, initial: CameraLayoutSettings(), changes: smoothChanges) == nil)
+        precondition(CameraLayoutChange.transition(at: .nan, initial: full, changes: smoothChanges) == nil)
+        precondition(CameraLayoutChange.transition(at: 1.1, initial: full, changes: changes) == nil)
+        let shortChanges = smoothChanges + [CameraLayoutChange(start: 1.1, settings: CameraLayoutSettings(smoothTransition: true))]
+        precondition(abs(CameraLayoutChange.transition(at: 1.05, initial: CameraLayoutSettings(), changes: shortChanges)!.progress - 0.5) < 0.0001)
+        let legacy = try JSONDecoder().decode(CameraLayoutSettings.self, from: Data("{\"layout\":\"fullScreen\"}".utf8))
+        precondition(!legacy.smoothTransition)
+        let decodedSmooth = try JSONDecoder().decode(CameraLayoutSettings.self, from: JSONEncoder().encode(smoothFull))
+        precondition(decodedSmooth == smoothFull)
+        print("PASS: eased timing, direct cuts, short sections and legacy transition settings")
+
         // Green is screen; red/blue are camera. Check corners to detect hidden
         // screen content, wrong crops, letterboxing and held camera end frames.
         for (name, initial, changes, timing, ratio, samples) in [
@@ -151,6 +167,73 @@ struct CameraLayoutChecks {
         precondition(error < 10 && reducedError > error + 10,
                      "Camera detail lost: preview error \(error), premature resizing error \(reducedError)")
         print("PASS: full-screen portrait zoom preserves native camera detail (error \(error); old resize \(reducedError))")
+
+        for (name, initial, target) in [
+            ("expand", CameraLayoutSettings(), smoothFull),
+            ("shrink", full, CameraLayoutSettings(smoothTransition: true)),
+            ("reframe", left, CameraLayoutSettings(layout: .fullScreen, zoom: 2, centerX: 1, smoothTransition: true))
+        ] {
+            let transitions = [CameraLayoutChange(start: 1, settings: target)]
+            let take = VideoOverlayTiming(start: 1, duration: 1.5, sourceStart: 0.5)
+            let settings = VideoEditSettings(backgroundEnabled: false, showCursor: false, webcamEnabled: true,
+                                             cameraLayout: initial, cameraLayoutChanges: transitions,
+                                             videoOverlayURL: cameraURL, videoOverlayTiming: take)
+            let item = try await LiveVideoPreview.makeItem(.init(source: sourceURL, audio: nil, mouse: nil,
+                                                               webcam: cameraURL, settings: settings))
+            let preview = AVAssetImageGenerator(asset: item.asset)
+            preview.videoComposition = item.videoComposition
+            preview.requestedTimeToleranceBefore = .zero
+            preview.requestedTimeToleranceAfter = .zero
+            let url = try await ExportEngine().export(sourceURL: sourceURL, keyframes: [], configuration: .init(
+                outputURL: directory.appendingPathComponent("smooth-\(name).mov"), webcamVideoURL: cameraURL,
+                videoOverlayTiming: take, cameraLayout: initial, cameraLayoutChanges: transitions, showCursor: false))
+            let export = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+            export.requestedTimeToleranceBefore = .zero
+            export.requestedTimeToleranceAfter = .zero
+            var areas: [Double: Int] = [:]
+            for seconds in [1.5, 1.6, 1.7, 1.8, 1.9, 1.6] {
+                let time = CMTime(seconds: seconds, preferredTimescale: 600)
+                var previewTime = CMTime.zero, exportTime = CMTime.zero
+                let a = CIImage(cgImage: try preview.copyCGImage(at: time, actualTime: &previewTime))
+                let b = CIImage(cgImage: try export.copyCGImage(at: time, actualTime: &exportTime))
+                var pixelsA = [UInt8](repeating: 0, count: 640 * 360 * 4), pixelsB = pixelsA
+                context.render(a, toBitmap: &pixelsA, rowBytes: 640 * 4, bounds: bounds,
+                               format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+                context.render(b, toBitmap: &pixelsB, rowBytes: 640 * 4, bounds: bounds,
+                               format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+                // These fixtures use green for screen and red/blue for camera.
+                // Compare their geometry, allowing the existing encoder color
+                // conversion to change brightness without moving those regions.
+                func region(_ pixels: [UInt8], at index: Int) -> Int {
+                    let channels = (0..<3).map { Int(pixels[index + $0]) }
+                    if channels.max()! - channels.min()! < 80 { return 3 }
+                    return channels.firstIndex(of: channels.max()!)!
+                }
+                let mismatches = stride(from: 0, to: pixelsA.count, by: 4).filter {
+                    region(pixelsA, at: $0) != region(pixelsB, at: $0)
+                }.count
+                let error = Double(mismatches) / Double(640 * 360)
+                if error >= 0.01 {
+                    FileHandle.standardError.write(Data("\(name) request \(seconds), preview \(previewTime.seconds), export \(exportTime.seconds), error \(error), fixtures \(directory.path)\n".utf8))
+                    for (label, image) in [("preview", a), ("export", b)] {
+                        try NSBitmapImageRep(cgImage: context.createCGImage(image, from: bounds)!).representation(using: .png, properties: [:])!
+                            .write(to: directory.appendingPathComponent("\(name)-\(seconds)-\(label).png"))
+                    }
+                }
+                precondition(error < 0.01, "\(name) transition geometry mismatch at \(seconds): \(error)")
+                areas[seconds] = stride(from: 0, to: pixelsA.count, by: 4).filter {
+                    pixelsA[$0 + 1] < 80 && (pixelsA[$0] > 180 || pixelsA[$0 + 2] > 180)
+                }.count
+                if CommandLine.arguments.contains("--keep-fixtures") && seconds == 1.7 {
+                    let frame = context.createCGImage(a, from: bounds)!
+                    try NSBitmapImageRep(cgImage: frame).representation(using: .png, properties: [:])!
+                        .write(to: directory.appendingPathComponent("smooth-\(name)-middle.png"))
+                }
+            }
+            if name == "expand" { precondition(areas[1.5]! < areas[1.7]! && areas[1.7]! < areas[1.9]!) }
+            if name == "shrink" { precondition(areas[1.5]! > areas[1.7]! && areas[1.7]! > areas[1.9]!) }
+            print("PASS: \(name) moves smoothly, preview/export agree, trimmed timing and backward seeks")
+        }
         if CommandLine.arguments.contains("--keep-fixtures") { print("Preview fixtures: \(directory.path)") }
     }
 }

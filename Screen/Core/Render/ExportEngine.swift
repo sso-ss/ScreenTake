@@ -459,7 +459,11 @@ final class ExportEngine: ObservableObject {
                 let cameraTime = configuration.videoOverlayTiming?.sampleTime(at: outputTime.seconds)?.seconds ?? pts.seconds
                 let cameraLayout = CameraLayoutChange.settings(at: cameraTime, initial: configuration.cameraLayout,
                                                                changes: configuration.cameraLayoutChanges)
-                let cameraFillsCanvas = compositor != nil && currentWebcamImage != nil && cameraLayout.layout == .fullScreen
+                let cameraTransition = CameraLayoutChange.transition(at: cameraTime, initial: configuration.cameraLayout,
+                                                                     changes: configuration.cameraLayoutChanges)
+                let animatingCamera = compositor != nil && currentWebcamImage != nil && cameraTransition != nil
+                let cameraFillsCanvas = compositor != nil && currentWebcamImage != nil
+                    && cameraLayout.layout == .fullScreen && cameraTransition == nil
 
                 var frameImage = image
 
@@ -493,12 +497,30 @@ final class ExportEngine: ObservableObject {
                                                   camera: transform, primaryOverlay: cursorLayer)
                 }
 
+                // During the layout animation, keep the screen cursor below the
+                // expanding camera, just as it is in the live preview.
+                if animatingCamera, canvas == nil, time >= 0,
+                   let cursorCGImage, let position = cursorPosition(at: time) {
+                    let point = CGPoint(x: mousePaddingRatio + position.x * mouseContentScale,
+                                        y: mousePaddingRatio + (1 - position.y) * mouseContentScale)
+                    if normalizedCrop.contains(point) {
+                        let camera = transform.clamped()
+                        let x = ((point.x - normalizedCrop.minX) / normalizedCrop.width - camera.centerX) * camera.zoom + 0.5
+                        let y = ((point.y - normalizedCrop.minY) / normalizedCrop.height - camera.centerY) * camera.zoom + 0.5
+                        let overlay = CIImage(cgImage: cursorCGImage).transformed(by: CGAffineTransform(
+                            translationX: x * outputSize.width - cursorHotspot.x,
+                            y: (1 - y) * outputSize.height - (CGFloat(cursorCGImage.height) - cursorHotspot.y)))
+                        frameImage = overlay.composited(over: frameImage).cropped(to: CGRect(origin: .zero, size: outputSize))
+                    }
+                }
+
                 if let compositor,
                    let webcamImage = currentWebcamImage {
                     frameImage = compositor.composite(
                         webcamImage: webcamImage,
                         onto: frameImage,
-                        settings: cameraLayout
+                        settings: cameraLayout,
+                        transition: cameraTransition
                     )
                 }
 
@@ -517,7 +539,7 @@ final class ExportEngine: ObservableObject {
                 ciContext.render(frameImage, to: outBuffer)
 
                 // Draw cursor from mouse position data on every frame
-                if time >= 0, canvas == nil, !cameraFillsCanvas {
+                if time >= 0, canvas == nil, !cameraFillsCanvas, !animatingCamera {
                     drawCursor(on: outBuffer, transform: transform, atTime: time)
                 }
 

@@ -141,7 +141,10 @@ final class LiveEditFrameRenderer {
         if let webcam, let webcamImage {
             let layout = CameraLayoutChange.settings(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                      changes: settings.cameraLayoutChanges)
-            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout)
+            let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
+                                                           changes: settings.cameraLayoutChanges)
+            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
+                                     transition: transition)
         }
         return image.cropped(to: CGRect(origin: .zero, size: outputSize))
     }
