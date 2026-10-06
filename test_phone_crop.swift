@@ -81,7 +81,14 @@ struct PhoneCropTests {
             let settings = VideoEditSettings(layout: .desktop, backgroundEnabled: background,
                                              crop: selectedCrop, showCursor: false)
             let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: settings, keyframes: [])
-            let expectedSize = background ? sourceSize : CGSize(width: 320, height: 320)
+            // Integral crop bounds include one boundary pixel; round up to even
+            // encoder dimensions so the selected content is never reduced.
+            let expectedSize = background ? settings.outputSize(source: sourceSize) : CGSize(width: 320, height: 322)
+            if background {
+                let content = CanvasGeometry(size: expectedSize, layout: .desktop, sourceSize: sourceRect.size).desktop!
+                precondition(content.width >= sourceRect.width && content.height >= sourceRect.height,
+                             "Background must not reduce cropped screen detail")
+            }
             precondition(renderer.outputSize == expectedSize, "Desktop preview must use cropped dimensions when Background is off")
             let frame = CIImage(color: .green).cropped(to: sourceRect).composited(over: CIImage(color: .red).cropped(to: CGRect(origin: .zero, size: sourceSize)))
             let preview = renderer.render(frame, at: 0)
@@ -114,7 +121,8 @@ struct PhoneCropTests {
             let output = directory.appendingPathComponent("\(layout.rawValue)-\(mode.rawValue).mov")
             _ = try await ExportEngine().export(sourceURL: source, keyframes: [], configuration: .init(
                 outputURL: output, mouseDataURL: mouseURL, cursorShape: .circle,
-                canvasRatio: .portrait, deviceLayout: layout, phoneCrop: selectedCrop, phoneContentMode: mode))
+                canvasRatio: .portrait, deviceLayout: layout, phoneCrop: selectedCrop, phoneContentMode: mode,
+                exportResolution: .fhd1080))
             let asset = AVURLAsset(url: output)
             let duration = try await asset.load(.duration)
             precondition(abs(duration.seconds - 1) < 0.05)

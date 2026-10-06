@@ -85,7 +85,7 @@ final class LiveEditFrameRenderer {
         normalizedCrop = CGRect(x: cropRect.minX / sourceSize.width,
                                 y: 1 - cropRect.maxY / sourceSize.height,
                                 width: cropRect.width / sourceSize.width, height: cropRect.height / sourceSize.height)
-        let dimensions = settings.ratio.size(source: settings.layout == .desktop && !settings.backgroundEnabled && settings.ratio == .original ? cropRect.size : sourceSize)
+        let dimensions = settings.outputSize(source: sourceSize)
         let scale = min(1, 2560 / max(dimensions.width, dimensions.height))
         outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
                             height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))

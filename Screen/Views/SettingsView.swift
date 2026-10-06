@@ -554,7 +554,7 @@ struct SettingsView: View {
         case .canvas: return true
         case .cursor: return editingRecording && appState.recording.lastMouseDataURL != nil
         case .camera, .audio: return true
-        case .output: return false
+        case .output: return true
         }
     }
 
@@ -683,7 +683,16 @@ struct SettingsView: View {
                                  hasOriginalAudio: hasEditableAudio,
                                  startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
             case .output:
-                EmptyView()
+                settingsSection("Output") {
+                    exportResolutionPicker(selection: $editDraft.exportResolution)
+                    if let sourceVideoSize {
+                        exportSizeDetails(settings: editDraft, source: sourceVideoSize)
+                    }
+                    Text("Zoom enlarges part of the recording and may still soften fine detail.")
+                        .font(Typography.caption)
+                        .foregroundStyle(DesignColors.secondaryLabel)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -744,6 +753,13 @@ struct SettingsView: View {
 
     private var editActions: some View {
         VStack(spacing: 10) {
+            if let sourceVideoSize {
+                let size = editDraft.outputSize(source: sourceVideoSize)
+                Text("Export: \(Int(size.width)) × \(Int(size.height))")
+                    .font(Typography.caption)
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .accessibilityIdentifier("exportDimensions")
+            }
             if isExporting || appState.recording.processingStage != nil {
                 let progress = editingRecording ? appState.recording.processingProgress : exportEngine.progress
                 ProgressView(value: progress, total: 1)
@@ -912,7 +928,23 @@ struct SettingsView: View {
                     ))
                 }
             case .output:
-                settingsSection("Output") { frameRatePicker }
+                settingsSection("Output") {
+                    frameRatePicker
+                    exportResolutionPicker(selection: Binding(
+                        get: { appState.capture.exportResolution },
+                        set: { appState.capture.exportResolution = $0 }
+                    ))
+                    if let target = appState.capture.selectedTarget {
+                        let configuration = CaptureConfiguration.forTarget(target)
+                        exportSizeDetails(settings: VideoEditSettings(
+                            ratio: appState.capture.canvasRatio,
+                            layout: appState.capture.deviceLayout,
+                            backgroundEnabled: target.isWindow || appState.capture.usesCanvas,
+                            phoneMode: appState.capture.phoneContentMode,
+                            exportResolution: appState.capture.exportResolution),
+                            source: CGSize(width: configuration.width, height: configuration.height))
+                    }
+                }
             }
         }
         .disabled(isExporting || isSaving || appState.isRecording || appState.recording.processingStage != nil)
@@ -1011,6 +1043,39 @@ struct SettingsView: View {
                 .accessibilityLabel("\(highlightColor.displayName) click highlight")
                 .accessibilityAddTraits(selection.wrappedValue == highlightColor ? .isSelected : [])
             }
+        }
+    }
+
+    private func exportResolutionPicker(selection: Binding<ExportResolution>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Picker("Resolution", selection: selection) {
+                ForEach(ExportResolution.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("exportResolution")
+            Text(selection.wrappedValue == .preserveSource
+                 ? "Keeps screen detail by allowing room for the background. Larger files."
+                 : "Sets canvas size independently of its shape. Screen content may be reduced.")
+                .font(Typography.caption)
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func exportSizeDetails(settings: VideoEditSettings, source: CGSize) -> some View {
+        let output = settings.outputSize(source: source)
+        let content = settings.crop.pixelRect(in: source).size
+        let scale = ExportResolution.contentScale(source: content, output: output, layout: settings.layout,
+                                                 usesCanvas: settings.usesCanvas, phoneMode: settings.phoneMode)
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("\(Int(output.width)) × \(Int(output.height)) pixels")
+                .font(Typography.body).monospacedDigit()
+            Text(scale < 0.999
+                 ? "Screen detail reduced to \(Int((scale * 100).rounded()))% of source size before zoom."
+                 : "Screen detail preserved before zoom.")
+                .font(Typography.caption)
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1125,11 +1190,16 @@ struct SettingsView: View {
 
     private func desktopCornerRadiusSlider(selection: Binding<Double>) -> some View {
         let source = videoURL == nil
-            ? (appState.capture.selectedTarget.map { CGSize(width: $0.width, height: $0.height) } ?? CGSize(width: 1440, height: 900))
+            ? (appState.capture.selectedTarget.map {
+                let configuration = CaptureConfiguration.forTarget($0)
+                return CGSize(width: configuration.width, height: configuration.height)
+            } ?? CGSize(width: 1440, height: 900))
             : (sourceVideoSize ?? CGSize(width: 1440, height: 900))
         let ratio = videoURL == nil ? appState.capture.canvasRatio : editDraft.ratio
         let layout = videoURL == nil ? appState.capture.deviceLayout : editDraft.layout
-        let canvasSize = ratio.size(source: source)
+        let canvasSize = videoURL == nil
+            ? appState.capture.exportResolution.size(source: source, ratio: ratio, layout: layout, usesCanvas: true)
+            : editDraft.outputSize(source: source)
         let contentSource = videoURL == nil ? source : editDraft.crop.pixelRect(in: source).size
         let content = CanvasGeometry(size: canvasSize, layout: layout, sourceSize: contentSource).desktop
         let shortestSide = content.map { min($0.width, $0.height) } ?? 0
@@ -1796,7 +1866,8 @@ struct SettingsView: View {
                 preserveSourceAudio: settings.audioEnabled,
                 phoneCrop: settings.crop,
                 phoneContentMode: settings.phoneMode,
-                forceCanvas: settings.backgroundEnabled
+                forceCanvas: settings.backgroundEnabled,
+                exportResolution: settings.exportResolution
             ))
             let trimmed = try await settings.trim.export(source: result)
             let mixed = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
@@ -1874,7 +1945,6 @@ struct SettingsView: View {
                 outputURL: outputURL,
                 codec: .hevc,
                 fileType: .mov,
-                bitRate: 20_000_000,
                 webcamVideoURL: webcamVideoURL(for: videoURL),
                 pipPosition: appState.capture.webcamPiPPosition,
                 pipSize: appState.capture.webcamPiPSize,
@@ -1889,7 +1959,8 @@ struct SettingsView: View {
                 phoneVideoURL: appState.capture.phoneVideoURL,
                 preserveSourceAudio: true,
                 phoneCrop: appState.capture.phoneCrop(for: videoURL),
-                phoneContentMode: appState.capture.phoneContentMode
+                phoneContentMode: appState.capture.phoneContentMode,
+                exportResolution: appState.capture.exportResolution
             )
 
             isExporting = true
@@ -2174,7 +2245,9 @@ enum LiveVideoPreview {
         } else { keyframes = [] }
         try Task.checkCancellation()
         let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: request.settings, keyframes: keyframes, mouse: mouse)
-        let webcam = request.settings.webcamEnabled ? request.webcam.map { OverlayVideoFrames(url: $0) } : nil
+        let webcam = request.settings.webcamEnabled ? request.webcam.map {
+            OverlayVideoFrames(url: $0, maximumSize: CGSize(width: 960, height: 960))
+        } : nil
         let context = CIContext(options: [.cacheIntermediates: false])
         let filters = AVMutableVideoComposition(asset: composition) { frame in
             autoreleasepool {

@@ -96,6 +96,7 @@ struct LiveEditPreviewTests {
         precondition(abs(color(background, 4, 4).redComponent - color(changed, 4, 4).redComponent) > 0.1)
         print("PASS: playback composition updates zoom and background on the same paused timestamp")
         settings.ratio = .portrait
+        settings.exportResolution = .fhd1080
         let portrait = try await frame(settings)
         precondition(portrait.pixelsWide == 1080 && portrait.pixelsHigh == 1350)
         let geometry = CanvasGeometry(size: CGSize(width: 1080, height: 1350), layout: .desktop, sourceSize: sourceSize)
@@ -200,6 +201,8 @@ struct LiveEditPreviewTests {
         }
         settings.trim = VideoTrim(cuts: [.init(start: 0.1, end: 0.2), .init(start: 0.3, end: 0.5)])
         print("PASS: reordered preview preserves source video, zoom, cursor and webcam timestamps")
+
+        if CommandLine.arguments.contains("--render-only") { return }
 
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 850), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .darkAqua)

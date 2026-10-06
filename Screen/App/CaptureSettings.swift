@@ -43,6 +43,7 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Frame Rate
 
     @AppStorage("captureFrameRate") var captureFrameRate: Int = 60
+    @AppStorage("exportResolution") var exportResolution: ExportResolution = .preserveSource
 
     @AppStorage("canvasRatio") var canvasRatio: CanvasRatio = .original
     @AppStorage("desktopCornerRadius") var desktopCornerRadius: Double = 0.025

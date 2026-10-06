@@ -307,7 +307,8 @@ final class RecordingState: ObservableObject {
                 webcamShape: captureSettings?.webcamPiPShape ?? .circle,
                 webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
                 webcamSize: captureSettings?.webcamPiPSize ?? .medium,
-                videoOverlayURL: lastWebcamVideoURL)
+                videoOverlayURL: lastWebcamVideoURL,
+                exportResolution: captureSettings?.exportResolution ?? .preserveSource)
             var keyframes: [CameraKeyframe] = []
             if generateZoom, let mouseDataURL {
                 keyframes = try await ClickZoomGenerator.generate(
@@ -335,7 +336,6 @@ final class RecordingState: ObservableObject {
                 outputURL: outputURL,
                 codec: .hevc,
                 fileType: .mov,
-                bitRate: 20_000_000,
                 webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,
                 videoOverlayTiming: settings.videoOverlayTiming,
                 videoOverlayTrim: settings.trim,
@@ -353,7 +353,8 @@ final class RecordingState: ObservableObject {
                 phoneVideoURL: captureSettings?.phoneVideoURL,
                 phoneCrop: settings.crop,
                 phoneContentMode: settings.phoneMode,
-                forceCanvas: settings.backgroundEnabled
+                forceCanvas: settings.backgroundEnabled,
+                exportResolution: settings.exportResolution
             )
 
             let engine = ExportEngine()

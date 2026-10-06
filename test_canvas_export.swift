@@ -71,7 +71,7 @@ struct CanvasExportTests {
             for layout in DeviceLayout.allCases {
                 let output = directory.appendingPathComponent("\(ratio.rawValue)-\(layout.rawValue).mov")
                 _ = try await ExportEngine().export(sourceURL: source, keyframes: [], configuration: .init(
-                    outputURL: output, showCursor: false, canvasRatio: ratio, deviceLayout: layout,
+                    outputURL: output, outputSize: ratio.size(source: sourceSize), showCursor: false, canvasRatio: ratio, deviceLayout: layout,
                     wallpaper: .blossom, phoneVideoURL: layout == .duo ? phone : nil, preserveSourceAudio: true))
                 let asset = AVURLAsset(url: output)
                 let track = try await asset.loadTracks(withMediaType: .video)[0]
@@ -107,24 +107,26 @@ struct CanvasExportTests {
         try JSONEncoder().encode(recording).write(to: mouseURL)
         let cursorOutput = directory.appendingPathComponent("cursor.mov")
         _ = try await ExportEngine().export(sourceURL: source, keyframes: [.init(time: 0, transform: .init(zoom: 2, centerX: 0.5, centerY: 0.5))], configuration: .init(
-            outputURL: cursorOutput, mouseDataURL: mouseURL, cursorShape: .circle, canvasRatio: .portrait, wallpaper: .blossom))
+            outputURL: cursorOutput, mouseDataURL: mouseURL, cursorShape: .circle, canvasRatio: .portrait, wallpaper: .blossom,
+            exportResolution: .fhd1080))
         let cursorAsset = AVURLAsset(url: cursorOutput)
         let generator = AVAssetImageGenerator(asset: cursorAsset)
         let cursorFrame = try await generator.image(at: .zero).image
         let bitmap = NSBitmapImageRep(cgImage: cursorFrame)
         let rect = CanvasGeometry(size: CanvasRatio.portrait.size(source: sourceSize), layout: .desktop, sourceSize: sourceSize).desktop!
-        var darkPoints: [CGPoint] = []
+        var cursorPoints: [CGPoint] = []
         for row in Int(rect.minY + 10)..<Int(rect.maxY - 10) {
             for column in Int(rect.minX + 10)..<Int(rect.maxX - 10) {
                 let color = bitmap.colorAt(x: column, y: bitmap.pixelsHigh - 1 - row)!.usingColorSpace(.sRGB)!
-                if max(color.redComponent, color.greenComponent, color.blueComponent) < 0.15 {
-                    darkPoints.append(CGPoint(x: column, y: row))
+                // The translucent circle adds white over the red fixture.
+                if color.greenComponent > 0.15 && color.blueComponent > 0.15 {
+                    cursorPoints.append(CGPoint(x: column, y: row))
                 }
             }
         }
-        precondition(darkPoints.count > 100, "Cursor missing from resized canvas")
-        let cursorX = darkPoints.map(\.x).reduce(0, +) / CGFloat(darkPoints.count)
-        let cursorY = darkPoints.map(\.y).reduce(0, +) / CGFloat(darkPoints.count)
+        precondition(cursorPoints.count > 100, "Cursor missing from resized canvas")
+        let cursorX = cursorPoints.map(\.x).reduce(0, +) / CGFloat(cursorPoints.count)
+        let cursorY = cursorPoints.map(\.y).reduce(0, +) / CGFloat(cursorPoints.count)
         precondition(abs(cursorX - (rect.minX + rect.width * 0.3)) < 4, "Canvas cursor X is misaligned")
         precondition(abs(cursorY - (rect.minY + rect.height * 0.7)) < 4, "Canvas cursor Y is misaligned")
         print("PASS: cursor hotspot remains aligned through 2x zoom and 4:5 canvas resize")

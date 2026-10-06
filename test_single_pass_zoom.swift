@@ -70,7 +70,7 @@ struct SinglePassZoomTests {
         let before = try await video(legacy, name: "two-resizes")
         let after = try await ExportEngine().export(sourceURL: source, keyframes: keyframes, configuration: .init(
             outputURL: directory.appendingPathComponent("single-resize-\(UUID().uuidString).mov"), showCursor: false,
-            canvasRatio: .landscape, forceCanvas: true))
+            canvasRatio: .landscape, forceCanvas: true, exportResolution: .fhd1080))
         let beforeFrame = try await frame(before)
         let afterFrame = try await frame(after)
         let ideal = NSBitmapImageRep(cgImage: context.createCGImage(reference, from: reference.extent)!)
@@ -95,7 +95,7 @@ struct SinglePassZoomTests {
         precondition(newError < oldError * 0.9, "Single-pass export did not reduce resampling error")
         try save(beforeFrame, name: "text-before")
         try save(afterFrame, name: "text-after")
-        var settings = VideoEditSettings(ratio: .landscape, showCursor: false, zoomEnabled: true)
+        var settings = VideoEditSettings(ratio: .landscape, showCursor: false, zoomEnabled: true, exportResolution: .fhd1080)
         settings.wallpaper = .sonoma
         let preview = LiveEditFrameRenderer(sourceSize: sourceSize, settings: settings, keyframes: keyframes).render(decoded, at: 0.5)
         let previewFrame = context.createCGImage(preview, from: preview.extent)!

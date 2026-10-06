@@ -22,10 +22,11 @@ final class ExportEngine: ObservableObject {
         var outputURL: URL
         var codec: AVVideoCodecType = .hevc
         var fileType: AVFileType = .mov
-        var bitRate: Int = 20_000_000
+        /// Nil selects a quality budget based on output dimensions and frame rate.
+        var bitRate: Int?
         var keyFrameInterval: Int = 60
 
-        /// Output resolution. Nil = same as source.
+        /// Explicit pixel dimensions override the selected export resolution.
         var outputSize: CGSize?
 
         /// Webcam PiP overlay settings
@@ -51,6 +52,7 @@ final class ExportEngine: ObservableObject {
         var phoneCrop: PhoneCrop = PhoneCrop()
         var phoneContentMode: PhoneContentMode = .fit
         var forceCanvas: Bool = false
+        var exportResolution: ExportResolution = .preserveSource
 
         var usesCanvas: Bool { forceCanvas || canvasRatio != .original || deviceLayout != .desktop }
     }
@@ -87,9 +89,13 @@ final class ExportEngine: ObservableObject {
         let sourceSize = cropRect.size
         let normalizedCrop = CGRect(x: cropRect.minX / originalSize.width, y: 1 - cropRect.maxY / originalSize.height,
                                     width: cropRect.width / originalSize.width, height: cropRect.height / originalSize.height)
-        let automaticSize = configuration.canvasRatio.size(source: configuration.usesCanvas ? originalSize : sourceSize)
-        let outputSize = configuration.outputSize ?? CGSize(width: max(2, floor((automaticSize.width + 0.000001) / 2) * 2),
-                                                           height: max(2, floor((automaticSize.height + 0.000001) / 2) * 2))
+        let outputSize = configuration.outputSize ?? configuration.exportResolution.size(
+            source: originalSize, crop: configuration.phoneCrop, ratio: configuration.canvasRatio,
+            layout: configuration.deviceLayout, usesCanvas: configuration.usesCanvas,
+            phoneMode: configuration.phoneContentMode)
+        let sourceFrameRate = try await videoTrack.load(.nominalFrameRate)
+        let bitRate = configuration.bitRate ?? VideoEncodingQuality.bitRate(
+            size: outputSize, frameRate: max(60, Double(sourceFrameRate)))
         let canvas = configuration.usesCanvas
             ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout, wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode, desktopCornerRadius: CGFloat(configuration.desktopCornerRadius)) : nil
         var phoneReader: TimedVideoReader?
@@ -168,7 +174,7 @@ final class ExportEngine: ObservableObject {
             AVVideoWidthKey: Int(outputSize.width),
             AVVideoHeightKey: Int(outputSize.height),
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: configuration.bitRate,
+                AVVideoAverageBitRateKey: bitRate,
                 AVVideoMaxKeyFrameIntervalKey: configuration.keyFrameInterval,
                 AVVideoProfileLevelKey: configuration.codec == .hevc
                     ? "HEVC_Main_AutoLevel"
@@ -745,10 +751,10 @@ final class OverlayVideoFrames {
     private var cachedTime = -Double.infinity
     private var cachedImage: CIImage?
 
-    init(url: URL) {
+    init(url: URL, maximumSize: CGSize = .zero) {
         generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 480, height: 480)
+        generator.maximumSize = maximumSize
         generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 30)
         generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 30)
     }

@@ -35,6 +35,14 @@ struct VideoEditSettings: Equatable {
     var voiceOverVolume: Double = 1
     var voiceOvers: [VoiceOverClip] = []
     var trim = VideoTrim()
+    var exportResolution: ExportResolution = .preserveSource
+
+    var usesCanvas: Bool { backgroundEnabled || ratio != .original || layout != .desktop }
+
+    func outputSize(source: CGSize) -> CGSize {
+        exportResolution.size(source: source, crop: crop, ratio: ratio, layout: layout,
+                              usesCanvas: usesCanvas, phoneMode: phoneMode)
+    }
 }
 
 struct VideoOverlayTiming: Equatable {
@@ -168,6 +176,68 @@ enum CanvasRatio: String, CaseIterable, Codable {
         case .portrait: return CGSize(width: 1080, height: 1350)
         case .vertical: return CGSize(width: 1080, height: 1920)
         }
+    }
+}
+
+/// Resolution is independent of canvas shape. Preserve source allows room for
+/// the background/device frame without reducing the captured content's pixels.
+enum ExportResolution: String, CaseIterable, Codable {
+    case preserveSource, uhd4k, fhd1080
+
+    var displayName: String {
+        switch self {
+        case .preserveSource: return "Preserve source"
+        case .uhd4k: return "4K"
+        case .fhd1080: return "1080p"
+        }
+    }
+
+    func size(source: CGSize, crop: PhoneCrop = PhoneCrop(), ratio: CanvasRatio = .original,
+              layout: DeviceLayout = .desktop, usesCanvas: Bool = false,
+              phoneMode: PhoneContentMode = .fit) -> CGSize {
+        let content = crop.pixelRect(in: source).size
+        let reference = ratio.size(source: usesCanvas ? source : content)
+        let scale: CGFloat
+        switch self {
+        case .preserveSource:
+            scale = 1 / Self.contentScale(source: content, output: reference, layout: layout,
+                                          usesCanvas: usesCanvas, phoneMode: phoneMode)
+        case .uhd4k, .fhd1080:
+            if ratio == .original {
+                scale = (self == .uhd4k ? 3840 : 1920) / max(reference.width, reference.height)
+            } else {
+                scale = self == .uhd4k ? 2 : 1
+            }
+        }
+        // Round up so padding and encoder-safe dimensions cannot shrink content.
+        return CGSize(width: max(2, ceil((reference.width * scale - 0.000001) / 2) * 2),
+                      height: max(2, ceil((reference.height * scale - 0.000001) / 2) * 2))
+    }
+
+    static func contentScale(source: CGSize, output: CGSize, layout: DeviceLayout,
+                             usesCanvas: Bool, phoneMode: PhoneContentMode) -> CGFloat {
+        let rect: CGRect
+        if usesCanvas {
+            let geometry = CanvasGeometry(size: output, layout: layout, sourceSize: source)
+            if let desktop = geometry.desktop {
+                rect = desktop
+            } else if let phone = geometry.phone {
+                rect = CanvasGeometry.phoneContent(phone, layout: layout)
+            } else { return 1 }
+        } else { rect = CGRect(origin: .zero, size: output) }
+        let horizontal = rect.width / max(1, source.width)
+        let vertical = rect.height / max(1, source.height)
+        return layout.isPhone && phoneMode == .fill ? max(horizontal, vertical) : min(horizontal, vertical)
+    }
+}
+
+enum VideoEncodingQuality {
+    /// HEVC budgets scale with pixels and frame rate; a recording master gets
+    /// extra headroom because it will be decoded and encoded again on export.
+    static func bitRate(size: CGSize, frameRate: Double, recordingMaster: Bool = false) -> Int {
+        let pixels = Double(size.width * size.height)
+        let rate = pixels * max(30, frameRate) * (recordingMaster ? 0.16 : 0.12)
+        return max(recordingMaster ? 30_000_000 : 20_000_000, Int(rate.rounded(.up)))
     }
 }
 
