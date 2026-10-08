@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compile and run standalone ScreenTake checks against the current app sources."""
 import argparse
+import os
 import platform
 from pathlib import Path
 import subprocess
@@ -22,6 +23,15 @@ def main():
                         str(root / "Screen/Core/Recording/ObjCExceptionCatcher.m"),
                         "-o", str(exception_object)], check=True, cwd=root)
         sources = sorted(str(p) for p in (root / "Screen").rglob("*.swift") if p.name != "ScreenApp.swift")
+        environment = dict(os.environ)
+        if "test_editor_mcp.swift" in args.checks:
+            helper = build / "screentake-mcp"
+            subprocess.run(["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
+                            "-target", f"{platform.machine()}-apple-macosx13.0",
+                            "-module-cache-path", str(build / "module-cache"),
+                            *sorted(str(p) for p in (root / "ScreenTakeMCP").glob("*.swift")),
+                            "-o", str(helper)], check=True, cwd=root)
+            environment["SCREENTAKE_MCP_EXECUTABLE"] = str(helper)
         for name in args.checks:
             check = root / name
             if check.parent != root or not check.name.startswith("test_") or check.suffix != ".swift" or not check.is_file():
@@ -38,7 +48,7 @@ def main():
             print(f"Compiling {check.name}…", flush=True)
             subprocess.run([*command, str(check), "-o", str(executable)], check=True, cwd=root)
             print(f"Running {check.name}…", flush=True)
-            subprocess.run([str(executable), *(["--render-only"] if args.render_only else [])], check=True, cwd=root)
+            subprocess.run([str(executable), *(["--render-only"] if args.render_only else [])], check=True, cwd=root, env=environment)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,13 @@ targets:
       - path: Screen
         excludes:
           - "**/.DS_Store"
+    dependencies:
+      - target: ScreenTakeMCP
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screen.Screen
@@ -46,3 +53,17 @@ targets:
       properties:
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
+  ScreenTakeMCP:
+    type: tool
+    platform: macOS
+    productName: screentake-mcp
+    sources:
+      - path: ScreenTakeMCP
+    settings:
+      base:
+        PRODUCT_NAME: screentake-mcp
+        PRODUCT_BUNDLE_IDENTIFIER: com.screen.ScreenTakeMCP
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "5.9"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"

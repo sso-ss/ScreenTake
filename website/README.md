@@ -2,7 +2,9 @@
 
 Open `index.html` in a browser. This is a standalone, responsive HTML/CSS/JavaScript page with no install step, build process, external fonts, or runtime CDN requests. GSAP 3.13.0 is vendored in `assets/gsap.min.js` (upstream license information is retained in the file).
 
-The design uses ScreenTake's `#6C5CE7` accent, actual recording/editor screenshots, and Prism, Lagoon, Ember, and Midnight wallpapers. All presentation assets are local. The screen-and-play mark in `assets/mark.svg` is shared with the native Mac app icon and welcome screen. Run `swift tools/generate_app_icon.swift` from the repository root after changing it to refresh the native assets.
+The design uses ScreenTake's `#6C5CE7` accent, actual recording/editor screenshots, and Prism, Lagoon, Ember, and Midnight wallpapers. All presentation assets are local. The approved three-panel screen/play logo in `assets/mark.svg` is the source for the website and native interface. Its panel joins align with the play edges. The Mac app icon places the symbol on a softly lit white tile; the website navigation and native header use the unboxed symbol. There is no recording dot.
+
+After editing the vector, run `node tools/render_brand_assets.cjs` (requires Node.js and `sharp`), then `swift tools/generate_app_icon.swift` from the repository root. The renderer generates `assets/app-icon.svg` and 1024px PNG masters (`mark.png`, `app-icon.png`). The Swift tool generates every Mac icon size and the native brand images from those masters, preserving the overlap shadows that the native SVG renderer drops. Generated files are checked in, so building the app does not require Node.js. For an isolated renderer dependency, use `npm install --prefix /tmp/screentake-brand-tools sharp`, then `NODE_PATH=/tmp/screentake-brand-tools/node_modules node tools/render_brand_assets.cjs`.
 
 Website typography has a 10px minimum at every breakpoint, with most supporting text at 12–15px. Darker text colors and stronger purple surfaces improve legibility. Text within the app screenshots is part of the original image.
 

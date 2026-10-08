@@ -122,11 +122,12 @@ not interpret natural language or grant filesystem permissions for a client.
 
 ## Connect an AI client (MCP)
 
-ScreenTake exposes the live native editor through `Screen/Resources/screentake_mcp.py`,
-a Python 3 standard-library stdio MCP server. No API key, Node runtime, pip install,
-or computer-use control is needed. The signed app bundles the same script under
-`Contents/Resources/screentake_mcp.py`, so an installed release can be connected too.
-Python 3 must be available in the MCP client's environment.
+ScreenTake exposes the live native editor through a compiled Swift stdio MCP helper,
+`screentake-mcp`. The signed app includes it at
+`Contents/Helpers/screentake-mcp`; no Python, Node, package install, API key, or
+computer-use control is required. Its source lives in `ScreenTakeMCP/`. Xcode builds
+and signs the helper as an app dependency, then embeds it with Code Sign on Copy.
+It uses the same architecture and minimum macOS version as the app.
 
 Launch ScreenTake, then open ScreenTake → AI Connection… to check the owning app
 process, copy setup JSON, or disable/retry the connection. It is enabled initially;
@@ -135,41 +136,45 @@ If another instance owns it, disable there or quit that instance and retry here.
 Disabling stops new requests; an already accepted command may finish. A bridge may
 remain running while the app is restarted; subsequent tool calls reconnect.
 
-For this checkout, add the following STDIO server in Codex Settings → MCP servers:
+Use **Copy Setup** to get the executable path for the app you are actually running.
+For an app installed in `/Applications`, a STDIO server uses:
 
 ```text
 Name: screentake
-Command: python3
-Arguments: /Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py
+Command: /Applications/ScreenTake.app/Contents/Helpers/screentake-mcp
+Arguments: (none)
 ```
 
 The CLI equivalent is:
 
 ```sh
-codex mcp add screentake -- python3 "/Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py"
+codex mcp add screentake -- "/Applications/ScreenTake.app/Contents/Helpers/screentake-mcp"
 ```
 
-This checkout now has the following project-scoped `.codex/config.toml` entry.
-It is local setup with an absolute path and is excluded from the implementation
-commit. Codex reads the enabled server; restart Codex to load its tools in a chat.
-For another checkout, create or adapt the entry:
+Or configure a trusted project's `.codex/config.toml` (or your user configuration):
 
 ```toml
 [mcp_servers.screentake]
-command = "python3"
-args = ["/Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py"]
+command = "/Applications/ScreenTake.app/Contents/Helpers/screentake-mcp"
+args = []
 startup_timeout_sec = 10
 tool_timeout_sec = 150
 ```
 
-For an installed app, use its bundled script path instead of the checkout path.
-Restart the client after adding the server. Setup follows the official
-[Codex MCP documentation](https://developers.openai.com/codex/mcp/).
-The bridge starts and discovers tools while the app is offline; calls then return
+For this checkout, `./Launch ScreenTake.command` builds the helper inside
+`.build/DerivedData/Build/Products/Debug/ScreenTake.app/Contents/Helpers/`.
+Copy Setup returns that app's absolute path. This project's local, uncommitted
+`.codex/config.toml` points there. Existing Python-based configurations must be
+replaced with the native command and empty arguments. If you move the app, copy
+setup again so your client uses its new location.
+
+Restart the client connection after updating the server. Setup follows the official
+[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+The helper starts and discovers tools while the app is offline; calls then return
 `connection_unavailable` with recovery instructions. A read-only connection check:
 
 ```sh
-python3 Screen/Resources/screentake_mcp.py --check
+"/Applications/ScreenTake.app/Contents/Helpers/screentake-mcp" --check
 ```
 
 The server implements MCP initialization/version negotiation, ping, tool listing
@@ -205,7 +210,7 @@ app restart or cache eviction ends that retry guarantee.
 
 The app listens only on `/tmp/screentake-<uid>/editor.sock`, inside a private 0700
 directory with a 0600 socket. Both native and bridge endpoints verify ownership;
-the native server checks peer UID. A private advisory lock prevents competing app
+both sides check peer UID. A private advisory lock prevents competing app
 instances from stealing an active socket and permits safe recovery after a crash.
 Unexpected files and symlinks are rejected. I/O runs away from the main actor, uses
 bounded requests/timeouts, and admits at most eight simultaneous connections. There
@@ -237,7 +242,13 @@ revision checks, retry idempotence, jobs, rendering, silence suggestions, separa
 master audio without duplication, portable Duo media, load/close races, and active
 export cancellation that preserves an existing destination.
 
-Run `python3 test_mcp_bridge.py` for offline protocol/schema checks and
+Run `python3 test_mcp_bridge.py` against the bundled Debug helper for offline
+protocol/schema and hostile-socket checks (or pass `--bridge /path/to/screentake-mcp`).
+The suite runs the helper with an empty executable search path and verifies all
+supported protocol versions, boolean/numeric distinctions, nested validation,
+malformed and oversized framing, private socket permissions, symlink rejection,
+partial/oversized responses, and clean client disconnects. Python is only a development
+test driver, never a runtime requirement for the app or MCP helper. Run
 `python3 tools/run_swift_checks.py test_editor_mcp.swift` for real stdio/socket/editor
 integration, reconnects and retries, revision conflicts, resources, undo/redo,
 portable projects, PNG pixels and dimensions, exported duration, malformed requests,

@@ -30,6 +30,9 @@ struct EditorMCPChecks {
         let test = Process()
         test.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
         test.arguments = ["test_mcp_bridge.py", "--socket", path, "--source", source.path, "--destination", directory.path]
+        if let bridge = ProcessInfo.processInfo.environment["SCREENTAKE_MCP_EXECUTABLE"] {
+            test.arguments! += ["--bridge", bridge]
+        }
         try test.run()
         while test.isRunning { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(test.terminationStatus == 0, "MCP integration failed")

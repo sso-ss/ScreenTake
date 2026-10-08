@@ -56,15 +56,26 @@ final class EditorLocalServer: ObservableObject {
 
     func showSetup() {
         let alert = NSAlert()
+        // Load the bundled icon directly so macOS's cached application icon
+        // cannot leave this dialog showing an older ScreenTake logo.
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            alert.icon = icon
+        }
         alert.messageText = "AI Connection"
-        alert.informativeText = "\(status)\n\nConnect an MCP client to edit the project open in this app. Local clients running as your macOS user can read media, edit, save, and export.\n\nThe bridge requires Python 3. Copy Setup provides the command and arguments to add to your client's MCP settings."
+        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/screentake-mcp")
+        let helperAvailable = FileManager.default.isExecutableFile(atPath: helper.path)
+        let setupInfo = helperAvailable
+            ? "Copy Setup provides the settings to connect your AI client. No additional software is required."
+            : "The connection helper is missing. Reinstall ScreenTake to restore AI setup."
+        alert.informativeText = "\(status)\n\nConnect an MCP client to edit the project open in this app. Local clients running as your macOS user can read media, edit, save, and export.\n\n\(setupInfo)"
         alert.addButton(withTitle: "Done")
         alert.addButton(withTitle: "Copy Setup")
         alert.addButton(withTitle: transport == nil ? "Enable / Retry" : "Disable")
+        alert.buttons[1].isEnabled = helperAvailable
         switch alert.runModal() {
         case .alertSecondButtonReturn:
-            guard let script = Bundle.main.url(forResource: "screentake_mcp", withExtension: "py") else { return }
-            let setup: [String: Any] = ["mcpServers": ["screentake": ["command": "python3", "args": [script.path]]]]
+            let setup: [String: Any] = ["mcpServers": ["screentake": ["command": helper.path, "args": [String]()]]]
             if let data = try? JSONSerialization.data(withJSONObject: setup, options: [.prettyPrinted, .sortedKeys]),
                let text = String(data: data, encoding: .utf8) {
                 NSPasteboard.general.clearContents()

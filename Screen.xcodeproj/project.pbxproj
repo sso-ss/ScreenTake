@@ -7,7 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		ED1700080000000000000002 /* screentake_mcp.py in Resources */ = {isa = PBXBuildFile; fileRef = ED1700080000000000000001 /* screentake_mcp.py */; };
+		CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14E136D206B494934809F1B /* EditorConnection.swift */; };
+		722F179F5261BE4CFED75348 /* MCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281A6EB43E5620CC29F28115 /* MCPBridge.swift */; };
+		ED8D0E8FD9F699AE82AB67F7 /* MCPStdio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */; };
+		3DA30B2A59EBDB7C0EC9952C /* MCPToolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */; };
+		EB67EBEF5841DE77C7F45233 /* screentake-mcp in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ED1700070000000000000002 /* EditorLocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700070000000000000001 /* EditorLocalServer.swift */; };
 		ED1700060000000000000002 /* EditorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700060000000000000001 /* EditorCommands.swift */; };
 		ED1700050000000000000002 /* EditValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700050000000000000001 /* EditValidation.swift */; };
@@ -72,8 +76,44 @@
 		F8E354585A461C4A650467E8 /* ScreenCaptureManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEA795A1B9B4147FEA254AF /* ScreenCaptureManager.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0DDBFA7F93DEBD50DA5C0C52 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F51C37BF0AC0A85D643C7393 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C6B8F893866D0B13C4930EC;
+			remoteInfo = ScreenTakeMCP;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				EB67EBEF5841DE77C7F45233 /* screentake-mcp in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9E605141F51AF64E8A295346 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */;
+			targetProxy = 0DDBFA7F93DEBD50DA5C0C52 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXFileReference section */
-		ED1700080000000000000001 /* screentake_mcp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = screentake_mcp.py; sourceTree = "<group>"; };
+		E14E136D206B494934809F1B /* EditorConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorConnection.swift; sourceTree = "<group>"; };
+		281A6EB43E5620CC29F28115 /* MCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPBridge.swift; sourceTree = "<group>"; };
+		6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStdio.swift; sourceTree = "<group>"; };
+		F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolCatalog.swift; sourceTree = "<group>"; };
+		F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */ = {isa = PBXFileReference; includeInIndex = 0; path = "screentake-mcp"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED1700070000000000000001 /* EditorLocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorLocalServer.swift; sourceTree = "<group>"; };
 		ED1700060000000000000001 /* EditorCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCommands.swift; sourceTree = "<group>"; };
 		ED1700050000000000000001 /* EditValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditValidation.swift; sourceTree = "<group>"; };
@@ -144,6 +184,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		9A0061607EEC35AE1A7F740D /* ScreenTakeMCP */ = {
+			isa = PBXGroup;
+			children = (
+				E14E136D206B494934809F1B /* EditorConnection.swift */,
+				281A6EB43E5620CC29F28115 /* MCPBridge.swift */,
+				6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */,
+				F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */,
+			);
+			name = ScreenTakeMCP;
+			path = ScreenTakeMCP;
+			sourceTree = "<group>";
+		};
 		060AB102F076966B4B1994AA /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -300,7 +352,6 @@
 		C2D01ADF2185BA163EED870A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				ED1700080000000000000001 /* screentake_mcp.py */,
 				585E017110E84AE6D2E27DFE /* cursor.svg */,
 			);
 			path = Resources;
@@ -310,6 +361,7 @@
 			isa = PBXGroup;
 			children = (
 				42BF393923C2FFF2D8943AF0 /* Screen */,
+				9A0061607EEC35AE1A7F740D /* ScreenTakeMCP */,
 				E2A4314D8A1E611AC80F3CCA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -318,6 +370,7 @@
 			isa = PBXGroup;
 			children = (
 				B231EADCD2F77286BD0CDDF5 /* Screen.app */,
+				F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -325,16 +378,35 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5DF8C8C070948FF191081E49 /* Build configuration list for PBXNativeTarget "ScreenTakeMCP" */;
+			buildPhases = (
+				91CDDE8CDF107F6A21F0C238 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScreenTakeMCP;
+			packageProductDependencies = (
+			);
+			productName = ScreenTakeMCP;
+			productReference = F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */;
+			productType = "com.apple.product-type.tool";
+		};
 		807C2DC9328CC59C60BF196B /* Screen */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0DF509C277ADFC256C047756 /* Build configuration list for PBXNativeTarget "Screen" */;
 			buildPhases = (
 				E508B06A65FAE820B948BF41 /* Sources */,
 				14EA0BF61BAE95C3DBD5997C /* Resources */,
+				ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9E605141F51AF64E8A295346 /* PBXTargetDependency */,
 			);
 			name = Screen;
 			packageProductDependencies = (
@@ -371,6 +443,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */,
 				807C2DC9328CC59C60BF196B /* Screen */,
 			);
 		};
@@ -382,7 +455,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				1233788A2163651F603D5D1A /* Assets.xcassets in Resources */,
-				ED1700080000000000000002 /* screentake_mcp.py in Resources */,
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -390,6 +462,17 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		91CDDE8CDF107F6A21F0C238 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */,
+				722F179F5261BE4CFED75348 /* MCPBridge.swift in Sources */,
+				ED8D0E8FD9F699AE82AB67F7 /* MCPStdio.swift in Sources */,
+				3DA30B2A59EBDB7C0EC9952C /* MCPToolCatalog.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E508B06A65FAE820B948BF41 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -460,6 +543,34 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		0A7FACE3BFD14A1793379D71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.screen.ScreenTakeMCP;
+				PRODUCT_NAME = "screentake-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		976FC38647B74DAD95A0E94F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.screen.ScreenTakeMCP;
+				PRODUCT_NAME = "screentake-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
 		6DF9BD23A9FDB71BD48E4A7E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -641,6 +752,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5DF8C8C070948FF191081E49 /* Build configuration list for PBXNativeTarget "ScreenTakeMCP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A7FACE3BFD14A1793379D71 /* Debug */,
+				976FC38647B74DAD95A0E94F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		0DF509C277ADFC256C047756 /* Build configuration list for PBXNativeTarget "Screen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

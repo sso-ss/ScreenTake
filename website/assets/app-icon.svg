@@ -1,4 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="tile" x1="260" y1="100" x2="710" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".55" stop-color="#FAF9FE"/>
+      <stop offset="1" stop-color="#EDEAF5"/>
+    </linearGradient>
+    <linearGradient id="tile-edge" x1="512" y1="100" x2="512" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white"/>
+      <stop offset="1" stop-color="#DCD8E7"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="113" width="824" height="824" rx="186" fill="#1A1039" fill-opacity=".04"/>
+  <rect x="100" y="108" width="824" height="824" rx="186" fill="#1A1039" fill-opacity=".06"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#tile)"/>
+  <rect x="101" y="101" width="822" height="822" rx="185" stroke="url(#tile-edge)" stroke-width="2"/>
+  <g transform="translate(152 142) scale(5.625)">
+    <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
   <defs>
     <linearGradient id="lower-panel" x1="113" y1="35" x2="67" y2="111" gradientUnits="userSpaceOnUse">
       <stop stop-color="#B3A0FF"/>
@@ -32,5 +49,8 @@
     <path d="M8 25H22.112820513L55 46.2C52.6 44.7 50 46.2 50 49V104H8V25Z" fill="url(#left-panel)" filter="url(#overlap)"/>
     <path d="M22.112820513 25H120V41.899173554L79.2 68.2C81.6 66.7 81.6 63.3 79.2 61.8L55 46.2L22.112820513 25Z" fill="url(#top-panel)" filter="url(#overlap)"/>
     <path d="M50 49C50 46.2 52.6 44.7 55 46.2L79.2 61.8C81.6 63.3 81.6 66.7 79.2 68.2L55 83.8C52.6 85.3 50 83.8 50 81V49Z" fill="url(#play)"/>
+  </g>
+</svg>
+
   </g>
 </svg>
