@@ -1,6 +1,6 @@
-# AI-native editor foundation
+# AI-native editor
 
-The first three AI-native milestones are implemented by `EditorSession`, owned by
+The shared editor, portable projects, typed commands, and local MCP connection are implemented. `EditorSession` is owned by
 `AppState.editorSession`. `SettingsView` observes this session and binds its controls
 to the same draft, selection, and undo history available to direct callers.
 
@@ -67,8 +67,7 @@ format is explicitly unsupported rather than silently dropping its fields.
 
 `AppState.editorCommands` exposes a main-actor `EditorCommandDispatcher` with typed
 `execute` and JSON `executeJSON` entry points. These call the same session as the UI.
-This is an in-process command boundary; an external MCP transport is the next
-milestone and is not part of these first three steps.
+The local MCP transport forwards into this dispatcher; it has no separate editing or rendering implementation.
 
 Supported operations:
 
@@ -119,7 +118,100 @@ The session stays busy until teardown completes. Exports report rendering progre
 completed jobs include output paths, frames, or silence suggestions. The last 50 jobs
 are retained. Preview artifacts live in the system temporary directory. Responses
 use `ok` and structured `error.code` / `error.message` values. This dispatcher does
-not interpret natural language or grant filesystem permissions for a future client.
+not interpret natural language or grant filesystem permissions for a client.
+
+## Connect an AI client (MCP)
+
+ScreenTake exposes the live native editor through `Screen/Resources/screentake_mcp.py`,
+a Python 3 standard-library stdio MCP server. No API key, Node runtime, pip install,
+or computer-use control is needed. The signed app bundles the same script under
+`Contents/Resources/screentake_mcp.py`, so an installed release can be connected too.
+Python 3 must be available in the MCP client's environment.
+
+Launch ScreenTake, then open ScreenTake → AI Connection… to check the owning app
+process, copy setup JSON, or disable/retry the connection. It is enabled initially;
+disabling persists across app launches. Only one app instance owns the connection.
+If another instance owns it, disable there or quit that instance and retry here.
+Disabling stops new requests; an already accepted command may finish. A bridge may
+remain running while the app is restarted; subsequent tool calls reconnect.
+
+For this checkout, add the following STDIO server in Codex Settings → MCP servers:
+
+```text
+Name: screentake
+Command: python3
+Arguments: /Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py
+```
+
+The CLI equivalent is:
+
+```sh
+codex mcp add screentake -- python3 "/Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py"
+```
+
+This checkout now has the following project-scoped `.codex/config.toml` entry.
+It is local setup with an absolute path and is excluded from the implementation
+commit. Codex reads the enabled server; restart Codex to load its tools in a chat.
+For another checkout, create or adapt the entry:
+
+```toml
+[mcp_servers.screentake]
+command = "python3"
+args = ["/Users/sso/Desktop/AI project/screen-clean/Screen/Resources/screentake_mcp.py"]
+startup_timeout_sec = 10
+tool_timeout_sec = 150
+```
+
+For an installed app, use its bundled script path instead of the checkout path.
+Restart the client after adding the server. Setup follows the official
+[Codex MCP documentation](https://developers.openai.com/codex/mcp/).
+The bridge starts and discovers tools while the app is offline; calls then return
+`connection_unavailable` with recovery instructions. A read-only connection check:
+
+```sh
+python3 Screen/Resources/screentake_mcp.py --check
+```
+
+The server implements MCP initialization/version negotiation, ping, tool listing
+and calling, and a `screentake://editor/project` JSON resource. All 13 typed commands
+above are tools, with complete input schemas. `get_preview_frame(jobID, index)` is
+an additional read-only tool returning an actual PNG image from a successful preview
+job, bounded to 1024 pixels per side. `get_job` lists frame timestamps/paths; only
+registered job artifacts can be requested as images. The original full-resolution
+PNG remains available locally. Responses include text, `isError`, and structured
+content for protocol versions supporting it. Notifications produce no stdout output.
+
+A typical AI workflow is:
+
+1. Read `get_project` and inspect current settings and revision.
+2. Call `apply_edits` with that `projectID`, `expectedRevision`, and a settings batch.
+   Optionally supply a stable UUID `requestID` for safe retries.
+3. Use the returned revision to call `render_preview`; poll `get_job` with its job ID.
+4. Inspect `get_preview_frame`, refine edits, and repeat as needed.
+5. Save a portable project or call `export_video` and poll its job to completion.
+
+Native edits and AI edits share state and undo history. If the user changes the
+project between reading and editing, the command returns `stale_project`; read again
+and reassess. Paths are absolute local paths; nested media references are `file:///`
+URLs. Nested objects replace their fields using the native defaults where supported;
+omitted top-level edit fields remain unchanged. Cuts, zoom segments, and narration
+clips require their own UUID identifiers, as advertised in the schema. Silence
+suggestions use source seconds; preview timestamps use edited-video seconds.
+Jobs outlive bridge disconnects. After a lost response, retry using identical
+arguments and the same `requestID`; a command may already have completed. Do not
+repeat a failed/cancelled export with its old ID when intending to start a new job.
+Request and job caches are scoped to the running app, bounded to 100 and 50 entries;
+app restart or cache eviction ends that retry guarantee.
+
+The app listens only on `/tmp/screentake-<uid>/editor.sock`, inside a private 0700
+directory with a 0600 socket. Both native and bridge endpoints verify ownership;
+the native server checks peer UID. A private advisory lock prevents competing app
+instances from stealing an active socket and permits safe recovery after a crash.
+Unexpected files and symlinks are rejected. I/O runs away from the main actor, uses
+bounded requests/timeouts, and admits at most eight simultaneous connections. There
+is no TCP listener. Clients running as your macOS user can read media, edit settings,
+and write exports/projects with the app's filesystem access; connect trusted clients.
+The MCP adapter does not add transcription or an embedded language model.
 
 ## Verification
 
@@ -144,3 +236,15 @@ media retained for undo, failed save preservation, invalid projects, JSON comman
 revision checks, retry idempotence, jobs, rendering, silence suggestions, separate
 master audio without duplication, portable Duo media, load/close races, and active
 export cancellation that preserves an existing destination.
+
+Run `python3 test_mcp_bridge.py` for offline protocol/schema checks and
+`python3 tools/run_swift_checks.py test_editor_mcp.swift` for real stdio/socket/editor
+integration, reconnects and retries, revision conflicts, resources, undo/redo,
+portable projects, PNG pixels and dimensions, exported duration, malformed requests,
+shutdown/restart, socket ownership, stale recovery, and file/symlink preservation.
+
+The final signed app was also checked with the bundled stdio bridge: a portable
+project opened in the UI, tool edits appeared in its ratio control, PNG retrieval and
+video export completed, and a native ratio edit was read and undone over MCP. Native
+Save Project / Open Project restored the saved ratio and two-second timeline. The
+editor title retains the project name after media is packaged.

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ED1700080000000000000002 /* screentake_mcp.py in Resources */ = {isa = PBXBuildFile; fileRef = ED1700080000000000000001 /* screentake_mcp.py */; };
+		ED1700070000000000000002 /* EditorLocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700070000000000000001 /* EditorLocalServer.swift */; };
 		ED1700060000000000000002 /* EditorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700060000000000000001 /* EditorCommands.swift */; };
 		ED1700050000000000000002 /* EditValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700050000000000000001 /* EditValidation.swift */; };
 		ED1700040000000000000002 /* EditorProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700040000000000000001 /* EditorProjectStore.swift */; };
@@ -71,6 +73,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		ED1700080000000000000001 /* screentake_mcp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = screentake_mcp.py; sourceTree = "<group>"; };
+		ED1700070000000000000001 /* EditorLocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorLocalServer.swift; sourceTree = "<group>"; };
 		ED1700060000000000000001 /* EditorCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCommands.swift; sourceTree = "<group>"; };
 		ED1700050000000000000001 /* EditValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditValidation.swift; sourceTree = "<group>"; };
 		ED1700040000000000000001 /* EditorProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProjectStore.swift; sourceTree = "<group>"; };
@@ -151,6 +155,7 @@
 				97861B5425D6513A778B1B33 /* NavigationState.swift */,
 				BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */,
 				ED1700010000000000000001 /* EditorSession.swift */,
+				ED1700070000000000000001 /* EditorLocalServer.swift */,
 				ED1700060000000000000001 /* EditorCommands.swift */,
 				A6F6E4B4AF86D43F888DD8ED /* RecordingState.swift */,
 				102DD963F4C94915F0CB1525 /* ScreenApp.swift */,
@@ -295,6 +300,7 @@
 		C2D01ADF2185BA163EED870A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				ED1700080000000000000001 /* screentake_mcp.py */,
 				585E017110E84AE6D2E27DFE /* cursor.svg */,
 			);
 			path = Resources;
@@ -376,6 +382,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1233788A2163651F603D5D1A /* Assets.xcassets in Resources */,
+				ED1700080000000000000002 /* screentake_mcp.py in Resources */,
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -387,6 +394,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED1700070000000000000002 /* EditorLocalServer.swift in Sources */,
 				ED1700060000000000000002 /* EditorCommands.swift in Sources */,
 				ED1700050000000000000002 /* EditValidation.swift in Sources */,
 				ED1700040000000000000002 /* EditorProjectStore.swift in Sources */,

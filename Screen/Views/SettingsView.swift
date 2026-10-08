@@ -1648,7 +1648,7 @@ struct SettingsView: View {
 
                 Spacer()
 
-                Text(url.lastPathComponent)
+                Text(session.projectName)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(DesignColors.primaryLabel)
                     .lineLimit(1)

@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import ImageIO
 
 struct EditorEdits: Codable {
     var trim: VideoTrim?
@@ -130,8 +131,7 @@ struct EditorCommandResponse: Codable {
     var error: Failure?
 }
 
-/// In-process, typed command boundary. A future MCP adapter only needs to transport
-/// these requests; it must not implement separate edits or rendering behavior.
+/// Shared typed command boundary for native callers and the local MCP connection.
 @MainActor
 final class EditorCommandDispatcher {
     let session: EditorSession
@@ -144,6 +144,41 @@ final class EditorCommandDispatcher {
     private var jobOrder: [UUID] = []
 
     init(session: EditorSession) { self.session = session }
+
+    /// Serve only registered preview artifacts, never a client-supplied file path.
+    /// Thumbnails keep MCP responses bounded even for full-resolution exports.
+    func previewFrameJSON(jobID: UUID, index: Int) async -> Data {
+        struct FrameResult: Encodable {
+            let time: Double
+            let data: String
+            let mimeType = "image/png"
+            let width: Int
+            let height: Int
+        }
+        struct Result: Encodable { let ok = true; let frame: FrameResult }
+        do {
+            guard let job = jobs[jobID], job.status == .succeeded, let frames = job.frames,
+                  frames.indices.contains(index) else {
+                throw CommandError("unknown_frame", "Read get_job for a completed preview job and use a valid frame index.")
+            }
+            let frame = frames[index]
+            let result = try await Task.detached(priority: .userInitiated) {
+                guard let source = CGImageSourceCreateWithURL(frame.url as CFURL, nil),
+                      let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 1024,
+                        kCGImageSourceCreateThumbnailWithTransform: true
+                      ] as CFDictionary),
+                      let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+                    throw CommandError("artifact_unavailable", "The preview artifact is no longer available. Render a new preview.")
+                }
+                return Result(frame: .init(time: frame.time, data: data.base64EncodedString(), width: image.width, height: image.height))
+            }.value
+            return try JSONEncoder().encode(result)
+        } catch {
+            return try! JSONEncoder().encode(EditorCommandResponse(ok: false, error: failure(error)))
+        }
+    }
 
     var snapshot: EditorProjectSnapshot {
         .init(id: session.projectID, revision: session.revision, name: session.projectName,

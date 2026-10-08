@@ -20,6 +20,7 @@ final class AppState: ObservableObject {
     let recording = RecordingState()
     let editorSession = EditorSession()
     lazy var editorCommands = EditorCommandDispatcher(session: editorSession)
+    lazy var editorConnection = EditorLocalServer(commands: editorCommands)
     let permissions = PermissionsManager()
     let updates = UpdateChecker()
     @Published var isExportingVideo = false

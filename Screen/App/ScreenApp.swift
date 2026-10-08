@@ -6,11 +6,16 @@ import UniformTypeIdentifiers
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppState.shared.editorConnection.startIfEnabled()
         // Refresh the Dock icon when macOS has cached a placeholder for a local build.
         if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
            let icon = NSImage(contentsOf: iconURL) {
             NSApplication.shared.applicationIconImage = icon
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppState.shared.editorConnection.stop()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -61,6 +66,8 @@ struct ScreenApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .appInfo) {
+                Button("AI Connection…") { appState.editorConnection.showSetup() }
+
                 Button("Report a Bug…") {
                     BugReporter.open()
                 }
