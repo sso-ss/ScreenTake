@@ -29,62 +29,45 @@ struct SettingsView: View {
     var onStartRecording: (() -> Void)?
     var onOpenVideo: ((URL) -> Void)?
 
-    // Video preview state
-    @State private var videoURL: URL?
-    @State private var videoPlayer: AVPlayer?
+    @ObservedObject var session: EditorSession = AppState.shared.editorSession
     @State private var isDragging = false
-    @State private var layoutSourceURL: URL?
-    @State private var layoutKeyframes: [CameraKeyframe] = []
     @State private var isCroppingScreen = false
     @State private var cropFrameTime = CMTime.zero
-    @State private var editDraft = VideoEditSettings()
-    @State private var appliedEdits = VideoEditSettings()
-    @StateObject private var voiceOverRecorder = VoiceOverRecorder()
-    @StateObject private var videoOverlayRecorder = VideoOverlayRecorder()
-    @State private var selectedVoiceOverID: UUID?
-    @State private var isVideoOverlaySelected = false
-    @State private var previewReady = false
-    @State private var faceTrackingPreparationID: UUID?
-    @State private var hasEditableAudio = false
-    @State private var previewAudioURL: URL?
-    @State private var previewError: String?
-    @State private var sourceDuration: Double = 0
-    @State private var sourceVideoSize: CGSize?
-    @State private var renderedPreviewTimeline: EditedTimeline?
     @State private var selectedPanel: SettingsPanel = .canvas
-    @State private var selectedZoomID: UUID?
-    @State private var automaticZooms: [ZoomSegment] = []
-    @State private var zoomHistory: [[ZoomSegment]?] = []
-    @State private var zoomPadding: CGFloat = 0
     @State private var focusFrame: CGImage?
     @State private var editingZoomFocus = false
-
-    private var selectedZoom: ZoomSegment? {
-        (editDraft.zoomSegments ?? automaticZooms).first { $0.id == selectedZoomID }
-    }
-
-    private func updateZoomFocus(_ change: (inout ZoomSegment) -> Void) {
-        guard let selectedZoomID else { return }
-        var updated = editDraft.zoomSegments ?? automaticZooms
-        guard let index = updated.firstIndex(where: { $0.id == selectedZoomID }) else { return }
-        change(&updated[index])
-        editDraft.zoomSegments = updated
-    }
-
-    // Export state
-    @StateObject private var exportEngine = ExportEngine()
     @StateObject private var cameraPreview = CameraPreviewController()
     @StateObject private var cameraLayoutPlayback = TimelinePlayback()
     @State private var isShowingCameraPreview = false
-    @State private var isExporting = false
-    @State private var exportError: String?
-    @State private var showExportSuccess = false
     @State private var isShowingSavePanel = false
-    @State private var isSaving = false
-    @State private var saveError: String?
-    @State private var videoWork = VideoReplacementState<VideoEditSettings>()
-    @State private var videoSessionID = UUID()
     @State private var pendingReplacement: VideoReplacementAction?
+
+    private var videoURL: URL? { session.videoURL }
+    private var videoPlayer: AVPlayer? { session.player }
+    private var layoutSourceURL: URL? { session.sourceURL }
+    private var sourceDuration: Double { session.sourceDuration }
+    private var sourceVideoSize: CGSize? { session.sourceVideoSize }
+    private var previewAudioURL: URL? { session.audioURL }
+    private var hasEditableAudio: Bool { session.hasEditableAudio }
+    private var previewReady: Bool { session.previewReady }
+    private var previewError: String? { session.previewError }
+    private var renderedPreviewTimeline: EditedTimeline? { session.renderedPreviewTimeline }
+    private var isExporting: Bool { session.isExporting }
+    private var isSaving: Bool { session.isSaving }
+    private var voiceOverRecorder: VoiceOverRecorder { session.voiceOverRecorder }
+    private var videoOverlayRecorder: VideoOverlayRecorder { session.videoOverlayRecorder }
+
+    private var selectedZoom: ZoomSegment? {
+        (session.draft.zoomSegments ?? session.automaticZooms).first { $0.id == session.selectedZoomID }
+    }
+
+    private func updateZoomFocus(_ change: (inout ZoomSegment) -> Void) {
+        guard let id = session.selectedZoomID else { return }
+        var updated = session.draft.zoomSegments ?? session.automaticZooms
+        guard let index = updated.firstIndex(where: { $0.id == id }) else { return }
+        change(&updated[index])
+        session.draft.zoomSegments = updated
+    }
 
     private var mainContent: some View {
         VStack(spacing: 0) {
@@ -146,18 +129,13 @@ struct SettingsView: View {
 
     var body: some View {
         settingsPresentation
-        .alert("Export Complete", isPresented: $showExportSuccess) {
-            Button("OK") {}
-        } message: {
-            Text("Video exported with auto-zoom applied.")
-        }
         .alert("Export Error", isPresented: Binding(
-            get: { exportError != nil },
-            set: { if !$0 { exportError = nil } }
+            get: { session.exportError != nil },
+            set: { if !$0 { session.exportError = nil } }
         )) {
-            Button("OK") { exportError = nil }
+            Button("OK") { session.exportError = nil }
         } message: {
-            Text(exportError ?? "Unknown error")
+            Text(session.exportError ?? "Unknown error")
         }
         .alert("Processing Failed", isPresented: Binding(
             get: { appState.recording.processingError != nil },
@@ -168,27 +146,26 @@ struct SettingsView: View {
             Text(appState.recording.processingError ?? "")
         }
         .alert("Could Not Save Recording", isPresented: Binding(
-            get: { saveError != nil },
-            set: { if !$0 { saveError = nil } }
+            get: { session.saveError != nil },
+            set: { if !$0 { session.saveError = nil } }
         )) {
-            Button("OK") { saveError = nil }
+            Button("OK") { session.saveError = nil }
         } message: {
-            Text(saveError ?? "")
+            Text(session.saveError ?? "")
         }
     }
 
     private var settingsPresentation: some View {
         mainContent
-        .task(id: livePreviewRequest) { await refreshLivePreview() }
-        .onChange(of: voiceOverRecorder.isBusy) { busy in appState.isRecordingVoiceOver = busy }
-        .onChange(of: videoOverlayRecorder.isBusy) { busy in appState.isRecordingCameraOverlay = busy }
+        .onChange(of: session.player.map(ObjectIdentifier.init)) { _ in
+            cameraLayoutPlayback.detach()
+            if let videoPlayer { cameraLayoutPlayback.attach(videoPlayer) }
+        }
         .onDisappear {
             cameraLayoutPlayback.detach()
-            appState.updateUnsavedVideoWork(session: videoSessionID, hasUnsavedWork: false)
+            if editingZoomFocus { session.endUndoGroup(); editingZoomFocus = false }
             voiceOverRecorder.cancel()
             videoOverlayRecorder.cancel()
-            appState.isRecordingVoiceOver = false
-            appState.isRecordingCameraOverlay = false
         }
         .overlay(
             RoundedRectangle(cornerRadius: 0)
@@ -217,13 +194,15 @@ struct SettingsView: View {
                 requestImport(url)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openProjectFile)) { notification in
+            if !editsBusy, let url = notification.userInfo?["url"] as? URL {
+                requestOpen(url, project: true)
+            }
+        }
         .onAppear {
-            appState.updateUnsavedVideoWork(session: videoSessionID, hasUnsavedWork: hasUnsavedVideoWork)
+            if let videoPlayer { cameraLayoutPlayback.attach(videoPlayer) }
             if videoURL == nil, appState.recording.processingStage == nil,
                let url = appState.recording.lastRecordingURL { loadVideo(url) }
-        }
-        .onChange(of: hasUnsavedVideoWork) { hasUnsavedWork in
-            appState.updateUnsavedVideoWork(session: videoSessionID, hasUnsavedWork: hasUnsavedWork)
         }
         .onChange(of: appState.recording.processingStage) { stage in
             if !isExporting, stage == nil, appState.recording.processingError == nil,
@@ -464,18 +443,10 @@ struct SettingsView: View {
 
     // MARK: - Controls Column
 
-    private var editingRecording: Bool {
-        layoutSourceURL != nil && layoutSourceURL == appState.recording.lastSourceRecordingURL
-    }
-
-    private var editsBusy: Bool {
-        isCroppingScreen || isExporting || isSaving || isShowingSavePanel || appState.isRecording || appState.recording.processingStage != nil || voiceOverRecorder.isBusy || videoOverlayRecorder.isBusy
-    }
-
-    private var hasEditChanges: Bool { editDraft != appliedEdits }
-    private var hasValidTimeline: Bool {
-        sourceDuration > 0 && (try? editDraft.trim.timeline(duration: CMTime(seconds: sourceDuration, preferredTimescale: 60000))) != nil
-    }
+    private var editingRecording: Bool { session.editingRecording }
+    private var editsBusy: Bool { isCroppingScreen || isShowingSavePanel || session.isBusy }
+    private var hasEditChanges: Bool { session.hasEditChanges }
+    private var hasValidTimeline: Bool { session.hasValidTimeline }
 
     private var editControlsColumn: some View {
         HStack(spacing: 0) {
@@ -483,7 +454,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Edit Video").font(.headline)
                     Spacer()
-                    Button { editDraft = appliedEdits } label: { Image(systemName: "arrow.counterclockwise") }
+                    Button { session.resetPendingChanges() } label: { Image(systemName: "arrow.counterclockwise") }
                         .buttonStyle(.plain)
                         .help("Reset pending changes")
                         .accessibilityLabel("Reset pending changes")
@@ -555,7 +526,7 @@ struct SettingsView: View {
         guard editing else { return true }
         switch panel {
         case .canvas: return true
-        case .cursor: return editingRecording && appState.recording.lastMouseDataURL != nil
+        case .cursor: return session.mouseURL != nil
         case .camera, .audio: return true
         case .output: return true
         }
@@ -567,13 +538,13 @@ struct SettingsView: View {
             switch selectedPanel {
             case .canvas:
                 settingsSection("Canvas") {
-                    ratioPicker(selection: $editDraft.ratio)
-                    deviceLayoutPicker(selection: $editDraft.layout)
-                    if !editDraft.layout.isPhone {
-                        desktopCornerRadiusSlider(selection: $editDraft.desktopCornerRadius)
+                    ratioPicker(selection: $session.draft.ratio)
+                    deviceLayoutPicker(selection: $session.draft.layout)
+                    if !session.draft.layout.isPhone {
+                        desktopCornerRadiusSlider(selection: $session.draft.desktopCornerRadius)
                     }
-                    if editDraft.layout.isPhone {
-                        Picker("Content", selection: $editDraft.phoneMode) {
+                    if session.draft.layout.isPhone {
+                        Picker("Content", selection: $session.draft.phoneMode) {
                             ForEach(PhoneContentMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                         }
                         .pickerStyle(.segmented)
@@ -582,27 +553,27 @@ struct SettingsView: View {
                 }
                 Divider()
                 settingsSection("Background") {
-                    if editDraft.ratio == .original && editDraft.layout == .desktop {
-                        settingsToggle(icon: "photo", label: "Background", isOn: $editDraft.backgroundEnabled)
+                    if session.draft.ratio == .original && session.draft.layout == .desktop {
+                        settingsToggle(icon: "photo", label: "Background", isOn: $session.draft.backgroundEnabled)
                     }
-                    if editDraft.backgroundEnabled || editDraft.ratio != .original || editDraft.layout != .desktop {
+                    if session.draft.backgroundEnabled || session.draft.ratio != .original || session.draft.layout != .desktop {
                         wallpaperGrid
                     }
                 }
             case .cursor:
                 settingsSection("Cursor") {
-                    settingsToggle(icon: "cursorarrow", label: "Show Cursor", isOn: $editDraft.showCursor)
-                    if editDraft.showCursor {
-                        cursorShapePicker(selection: $editDraft.cursorShape)
-                        cursorSizeSlider(selection: $editDraft.cursorScale)
+                    settingsToggle(icon: "cursorarrow", label: "Show Cursor", isOn: $session.draft.showCursor)
+                    if session.draft.showCursor {
+                        cursorShapePicker(selection: $session.draft.cursorShape)
+                        cursorSizeSlider(selection: $session.draft.cursorScale)
                     }
                 }
                 Divider()
                 settingsSection("Zoom") {
-                    settingsToggle(icon: "plus.magnifyingglass", label: "Zoom", isOn: $editDraft.zoomEnabled)
-                    if editDraft.zoomEnabled {
-                        zoomLevelSlider(selection: $editDraft.zoomLevel)
-                        if let selectedZoom, appState.recording.lastMouseDataURL != nil {
+                    settingsToggle(icon: "plus.magnifyingglass", label: "Zoom", isOn: $session.draft.zoomEnabled)
+                    if session.draft.zoomEnabled {
+                        zoomLevelSlider(selection: $session.draft.zoomLevel)
+                        if let selectedZoom, session.mouseURL != nil {
                             zoomFocusControls(selectedZoom)
                         }
                     }
@@ -656,28 +627,34 @@ struct SettingsView: View {
                     }
                     if let overlay = editableVideoOverlayURL {
                         Divider()
-                        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-                            attachmentRow(url: overlay) {
-                                editDraft.videoOverlayURL = nil
-                                editDraft.videoOverlayTiming = nil
-                                editDraft.webcamEnabled = false
-                                isVideoOverlaySelected = false
-                            }
-                            if let timing = editDraft.videoOverlayTiming {
-                                Text(String(format: "%.1fs – %.1fs", timing.start, timing.start + timing.duration))
-                                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
-                            }
-                        }
+                        EditorTakeRow(title: overlay.lastPathComponent, start: session.draft.videoOverlayTiming?.start ?? 0,
+                                      end: session.draft.videoOverlayTiming.map { $0.start + $0.duration } ?? editedVideoDuration,
+                                      isSelected: session.isVideoOverlaySelected, removeLabel: "Remove camera take", select: {
+                            videoPlayer?.pause()
+                            session.selectedVoiceOverID = nil
+                            session.selectedZoomID = nil
+                            session.isVideoOverlaySelected = true
+                        }, remove: {
+                            videoPlayer?.pause()
+                            session.beginUndoGroup()
+                            defer { session.endUndoGroup() }
+                            session.draft.videoOverlayURL = nil
+                            session.draft.videoOverlayTiming = nil
+                            session.draft.webcamEnabled = false
+                            session.isVideoOverlaySelected = false
+                        })
+                        .help(overlay.lastPathComponent)
+                        .accessibilityIdentifier("cameraTakeRow")
                         .disabled(videoOverlayRecorder.isBusy)
-                        settingsToggle(icon: "video.fill", label: "Show Camera", isOn: $editDraft.webcamEnabled)
+                        settingsToggle(icon: "video.fill", label: "Show Camera", isOn: $session.draft.webcamEnabled)
                             .disabled(videoOverlayRecorder.isBusy)
-                        if editDraft.webcamEnabled {
+                        if session.draft.webcamEnabled {
                             Group {
                                 cameraLayoutControls
                                 if currentCameraLayout.layout == .overlay {
-                                    webcamShapePicker(selection: $editDraft.webcamShape)
-                                    webcamPositionPicker(selection: $editDraft.webcamPosition)
-                                    webcamSizePicker(selection: $editDraft.webcamSize)
+                                    webcamShapePicker(selection: $session.draft.webcamShape)
+                                    webcamPositionPicker(selection: $session.draft.webcamPosition)
+                                    webcamSizePicker(selection: $session.draft.webcamSize)
                                 } else {
                                     cameraFramingControls
                                 }
@@ -686,7 +663,7 @@ struct SettingsView: View {
                     }
                 }
             case .audio:
-                EditorAudioPanel(settings: $editDraft, selectedClip: $selectedVoiceOverID,
+                EditorAudioPanel(settings: $session.draft, selectedClip: $session.selectedVoiceOverID,
                                  recorder: voiceOverRecorder,
                                  microphoneDeviceID: Binding(
                                     get: { appState.capture.selectedMicrophoneDeviceID },
@@ -697,9 +674,9 @@ struct SettingsView: View {
                                  startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
             case .output:
                 settingsSection("Output") {
-                    exportResolutionPicker(selection: $editDraft.exportResolution)
+                    exportResolutionPicker(selection: $session.draft.exportResolution)
                     if let sourceVideoSize {
-                        exportSizeDetails(settings: editDraft, source: sourceVideoSize)
+                        exportSizeDetails(settings: session.draft, source: sourceVideoSize)
                     }
                     Text("Zoom enlarges part of the recording and may still soften fine detail.")
                         .font(Typography.caption)
@@ -719,7 +696,7 @@ struct SettingsView: View {
                     let aspect = CGFloat(focusFrame.width) / CGFloat(focusFrame.height)
                     let imageWidth = min(geometry.size.width, geometry.size.height * aspect)
                     let imageHeight = imageWidth / aspect
-                    let padding = Double(zoomPadding)
+                    let padding = Double(session.zoomPadding)
                     Image(decorative: focusFrame, scale: 1)
                         .resizable().frame(width: imageWidth, height: imageHeight)
                         .overlay {
@@ -733,19 +710,18 @@ struct SettingsView: View {
                         .contentShape(Rectangle())
                         .gesture(DragGesture(minimumDistance: 0)
                             .onChanged { gesture in
-                                if !editingZoomFocus { zoomHistory.append(editDraft.zoomSegments); editingZoomFocus = true }
+                                if !editingZoomFocus { session.beginUndoGroup(); editingZoomFocus = true }
                                 let contentScale = max(0.001, 1 - 2 * padding)
                                 let x = min(1, max(0, (gesture.location.x / imageWidth - padding) / contentScale))
                                 let y = min(1, max(0, (gesture.location.y / imageHeight - padding) / contentScale))
                                 updateZoomFocus { $0.centerX = x; $0.centerY = y; $0.followsCursor = false }
                             }
-                            .onEnded { _ in editingZoomFocus = false })
+                            .onEnded { _ in session.endUndoGroup(); editingZoomFocus = false })
                 }
                 .frame(height: 176)
                 .accessibilityLabel("Drag to position zoom focus")
             }
             Picker("Focus", selection: Binding(get: { segment.followsCursor }, set: { value in
-                zoomHistory.append(editDraft.zoomSegments)
                 updateZoomFocus { $0.followsCursor = value }
             })) {
                 Text("Manual").tag(false)
@@ -767,7 +743,7 @@ struct SettingsView: View {
     private var editActions: some View {
         VStack(spacing: 10) {
             if isExporting || appState.recording.processingStage != nil {
-                let progress = editingRecording ? appState.recording.processingProgress : exportEngine.progress
+                let progress = editingRecording ? appState.recording.processingProgress : session.exportEngine.progress
                 ProgressView(value: progress, total: 1)
                 Text(appState.recording.processingStage?.title ?? "Applying changes...")
                     .font(.caption).foregroundStyle(.secondary)
@@ -960,7 +936,7 @@ struct SettingsView: View {
 
     private var cameraSourceTime: Double? {
         let time = CMTime(seconds: cameraLayoutPlayback.seconds, preferredTimescale: 60000)
-        if let timing = editDraft.videoOverlayTiming {
+        if let timing = session.draft.videoOverlayTiming {
             return timing.sampleTime(at: time.seconds)?.seconds
         }
         return renderedPreviewTimeline?.sourceTime(at: time).seconds
@@ -968,24 +944,24 @@ struct SettingsView: View {
 
     private var cameraLayoutChangeIndex: Int? {
         guard let time = cameraSourceTime else { return nil }
-        return editDraft.cameraLayoutChanges.indices.filter { editDraft.cameraLayoutChanges[$0].start <= time + 0.0001 }
-            .max { editDraft.cameraLayoutChanges[$0].start < editDraft.cameraLayoutChanges[$1].start }
+        return session.draft.cameraLayoutChanges.indices.filter { session.draft.cameraLayoutChanges[$0].start <= time + 0.0001 }
+            .max { session.draft.cameraLayoutChanges[$0].start < session.draft.cameraLayoutChanges[$1].start }
     }
 
     private var currentCameraLayout: CameraLayoutSettings {
-        cameraLayoutChangeIndex.map { editDraft.cameraLayoutChanges[$0].settings } ?? editDraft.cameraLayout
+        cameraLayoutChangeIndex.map { session.draft.cameraLayoutChanges[$0].settings } ?? session.draft.cameraLayout
     }
 
     private var canTransitionCameraSection: Bool {
         guard let index = cameraLayoutChangeIndex else { return false }
-        return CameraLayoutChange.canTransition(into: editDraft.cameraLayoutChanges[index],
-                                                initial: editDraft.cameraLayout, changes: editDraft.cameraLayoutChanges)
+        return CameraLayoutChange.canTransition(into: session.draft.cameraLayoutChanges[index],
+                                                initial: session.draft.cameraLayout, changes: session.draft.cameraLayoutChanges)
     }
 
     private func updateCameraLayout(_ change: (inout CameraLayoutSettings) -> Void) {
         videoPlayer?.pause()
-        if let index = cameraLayoutChangeIndex { change(&editDraft.cameraLayoutChanges[index].settings) }
-        else { change(&editDraft.cameraLayout) }
+        if let index = cameraLayoutChangeIndex { change(&session.draft.cameraLayoutChanges[index].settings) }
+        else { change(&session.draft.cameraLayout) }
     }
 
     private var cameraLayoutControls: some View {
@@ -1005,16 +981,16 @@ struct SettingsView: View {
             settingsToggle(icon: "viewfinder", label: "Follow face", isOn: Binding(
                 get: { currentCameraLayout.followFace },
                 set: { enabled in updateCameraLayout { $0.followFace = enabled } }
-            ), isProcessing: currentCameraLayout.followFace && faceTrackingPreparationID != nil)
+            ), isProcessing: currentCameraLayout.followFace && session.isPreparingFaceTracking)
             .accessibilityIdentifier("cameraFollowFace")
             if currentCameraLayout.followFace {
-                Text(faceTrackingPreparationID != nil
+                Text(session.isPreparingFaceTracking
                      ? "Preparing face tracking… Longer clips may take a moment."
                      : "Gently crops to follow one face. If no face is visible, your framing is kept.")
                     .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(editDraft.cameraLayoutChanges.isEmpty
+            Text(session.draft.cameraLayoutChanges.isEmpty
                  ? "Applies to the entire camera clip."
                  : "Applies to the camera section at the playhead.")
                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
@@ -1374,17 +1350,17 @@ struct SettingsView: View {
                 return CGSize(width: configuration.width, height: configuration.height)
             } ?? CGSize(width: 1440, height: 900))
             : (sourceVideoSize ?? CGSize(width: 1440, height: 900))
-        let ratio = videoURL == nil ? appState.capture.canvasRatio : editDraft.ratio
-        let layout = videoURL == nil ? appState.capture.deviceLayout : editDraft.layout
+        let ratio = videoURL == nil ? appState.capture.canvasRatio : session.draft.ratio
+        let layout = videoURL == nil ? appState.capture.deviceLayout : session.draft.layout
         let canvasSize = videoURL == nil
             ? appState.capture.exportResolution.size(source: source, ratio: ratio, layout: layout, usesCanvas: true)
-            : editDraft.outputSize(source: source)
-        let contentSource = videoURL == nil ? source : editDraft.crop.pixelRect(in: source).size
+            : session.draft.outputSize(source: source)
+        let contentSource = videoURL == nil ? source : session.draft.crop.pixelRect(in: source).size
         let content = CanvasGeometry(size: canvasSize, layout: layout, sourceSize: contentSource).desktop
         let shortestSide = content.map { min($0.width, $0.height) } ?? 0
         let pixels = Int((shortestSide * selection.wrappedValue).rounded())
         let maximumPixels = Int((shortestSide * 0.1).rounded())
-        let usesBackground = videoURL == nil || editDraft.backgroundEnabled || ratio != .original || layout != .desktop
+        let usesBackground = videoURL == nil || session.draft.backgroundEnabled || ratio != .original || layout != .desktop
         return VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "rectangle.roundedtop")
@@ -1601,11 +1577,11 @@ struct SettingsView: View {
     }
 
     private func wallpaperTile(_ preset: BackgroundStyle.WallpaperPreset) -> some View {
-        let isSelected = (videoURL == nil ? appState.capture.selectedWallpaper : editDraft.wallpaper) == preset
+        let isSelected = (videoURL == nil ? appState.capture.selectedWallpaper : session.draft.wallpaper) == preset
 
         return Button {
             if videoURL == nil { appState.capture.selectedWallpaper = preset }
-            else { editDraft.wallpaper = preset }
+            else { session.draft.wallpaper = preset }
         } label: {
             VStack(spacing: Spacing.sm) {
                 wallpaperPreview(preset)
@@ -1655,11 +1631,8 @@ struct SettingsView: View {
             // Close video bar
             HStack {
                 Button {
-                    videoPlayer?.pause()
-                    videoPlayer = nil
+                    session.close()
                     cameraLayoutPlayback.detach()
-                    videoURL = nil
-                    layoutSourceURL = nil
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "xmark")
@@ -1689,9 +1662,9 @@ struct SettingsView: View {
             Divider()
 
             if isCroppingScreen, let source = phoneCropSource {
-                InlineScreenCropEditor(sourceURL: source, sourceTime: cropFrameTime, initialCrop: editDraft.crop,
+                InlineScreenCropEditor(sourceURL: source, sourceTime: cropFrameTime, initialCrop: session.draft.crop,
                                        onCancel: { isCroppingScreen = false }, onApply: { crop in
-                    editDraft.crop = crop
+                    session.draft.crop = crop
                     isCroppingScreen = false
                 })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1701,30 +1674,31 @@ struct SettingsView: View {
             }
             if sourceDuration > 0, let player = videoPlayer, let source = layoutSourceURL {
                 Divider()
-                VideoTrimControls(trim: $editDraft.trim, zoomSegments: $editDraft.zoomSegments,
-                                  zoomEnabled: editDraft.zoomEnabled, zoomLevel: editDraft.zoomLevel,
-                                  mouse: editingRecording ? appState.recording.lastMouseDataURL : nil,
+                VideoTrimControls(trim: $session.draft.trim, zoomSegments: $session.draft.zoomSegments,
+                                  zoomEnabled: session.draft.zoomEnabled, zoomLevel: session.draft.zoomLevel,
+                                  mouse: session.mouseURL,
                                   duration: sourceDuration, player: player, source: source,
                                   audio: hasEditableAudio ? previewAudioURL : nil,
-                                  voiceOvers: $editDraft.voiceOvers, selectedVoiceOverID: $selectedVoiceOverID,
-                                  originalMuted: !editDraft.audioEnabled || editDraft.originalAudioVolume == 0,
-                                  voiceOverMuted: !editDraft.voiceOverEnabled || editDraft.voiceOverVolume == 0,
-                                  selectedZoomID: $selectedZoomID, automaticZooms: $automaticZooms,
-                                  zoomHistory: $zoomHistory, zoomPadding: $zoomPadding,
-                                  videoOverlayURL: $editDraft.videoOverlayURL,
-                                  videoOverlayTiming: $editDraft.videoOverlayTiming,
-                                  videoOverlayEnabled: $editDraft.webcamEnabled,
-                                  cameraLayout: editDraft.cameraLayout,
-                                  cameraLayoutChanges: $editDraft.cameraLayoutChanges,
-                                  isVideoOverlaySelected: $isVideoOverlaySelected)
+                                  voiceOvers: $session.draft.voiceOvers, selectedVoiceOverID: $session.selectedVoiceOverID,
+                                  originalMuted: !session.draft.audioEnabled || session.draft.originalAudioVolume == 0,
+                                  voiceOverMuted: !session.draft.voiceOverEnabled || session.draft.voiceOverVolume == 0,
+                                  selectedZoomID: $session.selectedZoomID, automaticZooms: $session.automaticZooms,
+                                  zoomPadding: $session.zoomPadding,
+                                  videoOverlayURL: $session.draft.videoOverlayURL,
+                                  videoOverlayTiming: $session.draft.videoOverlayTiming,
+                                  videoOverlayEnabled: $session.draft.webcamEnabled,
+                                  cameraLayout: session.draft.cameraLayout,
+                                  cameraLayoutChanges: $session.draft.cameraLayoutChanges,
+                                  isVideoOverlaySelected: $session.isVideoOverlaySelected,
+                                  session: session)
                     .disabled(editsBusy)
-                    .onChange(of: selectedVoiceOverID) { id in
+                    .onChange(of: session.selectedVoiceOverID) { id in
                         if id != nil { selectedPanel = .audio }
                     }
-                    .onChange(of: selectedZoomID) { id in
+                    .onChange(of: session.selectedZoomID) { id in
                         if id != nil { selectedPanel = .cursor }
                     }
-                    .onChange(of: isVideoOverlaySelected) { selected in
+                    .onChange(of: session.isVideoOverlaySelected) { selected in
                         if selected { selectedPanel = .camera }
                     }
             }
@@ -1753,20 +1727,9 @@ struct SettingsView: View {
         let completion: (NSApplication.ModalResponse) -> Void = { response in
             isShowingSavePanel = false
             guard response == .OK, let destination = panel.url else { return }
-            isSaving = true
             Task { @MainActor in
-                defer {
-                    isSaving = false
-                }
-                do {
-                    try await appState.recording.saveRecording(from: source, to: destination)
-                    if videoURL == source {
-                        loadVideo(destination, resetLayoutSource: false)
-                        videoWork.markDownloaded(edits: editDraft)
-                    }
-                } catch {
-                    saveError = "The original recording is still available. \(error.localizedDescription)"
-                }
+                do { try await session.saveVideo(to: destination) }
+                catch { session.saveError = error.localizedDescription }
             }
         }
 
@@ -1791,26 +1754,29 @@ struct SettingsView: View {
         }
     }
 
-    private var hasUnsavedVideoWork: Bool {
-        videoURL != nil && videoWork.needsConfirmation(for: editDraft)
-    }
+    private var hasUnsavedVideoWork: Bool { session.hasUnsavedWork }
 
     private func requestImport(_ url: URL) {
+        requestOpen(url, project: false)
+    }
+
+    private func requestOpen(_ url: URL, project: Bool) {
         guard !editsBusy, pendingReplacement == nil, !appState.isConfirmingVideoReplacement else { return }
+        let action: VideoReplacementAction = project ? .importProject(url) : .importVideo(url)
         if hasUnsavedVideoWork {
             videoPlayer?.pause()
-            pendingReplacement = .importVideo(url)
+            pendingReplacement = action
             Task { @MainActor in
-                let approved = await appState.confirmVideoReplacement(.importVideo(url))
+                let approved = await appState.confirmVideoReplacement(action)
                 pendingReplacement = nil
-                if approved, !editsBusy { loadVideo(url) }
+                if approved, !editsBusy { loadVideo(url, project: project) }
             }
         } else {
-            loadVideo(url)
+            loadVideo(url, project: project)
         }
     }
 
-    private var editableVideoOverlayURL: URL? { editDraft.videoOverlayURL }
+    private var editableVideoOverlayURL: URL? { session.draft.videoOverlayURL }
 
     private func startVideoOverlay() {
         guard !editsBusy, previewReady, let player = videoPlayer else {
@@ -1819,11 +1785,13 @@ struct SettingsView: View {
         }
         videoOverlayRecorder.start(player: player, device: appState.capture.selectedWebcamDevice,
                                    duration: editedVideoDuration) { url, timing in
-            editDraft.videoOverlayURL = url
-            editDraft.videoOverlayTiming = timing
-            editDraft.webcamEnabled = true
-            editDraft.cameraLayout = CameraLayoutSettings()
-            editDraft.cameraLayoutChanges = []
+            session.beginUndoGroup()
+            defer { session.endUndoGroup() }
+            session.draft.videoOverlayURL = url
+            session.draft.videoOverlayTiming = timing
+            session.draft.webcamEnabled = true
+            session.draft.cameraLayout = CameraLayoutSettings()
+            session.draft.cameraLayoutChanges = []
         }
     }
 
@@ -1842,20 +1810,20 @@ struct SettingsView: View {
                     guard duration.isFinite, duration > 0.05,
                           !(try await asset.loadTracks(withMediaType: .video)).isEmpty else { throw ExportError.noVideoTrack }
                     guard source == layoutSourceURL, !editsBusy else { return }
-                    editDraft.videoOverlayURL = url
-                    editDraft.videoOverlayTiming = VideoOverlayTiming(start: 0, duration: duration)
-                    editDraft.webcamEnabled = true
-                    editDraft.cameraLayout = CameraLayoutSettings()
-                    editDraft.cameraLayoutChanges = []
+                    session.beginUndoGroup()
+                    defer { session.endUndoGroup() }
+                    session.draft.videoOverlayURL = url
+                    session.draft.videoOverlayTiming = VideoOverlayTiming(start: 0, duration: duration)
+                    session.draft.webcamEnabled = true
+                    session.draft.cameraLayout = CameraLayoutSettings()
+                    session.draft.cameraLayoutChanges = []
                     videoOverlayRecorder.error = nil
                 } catch { videoOverlayRecorder.error = error.localizedDescription }
             }
         }
     }
 
-    private var editedVideoDuration: Double {
-        (try? editDraft.trim.timeline(duration: EditorAudio.time(sourceDuration)).duration.seconds) ?? 0
-    }
+    private var editedVideoDuration: Double { session.editedDuration }
 
     private func startVoiceOver() {
         guard !editsBusy, previewReady, let player = videoPlayer else {
@@ -1864,9 +1832,11 @@ struct SettingsView: View {
         }
         voiceOverRecorder.start(player: player, deviceID: appState.capture.selectedMicrophoneDeviceID,
                                 duration: editedVideoDuration) { clip in
-            editDraft.voiceOvers.append(clip)
-            editDraft.voiceOverEnabled = true
-            selectedVoiceOverID = clip.id
+            session.beginUndoGroup()
+            defer { session.endUndoGroup() }
+            session.draft.voiceOvers.append(clip)
+            session.draft.voiceOverEnabled = true
+            session.selectedVoiceOverID = clip.id
         }
     }
 
@@ -1888,129 +1858,25 @@ struct SettingsView: View {
                       !(try await asset.loadTracks(withMediaType: .audio)).isEmpty else { throw CleanupError.noAudio }
                 guard currentSource == layoutSourceURL, !editsBusy else { return }
                 let clip = VoiceOverClip(url: url, start: start, duration: duration, sourceDuration: duration)
-                editDraft.voiceOvers.append(clip)
-                editDraft.voiceOverEnabled = true
-                selectedVoiceOverID = clip.id
+                session.beginUndoGroup()
+                defer { session.endUndoGroup() }
+                session.draft.voiceOvers.append(clip)
+                session.draft.voiceOverEnabled = true
+                session.selectedVoiceOverID = clip.id
             } catch { voiceOverRecorder.error = error.localizedDescription }
         }
     }
 
-    private func attachmentRow(url: URL, remove: @escaping () -> Void) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Text(url.lastPathComponent)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(DesignColors.secondaryLabel)
-            Spacer(minLength: 0)
-            Button(action: remove) { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.plain)
-                .help("Remove \(url.lastPathComponent)")
-                .accessibilityLabel("Remove \(url.lastPathComponent)")
-        }
-    }
-
-    private func loadVideo(_ url: URL, resetLayoutSource: Bool = true) {
-        guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy else { return }
-        videoPlayer?.pause()
+    private func loadVideo(_ url: URL, project: Bool = false) {
+        guard !editsBusy else { return }
         isCroppingScreen = false
-        videoURL = url
-        if resetLayoutSource {
-            let rawSource = url == appState.recording.lastRecordingURL ? appState.recording.lastSourceRecordingURL : nil
-            layoutSourceURL = rawSource ?? url
-            layoutKeyframes = []
-            editDraft = rawSource != nil
-                ? (appState.recording.lastAppliedEdits ?? VideoEditSettings())
-                : VideoEditSettings(backgroundEnabled: false, showCursor: false)
-            if rawSource != nil, appState.recording.lastAppliedEdits == nil {
-                editDraft.videoOverlayURL = appState.recording.lastWebcamVideoURL
+        Task { @MainActor in
+            do {
+                if project { try await session.openProject(url) }
+                else { try await session.openVideo(url) }
             }
-            appliedEdits = editDraft
-            videoWork.beginVideo(edits: editDraft,
-                                 needsDownload: url == appState.recording.lastRecordingURL
-                                    && url != appState.recording.lastSavedRecordingURL)
-            previewAudioURL = rawSource != nil ? (appState.recording.lastUntrimmedRecordingURL ?? url) : url
-            previewError = nil
-            renderedPreviewTimeline = nil
-            selectedVoiceOverID = nil
-            isVideoOverlaySelected = false
-            previewReady = false
-            sourceDuration = 0
-            sourceVideoSize = nil
-            videoPlayer = AVPlayer()
-            if let videoPlayer { cameraLayoutPlayback.attach(videoPlayer) }
-            hasEditableAudio = rawSource != nil && (appState.recording.lastMicAudioURL != nil || appState.recording.lastSystemAudioURL != nil)
-            let source = layoutSourceURL!
-            Task {
-                let asset = AVURLAsset(url: source)
-                let duration = try? await asset.load(.duration)
-                let tracks = try? await asset.loadTracks(withMediaType: .audio)
-                let videoTrack = try? await asset.loadTracks(withMediaType: .video).first
-                let naturalSize = try? await videoTrack?.load(.naturalSize)
-                let transform = try? await videoTrack?.load(.preferredTransform)
-                guard layoutSourceURL == source else { return }
-                if let duration, duration.seconds.isFinite, duration.seconds > 0 {
-                    sourceDuration = duration.seconds
-                }
-                if let naturalSize, let transform {
-                    let bounds = CGRect(origin: .zero, size: naturalSize).applying(transform)
-                    sourceVideoSize = CGSize(width: abs(bounds.width), height: abs(bounds.height))
-                }
-                hasEditableAudio = hasEditableAudio || !(tracks?.isEmpty ?? true)
-            }
-        } else {
-            videoWork.markRendered()
-        }
-        videoPlayer?.isMuted = false
-    }
-
-    private var livePreviewRequest: LiveVideoPreview.Request? {
-        guard videoURL != nil, let source = layoutSourceURL else { return nil }
-        var settings = editDraft
-        settings.trim.splits = []
-        return .init(source: source, audio: previewAudioURL,
-                     mouse: editingRecording ? appState.recording.lastMouseDataURL : nil,
-                     webcam: editDraft.videoOverlayURL,
-                     settings: settings)
-    }
-
-    private func refreshLivePreview() async {
-        guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy, let request = livePreviewRequest, let player = videoPlayer else {
-            faceTrackingPreparationID = nil
-            return
-        }
-        let preparationID = request.settings.usesFaceTracking && request.webcam != nil ? UUID() : nil
-        faceTrackingPreparationID = preparationID
-        defer {
-            // An older canceled request must not hide a newer request's spinner.
-            if faceTrackingPreparationID == preparationID { faceTrackingPreparationID = nil }
-        }
-        previewReady = false
-        previewError = nil
-        do {
-            let item = try await LiveVideoPreview.makeItem(request)
-            try Task.checkCancellation()
-            guard request == livePreviewRequest, player === videoPlayer else { return }
-            let time = player.currentTime()
-            let rate = player.rate
-            let sourceTime = renderedPreviewTimeline?.sourceTime(at: time) ?? .zero
-            let sourceDuration = try await AVURLAsset(url: request.source).load(.duration)
-            let timeline = try request.settings.trim.timeline(duration: sourceDuration)
-            guard !Task.isCancelled, request == livePreviewRequest, player === videoPlayer else { return }
-            player.replaceCurrentItem(with: item)
-            renderedPreviewTimeline = timeline
-            player.isMuted = false
-            let duration = try await item.asset.load(.duration)
-            let mappedTime = timeline.outputTime(at: sourceTime)
-            let seekTime = mappedTime.isNumeric ? CMTimeMinimum(mappedTime, duration) : .zero
-            await player.seek(to: seekTime, toleranceBefore: .zero, toleranceAfter: .zero)
-            guard !Task.isCancelled, request == livePreviewRequest, player === videoPlayer else { return }
-            if rate > 0 { player.rate = rate }
-            previewError = nil
-            previewReady = true
-        } catch is CancellationError {
-        } catch {
-            guard !Task.isCancelled else { return }
-            previewError = "Preview unavailable: \(error.localizedDescription)"
+            catch is CancellationError { }
+            catch { session.exportError = error.localizedDescription }
         }
     }
 
@@ -2031,54 +1897,9 @@ struct SettingsView: View {
     }
 
     private func applyLayout() async {
-        guard videoURL != nil, let source = layoutSourceURL,
-              !editsBusy, hasEditChanges, hasValidTimeline, !appState.updates.isPresenting else { return }
-        videoPlayer?.pause()
-        let settings = editDraft
-        isExporting = true
-        appState.isExportingVideo = true
-        defer { isExporting = false; appState.isExportingVideo = false }
-        if editingRecording {
-            await appState.recording.applyEdits(settings)
-            if appState.recording.processingError == nil, let result = appState.recording.lastRecordingURL {
-                loadVideo(result, resetLayoutSource: false)
-                appliedEdits = settings
-            }
-            return
-        }
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("Screen-layout-\(UUID().uuidString).mov")
-        do {
-            let result = try await exportEngine.export(sourceURL: source, keyframes: [], configuration: .init(
-                outputURL: output,
-                webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,
-                videoOverlayTiming: settings.videoOverlayTiming,
-                videoOverlayTrim: settings.trim,
-                pipPosition: settings.webcamPosition,
-                pipSize: settings.webcamSize,
-                pipShape: settings.webcamShape,
-                cameraLayout: settings.cameraLayout,
-                cameraLayoutChanges: settings.cameraLayoutChanges,
-                showCursor: false,
-                canvasRatio: settings.ratio,
-                deviceLayout: settings.layout,
-                wallpaper: settings.wallpaper,
-                desktopCornerRadius: settings.desktopCornerRadius,
-                preserveSourceAudio: settings.audioEnabled,
-                phoneCrop: settings.crop,
-                phoneContentMode: settings.phoneMode,
-                forceCanvas: settings.backgroundEnabled,
-                exportResolution: settings.exportResolution
-            ))
-            let trimmed = try await settings.trim.export(source: result)
-            let mixed = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
-                                                     originalVolume: settings.originalAudioVolume,
-                                                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [],
-                                                     voiceOverVolume: settings.voiceOverVolume)
-            loadVideo(mixed, resetLayoutSource: false)
-            appliedEdits = settings
-        } catch {
-            exportError = error.localizedDescription
-        }
+        guard !editsBusy, hasEditChanges, hasValidTimeline else { return }
+        do { try await session.applyChanges() }
+        catch { session.exportError = error.localizedDescription }
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -2100,110 +1921,7 @@ struct SettingsView: View {
         return false
     }
 
-    // MARK: - Zoom Export
 
-    /// Check if a .mouse.json companion file exists for this video.
-    private func mouseDataExists(for videoURL: URL) -> Bool {
-        let mouseURL = mouseDataURL(for: videoURL)
-        return FileManager.default.fileExists(atPath: mouseURL.path)
-    }
-
-    /// Derive the .mouse.json path from a video URL (same naming convention as MouseDataRecorder).
-    private func mouseDataURL(for videoURL: URL) -> URL {
-        let dir = videoURL.deletingLastPathComponent()
-        let name = videoURL.deletingPathExtension().lastPathComponent
-        return dir.appendingPathComponent("\(name).mouse.json")
-    }
-
-    private func webcamVideoURL(for videoURL: URL) -> URL? {
-        let dir = videoURL.deletingLastPathComponent()
-        let name = videoURL.deletingPathExtension().lastPathComponent
-        let url = dir.appendingPathComponent("\(name)_webcam.mov")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
-    /// Run the click-zoom export pipeline.
-    private func exportWithZoom(videoURL: URL) async {
-        guard !appState.updates.isPresenting else { return }
-        appState.isExportingVideo = true
-        defer { appState.isExportingVideo = false }
-        let mouseURL = mouseDataURL(for: videoURL)
-
-        do {
-            // Generate keyframes from click data
-            let keyframes = try await ClickZoomGenerator.generate(
-                from: mouseURL,
-                sourceVideoURL: videoURL
-            )
-
-            // Build output path
-            let dir = videoURL.deletingLastPathComponent()
-            let baseName = videoURL.deletingPathExtension().lastPathComponent
-            let outputURL = dir.appendingPathComponent("\(baseName)_zoomed.mov")
-
-            let config = ExportEngine.Configuration(
-                outputURL: outputURL,
-                codec: .hevc,
-                fileType: .mov,
-                webcamVideoURL: webcamVideoURL(for: videoURL),
-                pipPosition: appState.capture.webcamPiPPosition,
-                pipSize: appState.capture.webcamPiPSize,
-                mouseDataURL: mouseURL,
-                cursorScale: appState.capture.cursorScale,
-                cursorShape: appState.capture.cursorShape,
-                showCursor: appState.capture.showCursor,
-                canvasRatio: appState.capture.canvasRatio,
-                deviceLayout: appState.capture.deviceLayout,
-                wallpaper: appState.capture.selectedWallpaper,
-                desktopCornerRadius: appState.capture.desktopCornerRadius,
-                phoneVideoURL: appState.capture.phoneVideoURL,
-                preserveSourceAudio: true,
-                phoneCrop: appState.capture.phoneCrop(for: videoURL),
-                phoneContentMode: appState.capture.phoneContentMode,
-                exportResolution: appState.capture.exportResolution
-            )
-
-            isExporting = true
-            exportError = nil
-
-            var resultURL = try await exportEngine.export(
-                sourceURL: videoURL,
-                keyframes: keyframes,
-                configuration: config
-            )
-
-            // Mux audio into the exported video (after all video processing is done)
-            let isRawRecording = videoURL == appState.recording.lastSourceRecordingURL
-            let micURL = isRawRecording ? appState.recording.lastMicAudioURL : nil
-            let sysURL = isRawRecording ? appState.recording.lastSystemAudioURL : nil
-            if micURL != nil || sysURL != nil {
-                do {
-                    resultURL = try await MediaMuxer.mux(
-                        videoURL: resultURL,
-                        systemAudioURL: sysURL,
-                        micAudioURL: micURL,
-                        removeSourceAudio: false
-                    )
-                    Log.export.info("Audio muxed into exported video")
-                } catch {
-                    Log.export.error("Audio mux failed: \(error)")
-                }
-            }
-
-            isExporting = false
-
-            // Load the zoomed video for preview
-            layoutSourceURL = videoURL
-            layoutKeyframes = keyframes
-            loadVideo(resultURL, resetLayoutSource: false)
-            showExportSuccess = true
-
-        } catch {
-            isExporting = false
-            exportError = error.localizedDescription
-            Log.export.error("Zoom export failed: \(error)")
-        }
-    }
 }
 
 struct VideoReplacementDialog: View {
@@ -2395,101 +2113,6 @@ struct PhoneCropSelection: View {
 
 // MARK: - Native Video Player (AVPlayerView wrapper)
 
-enum LiveVideoPreview {
-    struct Request: Equatable {
-        let source: URL
-        let audio: URL?
-        let mouse: URL?
-        let webcam: URL?
-        let settings: VideoEditSettings
-    }
-
-    static func makeItem(_ request: Request) async throws -> AVPlayerItem {
-        let asset = AVURLAsset(url: request.source)
-        guard let sourceTrack = try await asset.loadTracks(withMediaType: .video).first else { throw ExportError.noVideoTrack }
-        let duration = try await asset.load(.duration)
-        let timeline = try request.settings.trim.timeline(duration: duration)
-        let size = try await sourceTrack.load(.naturalSize)
-        let transform = try await sourceTrack.load(.preferredTransform)
-        let bounds = CGRect(origin: .zero, size: size).applying(transform)
-        let sourceSize = CGSize(width: abs(bounds.width), height: abs(bounds.height))
-        let composition = AVMutableComposition()
-        guard let video = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else { throw ExportError.readerSetupFailed }
-        try video.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: sourceTrack, at: .zero)
-        video.preferredTransform = transform
-        if request.settings.audioEnabled, let audioURL = request.audio {
-            let audioAsset = AVURLAsset(url: audioURL)
-            for sourceAudio in try await audioAsset.loadTracks(withMediaType: .audio) {
-                let range = try await sourceAudio.load(.timeRange)
-                let intersection = CMTimeRangeGetIntersection(range, otherRange: CMTimeRange(start: .zero, duration: duration))
-                if intersection.duration > .zero,
-                   let audio = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-                    try audio.insertTimeRange(intersection, of: sourceAudio, at: intersection.start)
-                }
-            }
-        }
-        try timeline.apply(to: composition, sourceDuration: duration)
-        let audioMix = try await EditorAudio.mix(into: composition, duration: timeline.duration,
-                                                originalVolume: request.settings.originalAudioVolume,
-                                                clips: request.settings.voiceOverEnabled ? request.settings.voiceOvers : [],
-                                                voiceOverVolume: request.settings.voiceOverVolume)
-        let mouse = try request.mouse.map { try JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: Data(contentsOf: $0)) }
-        let keyframes: [CameraKeyframe]
-        if request.settings.zoomEnabled, let mouseURL = request.mouse {
-            keyframes = try await ClickZoomGenerator.generate(
-                from: mouseURL,
-                sourceVideoURL: request.source,
-                settings: .init(zoomLevel: request.settings.zoomLevel),
-                segments: request.settings.zoomSegments
-            )
-        } else { keyframes = [] }
-        try Task.checkCancellation()
-        let faceTrack: FaceTrackingTrack?
-        if request.settings.usesFaceTracking, let webcamURL = request.webcam {
-            faceTrack = try await FaceTrackingAnalyzer.shared.track(for: webcamURL)
-        } else { faceTrack = nil }
-        try Task.checkCancellation()
-        let renderer = LiveEditFrameRenderer(sourceSize: sourceSize, settings: request.settings, keyframes: keyframes,
-                                             mouse: mouse, faceTrack: faceTrack)
-        let webcam = request.settings.webcamEnabled ? request.webcam.map {
-            OverlayVideoFrames(url: $0, maximumSize: request.settings.cameraLayout.layout == .fullScreen
-                               || request.settings.cameraLayoutChanges.contains { $0.settings.layout == .fullScreen }
-                               ? .zero : CGSize(width: 960, height: 960), preciseTiming: faceTrack != nil)
-        } : nil
-        let webcamDuration: CMTime?
-        if request.settings.webcamEnabled, let webcamURL = request.webcam {
-            webcamDuration = try await AVURLAsset(url: webcamURL).load(.duration)
-        } else { webcamDuration = nil }
-        let context = CIContext(options: [.cacheIntermediates: false])
-        let filters = AVMutableVideoComposition(asset: composition) { frame in
-            autoreleasepool {
-                let image = frame.sourceImage
-                    .transformed(by: CGAffineTransform(translationX: -frame.sourceImage.extent.minX, y: -frame.sourceImage.extent.minY))
-                let sourceTime = timeline.sourceTime(at: frame.compositionTime)
-                let webcamTime: CMTime?
-                if let timing = request.settings.videoOverlayTiming {
-                    webcamTime = timing.sampleTime(at: frame.compositionTime.seconds)
-                } else { webcamTime = sourceTime }
-                let result = renderer.render(image, at: sourceTime.seconds,
-                                             webcamImage: webcamTime.flatMap {
-                                                 guard let webcamDuration, $0 >= .zero, $0 < webcamDuration else { return nil }
-                                                 return webcam?.image(at: $0)
-                                             },
-                                             webcamTime: webcamTime?.seconds)
-                frame.finish(with: result, context: context)
-            }
-        }
-        filters.renderSize = renderer.outputSize
-        filters.sourceTrackIDForFrameTiming = kCMPersistentTrackID_Invalid
-        filters.frameDuration = CMTime(value: 1, timescale: 60)
-        let item = AVPlayerItem(asset: composition)
-        item.videoComposition = filters
-        item.audioMix = audioMix
-        return item
-    }
-}
-
-
 @MainActor
 final class TimelinePlayback: ObservableObject {
     @Published var seconds: Double = 0
@@ -2618,6 +2241,7 @@ struct VideoTrimControls: View {
     @Binding var videoOverlayTiming: VideoOverlayTiming?
     @Binding var videoOverlayEnabled: Bool
     let cameraLayout: CameraLayoutSettings
+    let session: EditorSession?
     @Binding var cameraLayoutChanges: [CameraLayoutChange]
     @Binding var isVideoOverlaySelected: Bool
     @Binding var voiceOvers: [VoiceOverClip]
@@ -2652,7 +2276,8 @@ struct VideoTrimControls: View {
          cameraLayout: CameraLayoutSettings = CameraLayoutSettings(),
          cameraLayoutChanges: Binding<[CameraLayoutChange]> = .constant([]),
          isVideoOverlaySelected: Binding<Bool> = .constant(false),
-         silence: SilenceReview? = nil) {
+         silence: SilenceReview? = nil, session: EditorSession? = nil) {
+        self.session = session
         _videoOverlayURL = videoOverlayURL
         _videoOverlayTiming = videoOverlayTiming
         _videoOverlayEnabled = videoOverlayEnabled
@@ -2683,7 +2308,17 @@ struct VideoTrimControls: View {
     @StateObject private var playback = TimelinePlayback()
     @State private var thumbnails: [CGImage] = []
     @State private var zoom: Double = 1
-    @State private var selectedSegment: CMTimeRange?
+    @State private var localSelectedSegment: CMTimeRange?
+    private var selectedSegment: CMTimeRange? {
+        get { session?.selectedSegment ?? (session == nil ? localSelectedSegment : nil) }
+        nonmutating set {
+            if let session { session.selectedSegment = newValue }
+            else { localSelectedSegment = newValue }
+        }
+    }
+    private var canUndoEdit: Bool { session?.canUndo ?? !history.isEmpty }
+    private var canRedoEdit: Bool { session?.canRedo ?? !redoHistory.isEmpty }
+    private var canUndoZoom: Bool { session?.canUndo ?? !zoomHistory.isEmpty }
     private enum TimelineEdit {
         case screen(VideoTrim)
         case camera([CameraLayoutChange])
@@ -2772,7 +2407,7 @@ struct VideoTrimControls: View {
         guard updated != (zoomSegments ?? automaticZooms) else { draggingZooms = nil; return }
         player.pause()
         hoveredZoomGapID = nil
-        zoomHistory.append(zoomSegments)
+        if session == nil { zoomHistory.append(zoomSegments) }
         zoomSegments = updated.sorted { $0.start < $1.start }
         draggingZooms = nil
     }
@@ -2785,6 +2420,7 @@ struct VideoTrimControls: View {
     }
 
     private func undoZoomEdit() {
+        if let session { session.undo(); focusedZoomID = nil; return }
         guard let previous = zoomHistory.popLast() else { return }
         player.pause()
         zoomSegments = previous
@@ -2877,8 +2513,12 @@ struct VideoTrimControls: View {
         guard canSplit else { return }
         if isVideoOverlaySelected, let split = cameraSplit {
             player.pause()
-            history.append(.camera(cameraLayoutChanges))
-            redoHistory = []
+            session?.beginUndoGroup()
+            defer { session?.endUndoGroup() }
+            if session == nil {
+                history.append(.camera(cameraLayoutChanges))
+                redoHistory = []
+            }
             cameraLayoutChanges.append(split)
             cameraLayoutChanges.sort { $0.start < $1.start }
         } else {
@@ -2923,8 +2563,12 @@ struct VideoTrimControls: View {
     private func commit(_ value: VideoTrim, cameraSplit: CameraLayoutChange? = nil) {
         guard value != trim else { return }
         player.pause()
-        history.append(cameraSplit == nil ? .screen(trim) : .recording(trim, cameraLayoutChanges))
-        redoHistory = []
+        session?.beginUndoGroup()
+        defer { session?.endUndoGroup() }
+        if session == nil {
+            history.append(cameraSplit == nil ? .screen(trim) : .recording(trim, cameraLayoutChanges))
+            redoHistory = []
+        }
         trim = value
         if let cameraSplit {
             cameraLayoutChanges.append(cameraSplit)
@@ -3099,11 +2743,13 @@ struct VideoTrimControls: View {
             pendingZoomRange = nil
             history = []
             redoHistory = []
-            selectedSegment = nil
-            selectedZoomID = nil
+            if session == nil {
+                selectedSegment = nil
+                selectedZoomID = nil
+                zoomHistory = []
+                zoomSegments = nil
+            }
             focusedZoomID = nil
-            zoomHistory = []
-            zoomSegments = nil
             let generator = AVAssetImageGenerator(asset: AVURLAsset(url: source))
             generator.appliesPreferredTrackTransform = true
             generator.maximumSize = CGSize(width: 160, height: 90)
@@ -3143,17 +2789,19 @@ struct VideoTrimControls: View {
                 .modifier(TimelineTooltip(text: canSplit ? "\(splitLabel) at the playhead"
                     : "Select a screen or camera section and move the playhead inside it to split"))
                 icon("arrow.uturn.backward", "Undo timeline edit") {
-                    if let previous = history.popLast() {
+                    if let session { session.undo() }
+                    else if let previous = history.popLast() {
                         redoHistory.append(restore(previous))
                     }
-                }.disabled(history.isEmpty)
-                    .modifier(TimelineTooltip(text: history.isEmpty ? "No timeline edits to undo" : "Undo the last split, removal, trim, or reorder"))
+                }.disabled(!canUndoEdit)
+                    .modifier(TimelineTooltip(text: !canUndoEdit ? "No timeline edits to undo" : "Undo the last split, removal, trim, or reorder"))
                 icon("arrow.uturn.forward", "Redo timeline edit") {
-                    if let next = redoHistory.popLast() {
+                    if let session { session.redo() }
+                    else if let next = redoHistory.popLast() {
                         history.append(restore(next))
                     }
-                }.disabled(redoHistory.isEmpty)
-                    .modifier(TimelineTooltip(text: redoHistory.isEmpty ? "No timeline edits to redo" : "Redo the last timeline edit"))
+                }.disabled(!canRedoEdit)
+                    .modifier(TimelineTooltip(text: !canRedoEdit ? "No timeline edits to redo" : "Redo the last timeline edit"))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             playbackControls
@@ -3283,6 +2931,8 @@ struct VideoTrimControls: View {
     }
 
     private func removeVideoOverlay() {
+        session?.beginUndoGroup()
+        defer { session?.endUndoGroup() }
         player.pause()
         videoOverlayURL = nil
         videoOverlayTiming = nil
@@ -3484,7 +3134,7 @@ struct VideoTrimControls: View {
             .accessibilityLabel("Add zoom in empty section")
             .help("Click or drag to add a zoom")
             .contextMenu {
-                Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(zoomHistory.isEmpty)
+                Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(!canUndoZoom)
             }
     }
 
@@ -3524,9 +3174,9 @@ struct VideoTrimControls: View {
         .focused($focusedZoomID, equals: segment.id)
         .contextMenu {
             Button("Delete Zoom") { selectZoom(segment.id); removeSelectedZoom() }
-            Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(zoomHistory.isEmpty)
+            Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(!canUndoZoom)
             Button("Restore Automatic Zooms") {
-                zoomHistory.append(zoomSegments)
+                if session == nil { zoomHistory.append(zoomSegments) }
                 zoomSegments = nil
                 selectedZoomID = nil
             }.disabled(zoomSegments == nil || !automaticZoomsReady)

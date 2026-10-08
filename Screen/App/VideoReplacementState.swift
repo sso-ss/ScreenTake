@@ -27,11 +27,13 @@ struct VideoReplacementState<Edits: Equatable> {
 
 enum VideoReplacementAction {
     case importVideo(URL)
+    case importProject(URL)
     case record
 
     var buttonTitle: String {
         switch self {
         case .importVideo: return "Discard & Import"
+        case .importProject: return "Discard & Open"
         case .record: return "Discard & Record"
         }
     }
@@ -40,8 +42,9 @@ enum VideoReplacementAction {
         let action: String
         switch self {
         case .importVideo: action = "importing another video"
+        case .importProject: action = "opening another project"
         case .record: action = "starting a new recording"
         }
-        return "Unsaved work in this editing session will be lost. Apply your changes and download the video before \(action) to keep your work."
+        return "Unsaved work in this editing session will be lost. Save your project, or apply your changes and download the video, before \(action) to keep your work."
     }
 }

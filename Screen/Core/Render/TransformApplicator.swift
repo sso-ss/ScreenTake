@@ -105,7 +105,7 @@ final class LiveEditFrameRenderer {
     }
 
     func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
-                webcamTime: Double? = nil) -> CIImage {
+                webcamTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -139,7 +139,7 @@ final class LiveEditFrameRenderer {
                 }
             }
         }
-        if let canvas { image = canvas.composite(primary: image, camera: transform, primaryOverlay: cursorLayer) }
+        if let canvas { image = canvas.composite(primary: image, phone: phoneImage, camera: transform, primaryOverlay: cursorLayer) }
         if let webcam, let webcamImage {
             let layout = CameraLayoutChange.settings(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                      changes: settings.cameraLayoutChanges)

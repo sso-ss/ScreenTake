@@ -18,6 +18,8 @@ final class AppState: ObservableObject {
     let capture = CaptureSettings()
     let navigation = NavigationState()
     let recording = RecordingState()
+    let editorSession = EditorSession()
+    lazy var editorCommands = EditorCommandDispatcher(session: editorSession)
     let permissions = PermissionsManager()
     let updates = UpdateChecker()
     @Published var isExportingVideo = false
@@ -118,11 +120,15 @@ final class AppState: ObservableObject {
     // MARK: - Initialization
 
     private init() {
+        editorSession.configure(appState: self)
         recording.configure(captureSettings: capture, navigationState: navigation)
         setupBindings()
     }
 
     private func setupBindings() {
+        editorSession.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Forward recording state changes to trigger UI updates
         recording.objectWillChange
             .receive(on: RunLoop.main)

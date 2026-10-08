@@ -33,6 +33,7 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "ScreenTake needs microphone access to record audio."
         INFOPLIST_KEY_CFBundleDisplayName: ScreenTake
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.video"
+        INFOPLIST_FILE: Screen/Info.plist
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_ENTITLEMENTS: Screen/Screen.entitlements
         SWIFT_OBJC_BRIDGING_HEADER: Screen/Screen-Bridging-Header.h

@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ED1700060000000000000002 /* EditorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700060000000000000001 /* EditorCommands.swift */; };
+		ED1700050000000000000002 /* EditValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700050000000000000001 /* EditValidation.swift */; };
+		ED1700040000000000000002 /* EditorProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700040000000000000001 /* EditorProjectStore.swift */; };
+		ED1700030000000000000002 /* VideoFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700030000000000000001 /* VideoFileStore.swift */; };
+		ED1700020000000000000002 /* LiveVideoPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700020000000000000001 /* LiveVideoPreview.swift */; };
+		ED1700010000000000000002 /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700010000000000000001 /* EditorSession.swift */; };
 		FA1100000000000000000001 /* FaceTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1100000000000000000002 /* FaceTracking.swift */; };
 		BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */; };
 		06EB51A22013466E9080BA96 /* MediaMuxer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */; };
@@ -65,6 +71,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		ED1700060000000000000001 /* EditorCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCommands.swift; sourceTree = "<group>"; };
+		ED1700050000000000000001 /* EditValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditValidation.swift; sourceTree = "<group>"; };
+		ED1700040000000000000001 /* EditorProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProjectStore.swift; sourceTree = "<group>"; };
+		ED1700030000000000000001 /* VideoFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFileStore.swift; sourceTree = "<group>"; };
+		ED1700020000000000000001 /* LiveVideoPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVideoPreview.swift; sourceTree = "<group>"; };
+		ED1700010000000000000001 /* EditorSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSession.swift; sourceTree = "<group>"; };
 		FA1100000000000000000002 /* FaceTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceTracking.swift; sourceTree = "<group>"; };
 		BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoReplacementState.swift; sourceTree = "<group>"; };
 		02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMode.swift; sourceTree = "<group>"; };
@@ -138,6 +150,8 @@
 				C71BC748567A61120D433587 /* Log.swift */,
 				97861B5425D6513A778B1B33 /* NavigationState.swift */,
 				BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */,
+				ED1700010000000000000001 /* EditorSession.swift */,
+				ED1700060000000000000001 /* EditorCommands.swift */,
 				A6F6E4B4AF86D43F888DD8ED /* RecordingState.swift */,
 				102DD963F4C94915F0CB1525 /* ScreenApp.swift */,
 				E2042CA2A3BFADC44ED932C4 /* UpdateChecker.swift */,
@@ -161,6 +175,7 @@
 				24D4EC2CD2281BDDBC8C4E5D /* CameraTransform.swift */,
 				4759B0EB7C0AE900DB2EC86A /* ClickZoomGenerator.swift */,
 				171672DFD8D7C397D8FC8EBB /* ExportEngine.swift */,
+				ED1700020000000000000001 /* LiveVideoPreview.swift */,
 				7F197F354D7CFC16665AEE29 /* FrameEvaluator.swift */,
 				63D5138D7A1133E7BA0D4278 /* TransformApplicator.swift */,
 				E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */,
@@ -199,6 +214,7 @@
 			isa = PBXGroup;
 			children = (
 				BFA79289094633788C2302CB /* EditorAudio.swift */,
+				ED1700030000000000000001 /* VideoFileStore.swift */,
 				1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */,
 				D78F0E084D90BCCB1983E33A /* MicrophoneRecorder.swift */,
 				F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */,
@@ -221,7 +237,9 @@
 				6BC8E02F1B8324C2AEFB7F1E /* CaptureMeta.swift */,
 				83FC0BFB6012FE0D217E6338 /* MediaAsset.swift */,
 				4AF00DE98C978E0A0DAF2172 /* RenderSettings.swift */,
+				ED1700050000000000000001 /* EditValidation.swift */,
 				82D19650C656141BDEE63D4F /* ScreenProject.swift */,
+				ED1700040000000000000001 /* EditorProjectStore.swift */,
 			);
 			path = Project;
 			sourceTree = "<group>";
@@ -369,6 +387,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED1700060000000000000002 /* EditorCommands.swift in Sources */,
+				ED1700050000000000000002 /* EditValidation.swift in Sources */,
+				ED1700040000000000000002 /* EditorProjectStore.swift in Sources */,
+				ED1700030000000000000002 /* VideoFileStore.swift in Sources */,
+				ED1700020000000000000002 /* LiveVideoPreview.swift in Sources */,
+				ED1700010000000000000002 /* EditorSession.swift in Sources */,
 				E00DF59C8C4414C70950D47A /* AppState.swift in Sources */,
 				C63504D04F23E2CF13E46AA9 /* AudioEditorViews.swift in Sources */,
 				26E267AD65E36AD219A801FD /* BackgroundStyle.swift in Sources */,

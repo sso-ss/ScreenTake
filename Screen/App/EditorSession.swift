@@ -1,0 +1,493 @@
+import AVFoundation
+import Combine
+
+/// The editable video, shared by the native editor and future automation clients.
+/// Original media is retained; preview and export always evaluate the draft from it.
+@MainActor
+final class EditorSession: ObservableObject {
+    let id = UUID()
+    @Published private(set) var projectID = UUID()
+    @Published private(set) var revision = 0
+    @Published private(set) var projectURL: URL?
+    @Published private(set) var projectName = "Untitled"
+    private var savedProjectRevision: Int?
+    private var requiresRender = false
+    @Published private(set) var videoURL: URL?
+    @Published private(set) var sourceURL: URL?
+    @Published private(set) var audioURL: URL?
+    @Published private(set) var mouseURL: URL?
+    @Published private(set) var player: AVPlayer?
+    @Published private(set) var sourceDuration: Double = 0
+    @Published private(set) var sourceVideoSize: CGSize?
+    @Published private(set) var hasEditableAudio = false
+    @Published private(set) var appliedEdits = VideoEditSettings()
+    @Published var draft = VideoEditSettings() {
+        didSet {
+            guard draft != oldValue, !restoring else { return }
+            revision += 1
+            if groupDepth == 0 { remember(oldValue) }
+            schedulePreview()
+            synchronizeUnsavedWork()
+        }
+    }
+
+    // Selection belongs to the session so it survives recreation of the editor view.
+    @Published var selectedVoiceOverID: UUID?
+    @Published var selectedZoomID: UUID?
+    @Published var isVideoOverlaySelected = false
+    @Published var selectedSegment: CMTimeRange?
+    @Published var automaticZooms: [ZoomSegment] = []
+    @Published var zoomPadding: CGFloat = 0
+
+    @Published private(set) var previewReady = false
+    @Published private(set) var previewError: String?
+    @Published private(set) var renderedPreviewTimeline: EditedTimeline?
+    @Published private(set) var isPreparingFaceTracking = false
+    @Published private(set) var isLoading = false
+    @Published private(set) var isExporting = false
+    @Published private(set) var isSaving = false
+    @Published var isAnalyzing = false
+    @Published private(set) var undoEdits: [VideoEditSettings] = []
+    @Published private(set) var redoEdits: [VideoEditSettings] = []
+    @Published var exportError: String?
+    @Published var saveError: String?
+    let exportEngine = ExportEngine()
+    let voiceOverRecorder = VoiceOverRecorder()
+    let videoOverlayRecorder = VideoOverlayRecorder()
+
+    private weak var appState: AppState?
+    private var videoWork = VideoReplacementState<VideoEditSettings>()
+    private var previewTask: Task<Void, Never>?
+    private var previewID = UUID()
+    private var loadID = UUID()
+    private var restoring = false
+    private var groupDepth = 0
+    private var groupStart: VideoEditSettings?
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        for publisher in [exportEngine.objectWillChange, voiceOverRecorder.objectWillChange,
+                          videoOverlayRecorder.objectWillChange] {
+            publisher.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        }
+        voiceOverRecorder.$isBusy.combineLatest(videoOverlayRecorder.$isBusy)
+            .dropFirst()
+            .sink { [weak self] voice, camera in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.appState?.isRecordingVoiceOver = voice
+                    self.appState?.isRecordingCameraOverlay = camera
+                    if !voice && !camera { self.schedulePreview() }
+                }
+            }.store(in: &cancellables)
+    }
+
+    func configure(appState: AppState) { self.appState = appState }
+
+    var editingRecording: Bool {
+        sourceURL != nil && sourceURL == appState?.recording.lastSourceRecordingURL
+    }
+    var hasEditChanges: Bool { requiresRender || draft != appliedEdits }
+    var hasUnsavedWork: Bool {
+        guard videoURL != nil else { return false }
+        if projectURL != nil { return savedProjectRevision != revision }
+        return videoWork.needsConfirmation(for: draft)
+    }
+    var hasValidTimeline: Bool { sourceDuration > 0 && (try? draft.trim.timeline(duration: EditorAudio.time(sourceDuration))) != nil }
+    var editedDuration: Double { (try? draft.trim.timeline(duration: EditorAudio.time(sourceDuration)).duration.seconds) ?? 0 }
+    var exportProgress: Double? {
+        editingRecording ? appState?.recording.processingProgress : exportEngine.progress
+    }
+    var isBusy: Bool {
+        isLoading || isExporting || isSaving || isAnalyzing || voiceOverRecorder.isBusy || videoOverlayRecorder.isBusy
+            || appState?.isRecording == true || appState?.recording.processingStage != nil
+    }
+    var canUndo: Bool { !undoEdits.isEmpty && !isBusy && groupDepth == 0 }
+    var canRedo: Bool { !redoEdits.isEmpty && !isBusy && groupDepth == 0 }
+
+    /// Validates the new source before replacing the active session.
+    func openVideo(_ url: URL) async throws {
+        try await openSource(url, project: nil)
+    }
+
+    func openProject(_ package: URL) async throws {
+        guard !isBusy else { throw SessionError.busy }
+        isLoading = true
+        let requestID = UUID()
+        loadID = requestID
+        do {
+            let project = try await EditorProjectStore.load(from: package)
+            guard loadID == requestID else { throw CancellationError() }
+            isLoading = false
+            try await openSource(project.source, project: project, package: package)
+        } catch {
+            if loadID == requestID { isLoading = false }
+            throw error
+        }
+    }
+
+    private func openSource(_ url: URL, project: EditorProject?, package: URL? = nil) async throws {
+        guard !isBusy else { throw SessionError.busy }
+        isLoading = true
+        let requestID = UUID()
+        loadID = requestID
+        defer { if loadID == requestID { isLoading = false } }
+        let recording = appState?.recording
+        let rawSource = project == nil && url == recording?.lastRecordingURL ? recording?.lastSourceRecordingURL : nil
+        let source = rawSource ?? url
+        let asset = AVURLAsset(url: source)
+        let duration = try await asset.load(.duration).seconds
+        guard duration.isFinite, duration > 0,
+              let track = try await asset.loadTracks(withMediaType: .video).first else { throw ExportError.noVideoTrack }
+        let size = try await track.load(.naturalSize)
+        let transform = try await track.load(.preferredTransform)
+        let audio = try await asset.loadTracks(withMediaType: .audio)
+        try Task.checkCancellation()
+        guard loadID == requestID else { throw CancellationError() }
+
+        var settings = project?.settings ?? (rawSource != nil
+            ? (recording?.lastAppliedEdits ?? VideoEditSettings())
+            : VideoEditSettings(backgroundEnabled: false, showCursor: false))
+        if rawSource != nil, recording?.lastAppliedEdits == nil { settings.videoOverlayURL = recording?.lastWebcamVideoURL }
+        if rawSource != nil, settings.phoneVideoURL == nil { settings.phoneVideoURL = appState?.capture.phoneVideoURL }
+        try settings.validate(duration: duration)
+
+        invalidatePreview()
+        player?.pause()
+        videoURL = url
+        sourceURL = source
+        sourceDuration = duration
+        let bounds = CGRect(origin: .zero, size: size).applying(transform)
+        sourceVideoSize = CGSize(width: abs(bounds.width), height: abs(bounds.height))
+        audioURL = project?.audio ?? (rawSource != nil ? (recording?.lastUntrimmedRecordingURL ?? url) : url)
+        mouseURL = project?.mouse ?? (rawSource != nil ? recording?.lastMouseDataURL : nil)
+        hasEditableAudio = !audio.isEmpty || audioURL != source
+        restoring = true
+        draft = settings
+        restoring = false
+        appliedEdits = settings
+        projectID = project?.id ?? UUID()
+        revision = project?.revision ?? 0
+        projectName = project?.name ?? url.deletingPathExtension().lastPathComponent
+        projectURL = package
+        savedProjectRevision = package == nil ? nil : revision
+        requiresRender = project != nil
+        videoWork.beginVideo(edits: settings, needsDownload: url == recording?.lastRecordingURL && url != recording?.lastSavedRecordingURL)
+        clearSelection()
+        automaticZooms = []
+        zoomPadding = 0
+        undoEdits = []
+        redoEdits = []
+        groupDepth = 0
+        groupStart = nil
+        exportError = nil
+        saveError = nil
+        renderedPreviewTimeline = nil
+        player = AVPlayer()
+        synchronizeUnsavedWork()
+        schedulePreview()
+        await waitForPreview()
+        try Task.checkCancellation()
+        guard loadID == requestID else { throw CancellationError() }
+    }
+
+    func close() {
+        guard !isExporting, !isSaving, !isAnalyzing, !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy else { return }
+        loadID = UUID()
+        isLoading = false
+        invalidatePreview()
+        player?.pause()
+        player = nil
+        videoURL = nil
+        sourceURL = nil
+        audioURL = nil
+        mouseURL = nil
+        sourceDuration = 0
+        sourceVideoSize = nil
+        projectURL = nil
+        savedProjectRevision = nil
+        requiresRender = false
+        hasEditableAudio = false
+        renderedPreviewTimeline = nil
+        undoEdits = []
+        redoEdits = []
+        groupDepth = 0
+        groupStart = nil
+        clearSelection()
+        synchronizeUnsavedWork()
+    }
+
+    /// Native bindings and direct callers both enter the same draft/history pipeline.
+    func updateEdits(_ change: (inout VideoEditSettings) -> Void) throws {
+        guard !isBusy else { throw SessionError.busy }
+        guard videoURL != nil else { throw SessionError.noVideo }
+        var candidate = draft
+        change(&candidate)
+        try candidate.validate(duration: sourceDuration)
+        draft = candidate
+    }
+
+    func resetPendingChanges() {
+        guard !isBusy else { return }
+        draft = appliedEdits
+        clearSelection()
+    }
+
+    func beginUndoGroup() {
+        if groupDepth == 0 { groupStart = draft }
+        groupDepth += 1
+    }
+
+    func endUndoGroup() {
+        guard groupDepth > 0 else { return }
+        groupDepth -= 1
+        if groupDepth == 0, let start = groupStart {
+            groupStart = nil
+            if start != draft { remember(start) }
+        }
+    }
+
+    func undo() {
+        guard canUndo, let previous = undoEdits.popLast() else { return }
+        redoEdits.append(draft)
+        restore(previous)
+    }
+
+    func redo() {
+        guard canRedo, let next = redoEdits.popLast() else { return }
+        undoEdits.append(draft)
+        restore(next)
+    }
+
+    private func remember(_ edits: VideoEditSettings) {
+        undoEdits.append(edits)
+        if undoEdits.count > 100 { undoEdits.removeFirst() }
+        redoEdits = []
+    }
+
+    private func restore(_ edits: VideoEditSettings) {
+        player?.pause()
+        restoring = true
+        draft = edits
+        restoring = false
+        revision += 1
+        clearSelection()
+        schedulePreview()
+        synchronizeUnsavedWork()
+    }
+
+    private func clearSelection() {
+        selectedVoiceOverID = nil
+        selectedZoomID = nil
+        selectedSegment = nil
+        isVideoOverlaySelected = false
+    }
+
+    private func synchronizeUnsavedWork() {
+        appState?.updateUnsavedVideoWork(session: id, hasUnsavedWork: hasUnsavedWork)
+    }
+
+    var previewRequest: LiveVideoPreview.Request? {
+        guard videoURL != nil, let sourceURL else { return nil }
+        var settings = draft
+        settings.trim.splits = []
+        return .init(source: sourceURL, audio: audioURL, mouse: mouseURL,
+                     webcam: settings.videoOverlayURL, settings: settings)
+    }
+
+    private func invalidatePreview() {
+        previewTask?.cancel()
+        previewTask = nil
+        previewID = UUID()
+        previewReady = false
+        previewError = nil
+        isPreparingFaceTracking = false
+    }
+
+    private func schedulePreview() {
+        guard !voiceOverRecorder.isBusy, !videoOverlayRecorder.isBusy,
+              let request = previewRequest, let player else { return }
+        invalidatePreview()
+        let requestID = previewID
+        isPreparingFaceTracking = request.settings.usesFaceTracking && request.webcam != nil
+        previewTask = Task { [weak self] in
+            await self?.refreshPreview(request, player: player, requestID: requestID)
+        }
+    }
+
+    func waitForPreview() async { await previewTask?.value }
+
+    private func refreshPreview(_ request: LiveVideoPreview.Request, player: AVPlayer, requestID: UUID) async {
+        defer { if previewID == requestID { isPreparingFaceTracking = false } }
+        do {
+            let item = try await LiveVideoPreview.makeItem(request)
+            try Task.checkCancellation()
+            guard previewID == requestID, player === self.player else { return }
+            let time = player.currentTime()
+            let rate = player.rate
+            let sourceTime = renderedPreviewTimeline?.sourceTime(at: time) ?? .zero
+            let duration = try await AVURLAsset(url: request.source).load(.duration)
+            let timeline = try request.settings.trim.timeline(duration: duration)
+            let itemDuration = try await item.asset.load(.duration)
+            try Task.checkCancellation()
+            guard previewID == requestID, player === self.player else { return }
+            player.replaceCurrentItem(with: item)
+            renderedPreviewTimeline = timeline
+            player.isMuted = false
+            let mappedTime = timeline.outputTime(at: sourceTime)
+            await player.seek(to: mappedTime.isNumeric ? CMTimeMinimum(mappedTime, itemDuration) : .zero,
+                              toleranceBefore: .zero, toleranceAfter: .zero)
+            try Task.checkCancellation()
+            guard previewID == requestID, player === self.player else { return }
+            if rate > 0 { player.rate = rate }
+            previewReady = true
+        } catch is CancellationError {
+        } catch {
+            guard !Task.isCancelled, previewID == requestID else { return }
+            previewError = "Preview unavailable: \(error.localizedDescription)"
+        }
+    }
+
+    /// Renders the current draft from the retained source. No view or save panel is needed.
+    @discardableResult
+    func applyChanges() async throws -> URL {
+        guard !isBusy, appState?.updates.isPresenting != true else { throw SessionError.busy }
+        guard let sourceURL else { throw SessionError.noVideo }
+        guard hasValidTimeline else { throw VideoTrimError.invalidRange }
+        try draft.validate(duration: sourceDuration)
+        player?.pause()
+        let settings = draft
+        isExporting = true
+        appState?.isExportingVideo = true
+        exportError = nil
+        defer { isExporting = false; appState?.isExportingVideo = false }
+        do {
+            let result: URL
+            if editingRecording, let recording = appState?.recording {
+                await recording.applyEdits(settings)
+                if let error = recording.processingError { throw SessionError.processingFailed(error) }
+                guard let url = recording.lastRecordingURL else { throw SessionError.noVideo }
+                result = url
+            } else {
+                let output = FileManager.default.temporaryDirectory.appendingPathComponent("Screen-layout-\(UUID().uuidString).mov")
+                let keyframes = settings.zoomEnabled && mouseURL != nil
+                    ? try await ClickZoomGenerator.generate(from: mouseURL!, sourceVideoURL: sourceURL,
+                        settings: .init(zoomLevel: settings.zoomLevel), segments: settings.zoomSegments) : []
+                var rendered = try await exportEngine.export(sourceURL: sourceURL, keyframes: keyframes, configuration: .init(
+                    outputURL: output,
+                    webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,
+                    videoOverlayTiming: settings.videoOverlayTiming, videoOverlayTrim: settings.trim,
+                    pipPosition: settings.webcamPosition, pipSize: settings.webcamSize, pipShape: settings.webcamShape,
+                    cameraLayout: settings.cameraLayout, cameraLayoutChanges: settings.cameraLayoutChanges,
+                    mouseDataURL: mouseURL, cursorScale: settings.cursorScale, cursorShape: settings.cursorShape,
+                    showCursor: settings.showCursor && mouseURL != nil, canvasRatio: settings.ratio, deviceLayout: settings.layout,
+                    wallpaper: settings.wallpaper, desktopCornerRadius: settings.desktopCornerRadius,
+                    phoneVideoURL: settings.phoneVideoURL,
+                    preserveSourceAudio: settings.audioEnabled && audioURL == sourceURL, phoneCrop: settings.crop,
+                    phoneContentMode: settings.phoneMode, forceCanvas: settings.backgroundEnabled,
+                    exportResolution: settings.exportResolution))
+                if settings.audioEnabled, let audioURL, audioURL != sourceURL {
+                    rendered = try await MediaMuxer.mux(videoURL: rendered, systemAudioURL: audioURL,
+                                                       micAudioURL: nil, removeSourceAudio: false)
+                }
+                let trimmed = try await settings.trim.export(source: rendered)
+                result = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
+                    originalVolume: settings.originalAudioVolume,
+                    clips: settings.voiceOverEnabled ? settings.voiceOvers : [], voiceOverVolume: settings.voiceOverVolume)
+            }
+            try Task.checkCancellation()
+            videoURL = result
+            appliedEdits = settings
+            requiresRender = false
+            videoWork.markRendered()
+            synchronizeUnsavedWork()
+            return result
+        } catch {
+            exportError = error.localizedDescription
+            throw error
+        }
+    }
+
+    func saveVideo(to destination: URL) async throws {
+        guard !isBusy else { throw SessionError.busy }
+        guard let source = videoURL else { throw SessionError.noVideo }
+        guard !hasEditChanges else { throw SessionError.pendingChanges }
+        let retained = [sourceURL, audioURL, mouseURL] + ([draft, appliedEdits] + undoEdits + redoEdits).flatMap {
+            [$0.videoOverlayURL, $0.phoneVideoURL] + $0.voiceOvers.map { Optional($0.url) }
+        }
+        let resolvedDestination = destination.standardizedFileURL.resolvingSymlinksInPath()
+        guard !retained.compactMap({ $0 }).contains(where: {
+            $0.standardizedFileURL.resolvingSymlinksInPath() == resolvedDestination
+        }) || source.standardizedFileURL.resolvingSymlinksInPath() == resolvedDestination else {
+            throw SessionError.retainedMediaDestination
+        }
+        isSaving = true
+        saveError = nil
+        defer { isSaving = false }
+        do {
+            if let recording = appState?.recording {
+                try await recording.saveRecording(from: source, to: destination)
+            } else {
+                try await VideoFileStore.copy(from: source, to: destination)
+            }
+            videoURL = destination
+            videoWork.markDownloaded(edits: appliedEdits)
+            synchronizeUnsavedWork()
+        } catch {
+            saveError = "The original recording is still available. \(error.localizedDescription)"
+            throw error
+        }
+    }
+
+    func saveProject(to destination: URL, name: String? = nil) async throws {
+        guard !isBusy else { throw SessionError.busy }
+        guard let sourceURL else { throw SessionError.noVideo }
+        try draft.validate(duration: sourceDuration)
+        let project = EditorProject(id: projectID, revision: revision, name: name ?? projectName,
+                                    source: sourceURL, audio: audioURL, mouse: mouseURL, settings: draft)
+        guard !project.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw EditorProjectStore.ProjectError.invalidManifest
+        }
+        isSaving = true
+        defer { isSaving = false }
+        let result = try await EditorProjectStore.save(project, to: destination,
+                                                       retaining: [appliedEdits] + undoEdits + redoEdits)
+        func remap(_ settings: VideoEditSettings) -> VideoEditSettings {
+            var value = settings
+            value.phoneVideoURL = value.phoneVideoURL.map { result.mediaMappings[$0.standardizedFileURL] ?? $0 }
+            value.videoOverlayURL = value.videoOverlayURL.map { result.mediaMappings[$0.standardizedFileURL] ?? $0 }
+            for index in value.voiceOvers.indices {
+                value.voiceOvers[index].url = result.mediaMappings[value.voiceOvers[index].url.standardizedFileURL] ?? value.voiceOvers[index].url
+            }
+            return value
+        }
+        if sourceURL == videoURL { videoURL = result.project.source }
+        self.sourceURL = result.project.source
+        audioURL = result.project.audio
+        mouseURL = result.project.mouse
+        restoring = true
+        draft = remap(draft)
+        appliedEdits = remap(appliedEdits)
+        undoEdits = undoEdits.map(remap)
+        redoEdits = redoEdits.map(remap)
+        restoring = false
+        projectURL = destination
+        projectName = project.name
+        savedProjectRevision = project.revision
+        schedulePreview()
+        synchronizeUnsavedWork()
+    }
+
+    enum SessionError: LocalizedError {
+        case busy, noVideo, pendingChanges, retainedMediaDestination, processingFailed(String)
+        var errorDescription: String? {
+            switch self {
+            case .busy: return "Wait for the current operation to finish."
+            case .noVideo: return "Open a video before editing."
+            case .pendingChanges: return "Apply your changes before downloading the video."
+            case .retainedMediaDestination: return "Choose a different destination to keep the project's original media intact."
+            case .processingFailed(let message): return message
+            }
+        }
+    }
+}

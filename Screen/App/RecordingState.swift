@@ -62,27 +62,7 @@ final class RecordingState: ObservableObject {
     // MARK: - Recording Control
 
     func saveRecording(from source: URL, to destination: URL) async throws {
-        if source.standardizedFileURL != destination.standardizedFileURL {
-            try await Task.detached(priority: .userInitiated) {
-                let access = destination.startAccessingSecurityScopedResource()
-                defer { if access { destination.stopAccessingSecurityScopedResource() } }
-                let manager = FileManager.default
-                let stagingDirectory = try manager.url(
-                    for: .itemReplacementDirectory,
-                    in: .userDomainMask,
-                    appropriateFor: destination,
-                    create: true
-                )
-                defer { try? manager.removeItem(at: stagingDirectory) }
-                let stagedFile = stagingDirectory.appendingPathComponent(destination.lastPathComponent)
-                try manager.copyItem(at: source, to: stagedFile)
-                if manager.fileExists(atPath: destination.path) {
-                    _ = try manager.replaceItemAt(destination, withItemAt: stagedFile)
-                } else {
-                    try manager.moveItem(at: stagedFile, to: destination)
-                }
-            }.value
-        }
+        try await VideoFileStore.copy(from: source, to: destination)
         if lastRecordingURL == source {
             lastRecordingURL = destination
             lastSavedRecordingURL = destination
@@ -299,6 +279,7 @@ final class RecordingState: ObservableObject {
                 backgroundEnabled: recordingUsesBackground,
                 crop: captureSettings?.phoneCrop(for: videoURL) ?? PhoneCrop(),
                 phoneMode: captureSettings?.phoneContentMode ?? .fit,
+                phoneVideoURL: captureSettings?.phoneVideoURL,
                 showCursor: captureSettings?.showCursor ?? true,
                 cursorShape: captureSettings?.cursorShape ?? .arrow,
                 cursorScale: captureSettings?.cursorScale ?? 1,
@@ -352,7 +333,7 @@ final class RecordingState: ObservableObject {
                 deviceLayout: settings.layout,
                 wallpaper: settings.wallpaper,
                 desktopCornerRadius: settings.desktopCornerRadius,
-                phoneVideoURL: captureSettings?.phoneVideoURL,
+                phoneVideoURL: settings.phoneVideoURL ?? captureSettings?.phoneVideoURL,
                 phoneCrop: settings.crop,
                 phoneContentMode: settings.phoneMode,
                 forceCanvas: settings.backgroundEnabled,

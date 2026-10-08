@@ -2,8 +2,8 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct VideoCut: Equatable, Identifiable {
-    let id = UUID()
+struct VideoCut: Equatable, Identifiable, Codable {
+    var id = UUID()
     var start: Double
     var end: Double
 }
@@ -45,12 +45,53 @@ struct EditedTimeline {
     }
 }
 
-struct VideoTrim: Equatable {
+struct VideoTrim: Equatable, Codable {
     var start: Double = 0
     var end: Double?
     var cuts: [VideoCut] = []
     var splits: [Double] = []
     private(set) var clipOrder: [CMTimeRange] = []
+
+    private enum CodingKeys: String, CodingKey { case start, end, cuts, splits, clipOrder }
+    private struct SavedRange: Codable {
+        let startValue: Int64
+        let startScale: Int32
+        let durationValue: Int64
+        let durationScale: Int32
+        init(_ range: CMTimeRange) {
+            startValue = range.start.value; startScale = range.start.timescale
+            durationValue = range.duration.value; durationScale = range.duration.timescale
+        }
+        func range() throws -> CMTimeRange {
+            guard startScale > 0, durationScale > 0, startValue >= 0, durationValue > 0 else {
+                throw VideoTrimError.invalidRange
+            }
+            return CMTimeRange(start: CMTime(value: startValue, timescale: startScale),
+                               duration: CMTime(value: durationValue, timescale: durationScale))
+        }
+    }
+
+    init(start: Double = 0, end: Double? = nil, cuts: [VideoCut] = [], splits: [Double] = []) {
+        self.start = start; self.end = end; self.cuts = cuts; self.splits = splits
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        start = try values.decodeIfPresent(Double.self, forKey: .start) ?? 0
+        end = try values.decodeIfPresent(Double.self, forKey: .end)
+        cuts = try values.decodeIfPresent([VideoCut].self, forKey: .cuts) ?? []
+        splits = try values.decodeIfPresent([Double].self, forKey: .splits) ?? []
+        clipOrder = try (values.decodeIfPresent([SavedRange].self, forKey: .clipOrder) ?? []).map { try $0.range() }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(start, forKey: .start)
+        try values.encodeIfPresent(end, forKey: .end)
+        try values.encode(cuts, forKey: .cuts)
+        try values.encode(splits, forKey: .splits)
+        try values.encode(clipOrder.map(SavedRange.init), forKey: .clipOrder)
+    }
 
     mutating func moveSegment(from sourceIndex: Int, to destinationIndex: Int, duration: CMTime) -> Bool {
         guard let visible = try? segments(duration: duration),
@@ -162,7 +203,7 @@ struct VideoTrim: Equatable {
 }
 
 enum SilenceDetector {
-    struct Settings: Equatable {
+    struct Settings: Equatable, Codable {
         var thresholdDB: Double = -42
         var minimumPause: Double = 0.8
         var padding: Double = 0.15

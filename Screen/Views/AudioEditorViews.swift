@@ -21,6 +21,39 @@ struct MicrophoneDevicePicker: View {
     }
 }
 
+struct EditorTakeRow: View {
+    let title: String
+    let start: Double
+    let end: Double
+    let isSelected: Bool
+    let removeLabel: String
+    let select: () -> Void
+    let remove: () -> Void
+
+    var body: some View {
+        HStack {
+            Button(action: select) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.body).foregroundStyle(.primary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Text(String(format: "%.1fs – %.1fs", start, end))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(isSelected ? Color.accentColor.opacity(0.18) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+            Button(action: remove) { Image(systemName: "trash") }
+                .buttonStyle(.plain)
+                .help(removeLabel)
+                .accessibilityLabel(removeLabel)
+        }
+    }
+}
+
 struct EditorAudioPanel: View {
     @Binding var settings: VideoEditSettings
     @Binding var selectedClip: UUID?
@@ -94,27 +127,12 @@ struct EditorAudioPanel: View {
                 Divider()
                 volumeControl("Voiceover", enabled: $settings.voiceOverEnabled, volume: $settings.voiceOverVolume)
                 ForEach(settings.voiceOvers) { clip in
-                    HStack {
-                        Button {
-                            selectedClip = clip.id
-                        } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)")
-                                Text(String(format: "%.1fs – %.1fs", clip.start, clip.end))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                            .background(selectedClip == clip.id ? Color.accentColor.opacity(0.18) : Color.clear,
-                                        in: RoundedRectangle(cornerRadius: 5))
-                        }.buttonStyle(.plain)
-                        Button {
-                            settings.voiceOvers.removeAll { $0.id == clip.id }
-                            if selectedClip == clip.id { selectedClip = nil }
-                        } label: { Image(systemName: "trash") }
-                            .buttonStyle(.plain).help("Remove voiceover take")
-                            .accessibilityLabel("Remove voiceover take")
-                    }
+                    EditorTakeRow(title: "Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)",
+                                  start: clip.start, end: clip.end, isSelected: selectedClip == clip.id,
+                                  removeLabel: "Remove voiceover take", select: { selectedClip = clip.id }, remove: {
+                        settings.voiceOvers.removeAll { $0.id == clip.id }
+                        if selectedClip == clip.id { selectedClip = nil }
+                    })
                 }
                 if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
                     clipControls(index)

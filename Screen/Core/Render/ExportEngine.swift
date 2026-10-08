@@ -73,6 +73,35 @@ final class ExportEngine: ObservableObject {
         keyframes: [CameraKeyframe],
         configuration: Configuration
     ) async throws -> URL {
+        let cancellation = ExportCancellation()
+        let manager = FileManager.default
+        let staging = try manager.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                      appropriateFor: configuration.outputURL, create: true)
+        defer { try? manager.removeItem(at: staging) }
+        var staged = configuration
+        staged.outputURL = staging.appendingPathComponent(configuration.outputURL.lastPathComponent)
+        await MainActor.run { self.isExporting = true; self.progress = 0 }
+        do {
+            _ = try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                return try await render(sourceURL: sourceURL, keyframes: keyframes,
+                                        configuration: staged, cancellation: cancellation)
+            } onCancel: { cancellation.cancel() }
+            try Task.checkCancellation()
+            if manager.fileExists(atPath: configuration.outputURL.path) {
+                _ = try manager.replaceItemAt(configuration.outputURL, withItemAt: staged.outputURL)
+            } else {
+                try manager.moveItem(at: staged.outputURL, to: configuration.outputURL)
+            }
+            return configuration.outputURL
+        } catch {
+            await MainActor.run { self.isExporting = false }
+            throw error
+        }
+    }
+
+    private nonisolated func render(sourceURL: URL, keyframes: [CameraKeyframe],
+                                    configuration: Configuration, cancellation: ExportCancellation) async throws -> URL {
         let faceTrack: FaceTrackingTrack?
         if let cameraURL = configuration.webcamVideoURL,
            configuration.cameraLayout.followFace || configuration.cameraLayoutChanges.contains(where: { $0.settings.followFace }) {
@@ -166,12 +195,6 @@ final class ExportEngine: ObservableObject {
                 reader.add(audioOutput)
                 audioReaderWriterPairs.append((audioOutput, audioInput))
             }
-        }
-
-        // Remove existing output file
-        let fm = FileManager.default
-        if fm.fileExists(atPath: configuration.outputURL.path) {
-            try fm.removeItem(at: configuration.outputURL)
         }
 
         // Set up writer
@@ -287,6 +310,7 @@ final class ExportEngine: ObservableObject {
             // Video processing
             group.enter()
             let videoQueue = DispatchQueue(label: "com.screen.export.video", qos: .userInitiated)
+            var videoFinished = false
 
             // Track the current webcam frame so we can hold it across multiple video frames
             // (webcam is ~30fps, screen is 60fps — we must sync by timestamp, not 1:1)
@@ -305,6 +329,7 @@ final class ExportEngine: ObservableObject {
             /// Safely append a pixel buffer, ensuring strictly increasing PTS.
             /// Catches ObjC exceptions from AVAssetWriter to prevent crashes.
             func safeAppend(_ buffer: CVPixelBuffer, at pts: CMTime) -> Bool {
+                guard !cancellation.isCancelled else { return false }
                 guard CMTimeCompare(pts, lastAppendedPTS) > 0 else { return false }
                 guard writer.status == .writing else { return false }
                 do {
@@ -568,14 +593,21 @@ final class ExportEngine: ObservableObject {
             }
 
             videoInput.requestMediaDataWhenReady(on: videoQueue) { [weak self] in
+                guard !videoFinished else { return }
                 while videoInput.isReadyForMoreMediaData {
+                    if cancellation.isCancelled {
+                        videoFinished = true
+                        videoInput.markAsFinished()
+                        group.leave()
+                        return
+                    }
                     let shouldContinue = autoreleasepool { () -> Bool in
                     guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
                         if let image = lastSourceImage, hasCursorAnimation || hasCameraFrames || phoneReader != nil || !keyframes.isEmpty {
                             var fillTime = hasCursorAnimation
                                 ? Double(nextCursorFrameIndex) / 60
                                 : CMTimeGetSeconds(lastAppendedPTS) + fillFrameInterval
-                            while fillTime < totalSeconds {
+                            while fillTime < totalSeconds && !cancellation.isCancelled {
                                 let fillPTS = hasCursorAnimation
                                     ? CMTime(value: nextCursorFrameIndex, timescale: 60)
                                     : CMTime(seconds: fillTime, preferredTimescale: 600)
@@ -591,6 +623,7 @@ final class ExportEngine: ObservableObject {
                             }
                         }
                         withExtendedLifetime(webcamReader) {}
+                        videoFinished = true
                         videoInput.markAsFinished()
                         group.leave()
                         return false
@@ -618,7 +651,7 @@ final class ExportEngine: ObservableObject {
                     if hasCursorAnimation {
                         if let previousImage = lastSourceImage {
                             var frameTime = Double(nextCursorFrameIndex) / 60
-                            while frameTime < timeSeconds - 0.000_001 {
+                            while frameTime < timeSeconds - 0.000_001 && !cancellation.isCancelled {
                                 let framePTS = CMTime(value: nextCursorFrameIndex, timescale: 60)
                                 if renderAndWrite(image: previousImage, transform: camera(at: frameTime),
                                                   at: framePTS, time: frameTime) {
@@ -658,7 +691,7 @@ final class ExportEngine: ObservableObject {
                                 // Generate fill frames at ~30fps through the gap
                                 var fillCount = 0
                                 var fillTime = lastAppendedSeconds + fillFrameInterval
-                                while fillTime < timeSeconds - fillFrameInterval * 0.5 {
+                                while fillTime < timeSeconds - fillFrameInterval * 0.5 && !cancellation.isCancelled {
                                     let fillTransform = camera(at: fillTime)
                                     let fillPTS = CMTime(seconds: fillTime, preferredTimescale: 600)
                                     if renderAndWrite(image: prevImage, transform: fillTransform, at: fillPTS, time: fillTime) {
@@ -692,9 +725,18 @@ final class ExportEngine: ObservableObject {
                 let audioQueue = DispatchQueue(label: "com.screen.export.audio.\(pair.writer.hash)", qos: .userInitiated)
                 let readerOut = pair.reader
                 let writerIn = pair.writer
+                var audioFinished = false
                 writerIn.requestMediaDataWhenReady(on: audioQueue) {
+                    guard !audioFinished else { return }
                     while writerIn.isReadyForMoreMediaData {
+                        if cancellation.isCancelled {
+                            audioFinished = true
+                            writerIn.markAsFinished()
+                            group.leave()
+                            return
+                        }
                         guard let sampleBuffer = readerOut.copyNextSampleBuffer() else {
+                            audioFinished = true
                             writerIn.markAsFinished()
                             group.leave()
                             return
@@ -705,6 +747,12 @@ final class ExportEngine: ObservableObject {
             }
 
             group.notify(queue: .main) {
+                if cancellation.isCancelled {
+                    reader.cancelReading()
+                    writer.cancelWriting()
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
                 writer.endSession(atSourceTime: duration)
                 writer.finishWriting {
                     if let error = writer.error {
@@ -715,6 +763,8 @@ final class ExportEngine: ObservableObject {
                 }
             }
         }
+
+        try Task.checkCancellation()
 
         if reader.status == .failed { throw reader.error ?? ExportError.readerSetupFailed }
         if let error = phoneReader?.error { throw error }
@@ -728,6 +778,13 @@ final class ExportEngine: ObservableObject {
         Log.export.info("Export completed: \(configuration.outputURL.lastPathComponent), read=\(framesRead), written=\(framesWritten), dropped=\(droppedFrameCount)")
         return configuration.outputURL
     }
+}
+
+private final class ExportCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+    func cancel() { lock.lock(); cancelled = true; lock.unlock() }
 }
 
 private final class TimedVideoReader {

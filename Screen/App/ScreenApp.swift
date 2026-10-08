@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UniformTypeIdentifiers
 
 // MARK: - App Delegate
 
@@ -85,6 +86,9 @@ struct ScreenApp: App {
             }
 
             CommandGroup(after: .newItem) {
+                Button("Save Project…") { saveProjectFile() }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
+                    .disabled(appState.editorSession.videoURL == nil || appState.editorSession.isBusy)
                 Divider()
 
                 Button("Start Recording") {
@@ -117,6 +121,7 @@ struct ScreenApp: App {
 
     private func openProjectFile() {
         let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "screenize") ?? .package]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.treatsFilePackagesAsDirectories = false
@@ -127,6 +132,22 @@ struct ScreenApp: App {
                 object: nil,
                 userInfo: ["url": url]
             )
+        }
+    }
+
+    private func saveProjectFile() {
+        let session = appState.editorSession
+        guard session.videoURL != nil, !session.isBusy else { return }
+        let panel = NSSavePanel()
+        panel.title = "Save Project"
+        panel.allowedContentTypes = [UTType(filenameExtension: "screenize") ?? .package]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = session.projectURL?.lastPathComponent ?? "\(session.projectName).screenize"
+        panel.directoryURL = session.projectURL?.deletingLastPathComponent()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { @MainActor in
+            do { try await session.saveProject(to: url) }
+            catch { session.saveError = error.localizedDescription }
         }
     }
 }

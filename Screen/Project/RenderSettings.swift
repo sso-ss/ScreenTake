@@ -8,7 +8,7 @@ enum PhoneContentMode: String, CaseIterable, Codable {
     var displayName: String { rawValue.capitalized }
 }
 
-struct VideoEditSettings: Equatable {
+struct VideoEditSettings: Equatable, Codable {
     var ratio: CanvasRatio = .original
     var layout: DeviceLayout = .desktop
     var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
@@ -16,6 +16,7 @@ struct VideoEditSettings: Equatable {
     var backgroundEnabled = true
     var crop = PhoneCrop()
     var phoneMode: PhoneContentMode = .fit
+    var phoneVideoURL: URL?
     var showCursor = true
     var cursorShape: CursorShape = .arrow
     var cursorScale: Double = 1
@@ -205,7 +206,7 @@ struct CameraLayoutTransition {
     var progress: Double
 }
 
-struct VideoOverlayTiming: Equatable {
+struct VideoOverlayTiming: Equatable, Codable {
     var start: Double
     var duration: Double
     var sourceStart: Double = 0
@@ -266,7 +267,7 @@ struct VideoOverlayTimelineRange: Equatable {
     }
 }
 
-struct ZoomSegment: Equatable, Identifiable {
+struct ZoomSegment: Equatable, Identifiable, Codable {
     var id = UUID()
     var start: Double
     var end: Double
@@ -276,7 +277,7 @@ struct ZoomSegment: Equatable, Identifiable {
     var followsCursor = true
 }
 
-struct PhoneCrop: Equatable {
+struct PhoneCrop: Equatable, Codable {
     var rect: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)
 
     enum Corner: CaseIterable { case topLeft, topRight, bottomLeft, bottomRight }

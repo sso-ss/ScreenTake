@@ -1,7 +1,7 @@
 import AVFoundation
 
 /// Narration is positioned on the edited video's timeline, independent of source clip order.
-struct VoiceOverClip: Equatable, Identifiable {
+struct VoiceOverClip: Equatable, Identifiable, Codable {
     var id = UUID()
     var url: URL
     var start: Double = 0
