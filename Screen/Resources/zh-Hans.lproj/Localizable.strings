@@ -188,3 +188,34 @@
 "Zoom" = "缩放";
 "Zoom at %.1fs" = "在 %.1f秒处缩放";
 "Zoom enlarges part of the recording and may still soften fine detail." = "缩放会放大录制画面的一部分，细节仍可能变模糊。";
+
+"AI Connection" = "AI 连接";
+"Connect an AI assistant using MCP." = "通过 MCP 连接 AI 助手。";
+"Ready to connect" = "已准备好连接";
+"Connection disabled" = "连接已禁用";
+"Disable" = "禁用";
+"Enable / Retry" = "启用 / 重试";
+"Connected AI clients can read media, edit, save, and export the project open in this app." = "已连接的 AI 客户端可以读取媒体、编辑、保存和导出此应用中打开的项目。";
+"Copied" = "已复制";
+"Copy Setup" = "复制配置";
+"Paste the setup into your AI client’s MCP configuration." = "将配置粘贴到 AI 客户端的 MCP 配置中。";
+"The connection helper is missing. Reinstall ScreenTake to restore AI setup." = "缺少连接助手。请重新安装 ScreenTake 以恢复 AI 配置。";
+
+"How to set up" = "设置方法";
+"Prepare ScreenTake" = "准备 ScreenTake";
+"Enable the connection above, open a video or project, and keep ScreenTake running." = "启用上方的连接，打开视频或项目，并保持 ScreenTake 运行。";
+"Add ScreenTake to your AI client" = "将 ScreenTake 添加到 AI 客户端";
+"In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections." = "在 AI 客户端的 MCP 服务器设置中，使用以下值添加本地服务器。客户端必须支持本地 stdio 连接。";
+"Server name" = "服务器名称";
+"Connection type" = "连接类型";
+"Command" = "命令";
+"Arguments" = "参数";
+"Leave empty" = "留空";
+"For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers." = "对于支持 mcpServers JSON 的客户端，请复制此配置并将其合并到现有服务器配置中。";
+"JSON configuration" = "JSON 配置";
+"Reconnect and verify" = "重新连接并验证";
+"Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:" = "保存配置，重新连接或重启 AI 客户端，并启用其 ScreenTake 工具。然后询问：";
+"In ScreenTake, make this video square, use the Ocean background, and round the corners." = "在 ScreenTake 中，将这个视频设为正方形，使用 Ocean 背景，并添加圆角。";
+"Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected." = "助手应在 ScreenTake 中更新视频的画布和样式。“准备连接”表示 ScreenTake 可用，并不代表 AI 客户端已连接。";
+"Connection not working?" = "无法连接？";
+"Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path." = "请仅连接一个 ScreenTake 实例。如果移动或重新安装了应用，请重新复制配置，以便 AI 客户端使用当前命令路径。";

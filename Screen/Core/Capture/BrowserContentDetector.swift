@@ -135,7 +135,7 @@ enum BrowserContentDetector {
         try VNImageRequestHandler(cgImage: image).perform([request])
         let addresses = (request.results ?? []).compactMap { observation -> CGRect? in
             guard let text = observation.topCandidates(1).first, text.confidence >= 0.5,
-                  isAddress(text.string) else { return nil }
+                  isAddressField(text.string) else { return nil }
             let box = observation.boundingBox
             // Vision returns bounds relative to the request's region of interest.
             let top = CGRect(x: box.minX, y: (1 - box.maxY) * 0.30,
@@ -152,6 +152,13 @@ enum BrowserContentDetector {
             }
         }
         return nil
+    }
+
+    static func isAddressField(_ text: String) -> Bool {
+        if isAddress(text) { return true }
+        // Empty new-tab address fields still need the same window/navigation evidence.
+        return ["search or enter web address", "search google or type a url", "search or enter website name"]
+            .contains(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
 
     static func isAddress(_ text: String) -> Bool {
@@ -204,37 +211,53 @@ enum BrowserContentDetector {
         }
 
         /// macOS replaces the traffic lights with a screen-sharing capsule while
-        /// capturing a window. Require that capsule above a row of three evenly
-        /// spaced navigation icons to the left of the URL, not just a page URL.
+        /// capturing a window. Require the capsule plus Chromium navigation below
+        /// it, or Safari’s sidebar and two chevrons beside it, not just a page URL.
         func hasSharingBrowserChrome(around address: CGRect) -> Bool {
             let textHeight = address.height * CGFloat(height)
             let url = CGRect(x: address.minX * CGFloat(width), y: address.minY * CGFloat(height),
                              width: address.width * CGFloat(width), height: textHeight)
-            let regionWidth = min(Int(url.minX), width / 6)
+            let regionWidth = min(Int(url.minX), width / 3)
             let regionHeight = min(Int(url.maxY + textHeight), height / 4)
             guard textHeight >= 5, regionWidth >= 20, regionHeight >= 15 else { return false }
             let components = edgeComponents(width: regionWidth, height: regionHeight)
             let navigation = components.filter {
-                $0.minX > 2 && $0.maxX < url.minX - textHeight * 0.4
+                $0.minX > 2 && $0.maxX < url.minX - textHeight * 0.1
                     && abs($0.midY - url.midY) < textHeight * 0.45
                     && (0.5...1.8).contains($0.width / textHeight)
                     && (0.5...1.8).contains($0.height / textHeight)
-                    && (0.65...1.5).contains($0.width / $0.height)
+                    && (0.5...1.5).contains($0.width / $0.height)
             }.sorted { $0.minX < $1.minX }
-            guard navigation.count >= 3 else { return false }
-            let hasNavigation = (0..<(navigation.count - 2)).contains { index in
+            let hasNavigation = navigation.count >= 3 && (0..<(navigation.count - 2)).contains { index in
                 let firstGap = navigation[index + 1].midX - navigation[index].midX
                 let secondGap = navigation[index + 2].midX - navigation[index + 1].midX
                 return (1.3...3.5).contains(firstGap / textHeight)
                     && abs(firstGap - secondGap) < textHeight * 0.6
             }
-            guard hasNavigation else { return false }
+            // Safari puts the sharing capsule, sidebar button and two chevrons
+            // on the same row as its centered address, with reload inside the field.
+            let safariPair = navigation.count >= 2 && (0..<(navigation.count - 1)).contains { index in
+                let first = navigation[index], second = navigation[index + 1]
+                return (1.6...4).contains((second.midX - first.midX) / textHeight)
+                    && abs(first.width - second.width) < textHeight * 0.3
+                    && abs(first.height - second.height) < textHeight * 0.3
+                    && first.width < first.height
+                    && components.contains { sidebar in
+                        sidebar.maxX < first.minX && sidebar.minX > CGFloat(width) * 0.065
+                            && abs(sidebar.midY - url.midY) < textHeight * 0.5
+                            && (1.2...2.6).contains(sidebar.width / textHeight)
+                            && (1...2.2).contains(sidebar.height / textHeight)
+                    }
+            }
+            let safari = (0.35...0.65).contains(address.midX) && address.minY < 0.08 && safariPair
+            guard hasNavigation || safari else { return false }
             return components.contains { rect in
                 guard rect.minX > 2, rect.midX < url.minX * 0.65,
                       rect.minY < CGFloat(height) * 0.06,
-                      rect.maxY < url.minY - textHeight * 0.5,
+                      (safari ? abs(rect.midY - url.midY) < textHeight * 0.5 && rect.maxX < CGFloat(width) * 0.12
+                              : rect.maxY < url.minY - textHeight * 0.5),
                       (2...5).contains(rect.width / textHeight),
-                      (0.8...2).contains(rect.height / textHeight),
+                      (0.8...2.4).contains(rect.height / textHeight),
                       (1.8...4).contains(rect.width / rect.height) else { return false }
                 // A sharing glyph has contrast inside the capsule; an empty
                 // pill, tab underline, or window edge is insufficient evidence.

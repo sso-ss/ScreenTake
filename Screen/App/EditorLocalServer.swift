@@ -54,17 +54,34 @@ final class EditorLocalServer: ObservableObject {
         status = "Disabled"
     }
 
+    var isEnabled: Bool { transport != nil }
+    private var helperURL: URL {
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/screentake-mcp")
+    }
+    var helperAvailable: Bool { FileManager.default.isExecutableFile(atPath: helperURL.path) }
+    var setupCommand: String { helperURL.path }
+    var setupJSON: String? {
+        let setup: [String: Any] = ["mcpServers": ["screentake": ["command": setupCommand, "args": [String]()]]]
+        guard let data = try? JSONSerialization.data(withJSONObject: setup, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        if enabled { start() }
+        else { defaults.set(false, forKey: "editorAIConnectionEnabled"); stop() }
+    }
+
+    @discardableResult
+    func copySetup() -> Bool {
+        guard helperAvailable, let text = setupJSON else { return false }
+        NSPasteboard.general.clearContents()
+        return NSPasteboard.general.setString(text, forType: .string)
+    }
+
     func showSetup() {
         let alert = NSAlert()
-        // Load the bundled icon directly so macOS's cached application icon
-        // cannot leave this dialog showing an older ScreenTake logo.
-        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
-            alert.icon = icon
-        }
+        if let icon = AppBrand.icon { alert.icon = icon }
         alert.messageText = "AI Connection"
-        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/screentake-mcp")
-        let helperAvailable = FileManager.default.isExecutableFile(atPath: helper.path)
         let setupInfo = helperAvailable
             ? "Copy Setup provides the settings to connect your AI client. No additional software is required."
             : "The connection helper is missing. Reinstall ScreenTake to restore AI setup."
@@ -75,15 +92,9 @@ final class EditorLocalServer: ObservableObject {
         alert.buttons[1].isEnabled = helperAvailable
         switch alert.runModal() {
         case .alertSecondButtonReturn:
-            let setup: [String: Any] = ["mcpServers": ["screentake": ["command": helper.path, "args": [String]()]]]
-            if let data = try? JSONSerialization.data(withJSONObject: setup, options: [.prettyPrinted, .sortedKeys]),
-               let text = String(data: data, encoding: .utf8) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-            }
+            copySetup()
         case .alertThirdButtonReturn:
-            if transport == nil { start() }
-            else { defaults.set(false, forKey: "editorAIConnectionEnabled"); stop() }
+            setEnabled(!isEnabled)
         default: break
         }
     }

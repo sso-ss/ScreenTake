@@ -2270,6 +2270,46 @@ final class TimelinePlayback: ObservableObject {
     }
 }
 
+/// Follow playback and explicit seeks without snapping back when a paused user scrolls.
+private struct TimelineScrollFollower: NSViewRepresentable {
+    let seconds: Double
+    let duration: Double
+    let trackWidth: Double
+
+    func makeNSView(context: Context) -> TimelineScrollTrackingView { TimelineScrollTrackingView() }
+
+    func updateNSView(_ view: TimelineScrollTrackingView, context: Context) {
+        let position = 12 + trackWidth * max(0, min(duration, seconds)) / duration
+        guard view.playheadX != position else { return }
+        view.playheadX = position
+        // SwiftUI must finish laying out the scroll document before we adjust its viewport.
+        DispatchQueue.main.async { [weak view] in view?.followPlayhead() }
+    }
+}
+
+private final class TimelineScrollTrackingView: NSView {
+    var playheadX: CGFloat?
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func followPlayhead() {
+        guard let playheadX, let scroll = enclosingScrollView, let document = scroll.documentView else { return }
+        let clip = scroll.contentView
+        let viewport = clip.bounds
+        let x = convert(CGPoint(x: playheadX, y: 0), to: document).x
+        let margin = min(40, viewport.width * 0.1)
+        var origin = viewport.origin
+        if x > viewport.maxX - margin {
+            origin.x = x - viewport.width * 0.8
+        } else if x < viewport.minX + margin {
+            origin.x = x - viewport.width * 0.2
+        } else { return }
+        origin.x = max(0, min(max(0, document.bounds.width - viewport.width), origin.x))
+        guard abs(origin.x - viewport.minX) > 0.5 else { return }
+        clip.scroll(to: origin)
+        scroll.reflectScrolledClipView(clip)
+    }
+}
+
 @MainActor
 final class SilenceReview: ObservableObject {
     @Published var settings = SilenceDetector.Settings()
@@ -2794,11 +2834,11 @@ struct VideoTrimControls: View {
                     Text(LocalizedStringKey(tooltip.text))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DesignColors.primaryLabel)
-                        .multilineTextAlignment(.center)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .frame(width: width)
+                        .frame(width: width, alignment: .leading)
                         .background(DesignColors.inputBackground, in: RoundedRectangle(cornerRadius: 5))
                         .overlay(RoundedRectangle(cornerRadius: 5).stroke(DesignColors.inputBorder, lineWidth: 1))
                         .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
@@ -3126,7 +3166,6 @@ struct VideoTrimControls: View {
                 .localizedAccessibilityLabel("Timeline playhead")
                 .localizedAccessibilityValue(timestamp(playback.seconds))
                 .accessibilityAdjustableAction { direction in seekOutput(playback.seconds + (direction == .increment ? 1 : -1) / 30) }
-                .hoverHelp("Drag the ruler to scrub through the edited video")
             ForEach(silence.suggestions) { cut in
                 ForEach(segments.indices, id: \.self) { index in
                 let segment = segments[index]
@@ -3176,6 +3215,11 @@ struct VideoTrimControls: View {
             .allowsHitTesting(false)
         }
         .frame(width: width + 24, height: timelineHeight, alignment: .topLeading)
+        .background {
+            TimelineScrollFollower(seconds: playback.seconds, duration: total, trackWidth: width)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .coordinateSpace(name: "trimTimeline")
     }
 
@@ -3823,11 +3867,12 @@ private struct AppSettingsView: View {
     @State private var page: Page = .appearance
 
     private enum Page: String, CaseIterable {
-        case appearance = "Appearance", language = "Language"
+        case appearance = "Appearance", language = "Language", aiConnection = "AI Connection"
         var symbol: String {
             switch self {
             case .appearance: return "circle.lefthalf.filled"
             case .language: return "globe"
+            case .aiConnection: return "point.3.connected.trianglepath.dotted"
             }
         }
     }
@@ -3889,6 +3934,8 @@ private struct AppSettingsView: View {
                                 .foregroundStyle(DesignColors.secondaryLabel)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                    } else if page == .aiConnection {
+                        AIConnectionSettingsView(connection: AppState.shared.editorConnection)
                     } else {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 16) {
@@ -3917,7 +3964,7 @@ private struct AppSettingsView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    Spacer(minLength: 0)
+                    if page != .aiConnection { Spacer(minLength: 0) }
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -3952,6 +3999,150 @@ private struct AppSettingsView: View {
         .localizedAccessibilityLabel(option.title)
         .accessibilityAddTraits(appearance == option ? .isSelected : [])
         .accessibilityIdentifier("appearance-\(option.rawValue)")
+    }
+}
+
+private struct AIConnectionSettingsView: View {
+    @ObservedObject var connection: EditorLocalServer
+    @State private var copied = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Connect an AI assistant using MCP.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                HStack {
+                    Label {
+                        Text(connection.isEnabled ? "Ready to connect" : "Connection disabled")
+                    } icon: {
+                        Image(systemName: connection.isEnabled ? "checkmark.circle.fill" : "pause.circle")
+                            .foregroundStyle(connection.isEnabled ? DesignColors.success : DesignColors.secondaryLabel)
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Button(connection.isEnabled ? "Disable" : "Enable / Retry") {
+                        connection.setEnabled(!connection.isEnabled)
+                    }
+                    .buttonStyle(CompactActionButtonStyle())
+                    .accessibilityIdentifier("aiConnectionToggle")
+                }
+                .padding(16)
+                .background(DesignColors.windowBackground, in: RoundedRectangle(cornerRadius: 12))
+                if !connection.isEnabled && connection.status != "Disabled" {
+                    Text(verbatim: connection.status)
+                        .font(.system(size: 12))
+                        .foregroundStyle(DesignColors.error)
+                        .textSelection(.enabled)
+                }
+                Text("Connected AI clients can read media, edit, save, and export the project open in this app.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider()
+                Text("How to set up")
+                    .font(.system(size: 16, weight: .semibold))
+                setupStep(1, title: "Prepare ScreenTake",
+                          detail: "Enable the connection above, open a video or project, and keep ScreenTake running.")
+                setupStep(2, title: "Add ScreenTake to your AI client",
+                          detail: "In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections.")
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Server name")
+                        Spacer()
+                        Text(verbatim: "screentake").textSelection(.enabled)
+                    }
+                    HStack {
+                        Text("Connection type")
+                        Spacer()
+                        Text(verbatim: "stdio")
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Command")
+                        Text(verbatim: connection.setupCommand)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(DesignColors.secondaryLabel)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack {
+                        Text("Arguments")
+                        Spacer()
+                        Text("Leave empty")
+                    }
+                }
+                .font(.system(size: 12))
+                .padding(16)
+                .background(DesignColors.windowBackground, in: RoundedRectangle(cornerRadius: 12))
+                Button {
+                    copied = connection.copySetup()
+                } label: {
+                    Label(copied ? "Copied" : "Copy Setup", systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(CompactActionButtonStyle(prominent: true, size: .medium))
+                .disabled(!connection.helperAvailable)
+                .accessibilityIdentifier("copyAISetup")
+                Text("For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let json = connection.setupJSON {
+                    DisclosureGroup("JSON configuration") {
+                        Text(verbatim: json)
+                            .font(.system(size: 11, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(DesignColors.windowBackground, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .font(.system(size: 12))
+                    .accessibilityIdentifier("aiSetupConfiguration")
+                }
+                if !connection.helperAvailable {
+                    Text("The connection helper is missing. Reinstall ScreenTake to restore AI setup.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(DesignColors.error)
+                }
+                setupStep(3, title: "Reconnect and verify",
+                          detail: "Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:")
+                Text("In ScreenTake, make this video square, use the Ocean background, and round the corners.")
+                    .font(.system(size: 13, weight: .medium))
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(DesignColors.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                Text("Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider()
+                Text("Connection not working?")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func setupStep(_ number: Int, title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(verbatim: String(number))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DesignColors.accent)
+                .frame(width: 22, height: 22)
+                .background(DesignColors.accent.opacity(0.1), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 

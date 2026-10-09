@@ -188,3 +188,34 @@
 "Zoom" = "Zoom";
 "Zoom at %.1fs" = "Zoom at %.1fs";
 "Zoom enlarges part of the recording and may still soften fine detail." = "Zoom enlarges part of the recording and may still soften fine detail.";
+
+"AI Connection" = "AI Connection";
+"Connect an AI assistant using MCP." = "Connect an AI assistant using MCP.";
+"Ready to connect" = "Ready to connect";
+"Connection disabled" = "Connection disabled";
+"Disable" = "Disable";
+"Enable / Retry" = "Enable / Retry";
+"Connected AI clients can read media, edit, save, and export the project open in this app." = "Connected AI clients can read media, edit, save, and export the project open in this app.";
+"Copied" = "Copied";
+"Copy Setup" = "Copy Setup";
+"Paste the setup into your AI client’s MCP configuration." = "Paste the setup into your AI client’s MCP configuration.";
+"The connection helper is missing. Reinstall ScreenTake to restore AI setup." = "The connection helper is missing. Reinstall ScreenTake to restore AI setup.";
+
+"How to set up" = "How to set up";
+"Prepare ScreenTake" = "Prepare ScreenTake";
+"Enable the connection above, open a video or project, and keep ScreenTake running." = "Enable the connection above, open a video or project, and keep ScreenTake running.";
+"Add ScreenTake to your AI client" = "Add ScreenTake to your AI client";
+"In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections." = "In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections.";
+"Server name" = "Server name";
+"Connection type" = "Connection type";
+"Command" = "Command";
+"Arguments" = "Arguments";
+"Leave empty" = "Leave empty";
+"For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers." = "For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers.";
+"JSON configuration" = "JSON configuration";
+"Reconnect and verify" = "Reconnect and verify";
+"Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:" = "Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:";
+"In ScreenTake, make this video square, use the Ocean background, and round the corners." = "In ScreenTake, make this video square, use the Ocean background, and round the corners.";
+"Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected." = "Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected.";
+"Connection not working?" = "Connection not working?";
+"Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path." = "Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path.";

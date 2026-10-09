@@ -188,3 +188,34 @@
 "Zoom" = "Zoom";
 "Zoom at %.1fs" = "Zoom a %.1fs";
 "Zoom enlarges part of the recording and may still soften fine detail." = "El zoom amplía parte de la grabación y puede suavizar los detalles.";
+
+"AI Connection" = "Conexión con IA";
+"Connect an AI assistant using MCP." = "Conecta un asistente de IA mediante MCP.";
+"Ready to connect" = "Listo para conectar";
+"Connection disabled" = "Conexión desactivada";
+"Disable" = "Desactivar";
+"Enable / Retry" = "Activar / Reintentar";
+"Connected AI clients can read media, edit, save, and export the project open in this app." = "Los clientes de IA conectados pueden leer archivos multimedia, editar, guardar y exportar el proyecto abierto en esta app.";
+"Copied" = "Copiado";
+"Copy Setup" = "Copiar configuración";
+"Paste the setup into your AI client’s MCP configuration." = "Pega la configuración en la configuración MCP de tu cliente de IA.";
+"The connection helper is missing. Reinstall ScreenTake to restore AI setup." = "Falta el asistente de conexión. Reinstala ScreenTake para restaurar la configuración de IA.";
+
+"How to set up" = "Cómo configurar";
+"Prepare ScreenTake" = "Preparar ScreenTake";
+"Enable the connection above, open a video or project, and keep ScreenTake running." = "Activa la conexión de arriba, abre un vídeo o proyecto y mantén ScreenTake en ejecución.";
+"Add ScreenTake to your AI client" = "Añadir ScreenTake a tu cliente de IA";
+"In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections." = "En los ajustes de servidores MCP de tu cliente de IA, añade un servidor local con estos valores. El cliente debe admitir conexiones stdio locales.";
+"Server name" = "Nombre del servidor";
+"Connection type" = "Tipo de conexión";
+"Command" = "Comando";
+"Arguments" = "Argumentos";
+"Leave empty" = "Dejar vacío";
+"For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers." = "Para clientes que admitan JSON con mcpServers, copia esta configuración y combínala con los servidores existentes.";
+"JSON configuration" = "Configuración JSON";
+"Reconnect and verify" = "Volver a conectar y verificar";
+"Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:" = "Guarda la configuración, vuelve a conectar o reinicia tu cliente de IA y activa sus herramientas de ScreenTake. Después, pregunta:";
+"In ScreenTake, make this video square, use the Ocean background, and round the corners." = "En ScreenTake, haz este vídeo cuadrado, usa el fondo Ocean y redondea las esquinas.";
+"Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected." = "Tu asistente debería actualizar el lienzo y el estilo del vídeo en ScreenTake. Listo para conectar significa que ScreenTake está disponible; no confirma que tu cliente de IA se haya conectado.";
+"Connection not working?" = "¿La conexión no funciona?";
+"Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path." = "Mantén conectada solo una instancia de ScreenTake. Si mueves o reinstalas la app, copia la configuración de nuevo para que tu cliente de IA use la ruta actual del comando.";

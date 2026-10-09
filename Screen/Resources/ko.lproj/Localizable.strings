@@ -188,3 +188,34 @@
 "Zoom" = "확대";
 "Zoom at %.1fs" = "%.1f초에서 확대";
 "Zoom enlarges part of the recording and may still soften fine detail." = "확대는 녹화의 일부를 크게 표시하며 세부 묘사가 흐려질 수 있습니다.";
+
+"AI Connection" = "AI 연결";
+"Connect an AI assistant using MCP." = "MCP를 사용해 AI 어시스턴트를 연결하세요.";
+"Ready to connect" = "연결 준비 완료";
+"Connection disabled" = "연결 비활성화됨";
+"Disable" = "비활성화";
+"Enable / Retry" = "활성화 / 재시도";
+"Connected AI clients can read media, edit, save, and export the project open in this app." = "연결된 AI 클라이언트는 이 앱에서 열린 프로젝트의 미디어를 읽고 편집, 저장 및 내보내기를 할 수 있습니다.";
+"Copied" = "복사됨";
+"Copy Setup" = "설정 복사";
+"Paste the setup into your AI client’s MCP configuration." = "AI 클라이언트의 MCP 구성에 설정을 붙여넣으세요.";
+"The connection helper is missing. Reinstall ScreenTake to restore AI setup." = "연결 도우미가 없습니다. AI 설정을 복원하려면 ScreenTake를 다시 설치하세요.";
+
+"How to set up" = "설정 방법";
+"Prepare ScreenTake" = "ScreenTake 준비";
+"Enable the connection above, open a video or project, and keep ScreenTake running." = "위에서 연결을 활성화하고 동영상이나 프로젝트를 연 다음 ScreenTake를 실행 상태로 유지하세요.";
+"Add ScreenTake to your AI client" = "AI 클라이언트에 ScreenTake 추가";
+"In your AI client’s MCP server settings, add a local server with these values. The client must support local stdio connections." = "AI 클라이언트의 MCP 서버 설정에서 아래 값으로 로컬 서버를 추가하세요. 클라이언트가 로컬 stdio 연결을 지원해야 합니다.";
+"Server name" = "서버 이름";
+"Connection type" = "연결 유형";
+"Command" = "명령";
+"Arguments" = "인수";
+"Leave empty" = "비워 두세요";
+"For clients that accept mcpServers JSON, copy this configuration and merge it with any existing servers." = "mcpServers JSON을 지원하는 클라이언트에서는 이 구성을 복사하여 기존 서버 설정에 병합하세요.";
+"JSON configuration" = "JSON 구성";
+"Reconnect and verify" = "다시 연결하고 확인";
+"Save the configuration, reconnect or restart your AI client, and enable its ScreenTake tools. Then ask:" = "구성을 저장하고 AI 클라이언트를 다시 연결하거나 재시작한 다음 ScreenTake 도구를 활성화하세요. 그런 다음 이렇게 질문하세요:";
+"In ScreenTake, make this video square, use the Ocean background, and round the corners." = "ScreenTake에서 이 동영상을 정사각형으로 만들고, Ocean 배경을 적용하고, 모서리를 둥글게 해 주세요.";
+"Your assistant should update the video’s canvas and styling in ScreenTake. Ready to connect means ScreenTake is available; it does not confirm that your AI client has connected." = "AI 도우미가 ScreenTake에서 동영상의 캔버스와 스타일을 변경해야 합니다. 연결 준비 완료는 ScreenTake를 사용할 수 있다는 뜻이며, AI 클라이언트의 연결이 확인되었다는 뜻은 아닙니다.";
+"Connection not working?" = "연결이 되지 않나요?";
+"Keep only one ScreenTake instance connected. If you move or reinstall the app, copy the setup again so your AI client uses the current command path." = "ScreenTake 인스턴스 하나만 연결하세요. 앱을 이동하거나 다시 설치한 경우 AI 클라이언트가 현재 명령 경로를 사용하도록 설정을 다시 복사하세요.";
