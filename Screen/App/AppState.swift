@@ -194,7 +194,6 @@ final class AppState: ObservableObject {
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.appearance = NSAppearance(named: .darkAqua)
         panel.isReleasedWhenClosed = false
         let content = NSHostingView(rootView: VideoReplacementDialog(action: action) { discard in
             let response: NSApplication.ModalResponse = discard ? .OK : .cancel

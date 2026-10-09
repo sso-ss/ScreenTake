@@ -23,7 +23,17 @@ final class EditorSession: ObservableObject {
     @Published private(set) var appliedEdits = VideoEditSettings()
     @Published var draft = VideoEditSettings() {
         didSet {
-            guard draft != oldValue, !restoring else { return }
+            guard draft != oldValue, !restoring, !normalizingDraft else { return }
+            if draft.crop != oldValue.crop {
+                browserCropMessage = nil
+                // A manual crop takes ownership. It must not leave the toggle
+                // on with a stale restore point that would discard that edit.
+                if draft.browserToolbarCrop == oldValue.browserToolbarCrop {
+                    normalizingDraft = true
+                    draft.browserToolbarCrop = nil
+                    normalizingDraft = false
+                }
+            }
             revision += 1
             if groupDepth == 0 { remember(oldValue) }
             schedulePreview()
@@ -47,6 +57,8 @@ final class EditorSession: ObservableObject {
     @Published private(set) var isExporting = false
     @Published private(set) var isSaving = false
     @Published var isAnalyzing = false
+    @Published private(set) var isDetectingBrowser = false
+    @Published private(set) var browserCropMessage: String?
     @Published private(set) var undoEdits: [VideoEditSettings] = []
     @Published private(set) var redoEdits: [VideoEditSettings] = []
     @Published var exportError: String?
@@ -61,6 +73,7 @@ final class EditorSession: ObservableObject {
     private var previewID = UUID()
     private var loadID = UUID()
     private var restoring = false
+    private var normalizingDraft = false
     private var groupDepth = 0
     private var groupStart: VideoEditSettings?
     private var cancellables = Set<AnyCancellable>()
@@ -183,6 +196,7 @@ final class EditorSession: ObservableObject {
         exportError = nil
         saveError = nil
         renderedPreviewTimeline = nil
+        browserCropMessage = nil
         player = AVPlayer()
         synchronizeUnsavedWork()
         schedulePreview()
@@ -209,12 +223,60 @@ final class EditorSession: ObservableObject {
         requiresRender = false
         hasEditableAudio = false
         renderedPreviewTimeline = nil
+        browserCropMessage = nil
         undoEdits = []
         redoEdits = []
         groupDepth = 0
         groupStart = nil
         clearSelection()
         synchronizeUnsavedWork()
+    }
+
+    /// Apply through the ordinary crop pipeline so preview, export, project save,
+    /// manual adjustment, and undo all use exactly the same bounds.
+    func setBrowserToolbarHidden(_ hidden: Bool) async {
+        guard !isBusy, let sourceURL, let player else { return }
+        guard hidden != draft.isBrowserToolbarHidden else { return }
+        if !hidden {
+            guard let toolbar = draft.browserToolbarCrop else { return }
+            player.pause()
+            var settings = draft
+            settings.crop = toolbar.previousCrop
+            settings.browserToolbarCrop = nil
+            draft = settings
+            browserCropMessage = nil
+            return
+        }
+        guard previewReady else { return }
+        player.pause()
+        let requestID = loadID
+        let previousCrop = draft.crop
+        let time = renderedPreviewTimeline?.sourceTime(at: player.currentTime()).seconds ?? 0
+        browserCropMessage = nil
+        isDetectingBrowser = true
+        isAnalyzing = true
+        defer { isDetectingBrowser = false; isAnalyzing = false }
+        do {
+            let content: CGRect
+            if let recorded = draft.recordedBrowserContentRect, BrowserContentDetector.valid(recorded) {
+                content = recorded
+            } else {
+                content = try await BrowserContentDetector.detect(in: sourceURL, at: time)
+            }
+            guard requestID == loadID, self.sourceURL == sourceURL, draft.crop == previousCrop else { return }
+            let rect = previousCrop.normalized.intersection(content)
+            guard !rect.isNull, rect.width >= 0.02, rect.height >= 0.02 else {
+                throw BrowserContentDetector.DetectionError.notFound
+            }
+            var settings = draft
+            settings.crop = PhoneCrop(rect: rect)
+            settings.browserToolbarCrop = BrowserToolbarCrop(previousCrop: previousCrop)
+            draft = settings
+            browserCropMessage = nil
+        } catch {
+            guard requestID == loadID else { return }
+            browserCropMessage = error.localizedDescription
+        }
     }
 
     /// Native bindings and direct callers both enter the same draft/history pipeline.
@@ -267,6 +329,7 @@ final class EditorSession: ObservableObject {
 
     private func restore(_ edits: VideoEditSettings) {
         player?.pause()
+        browserCropMessage = nil
         restoring = true
         draft = edits
         restoring = false

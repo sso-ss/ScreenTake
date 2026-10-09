@@ -43,6 +43,14 @@ struct VideoEditSettings: Equatable, Codable {
     var voiceOvers: [VoiceOverClip] = []
     var trim = VideoTrim()
     var exportResolution: ExportResolution = .preserveSource
+    /// Optional source metadata captured from the browser's visible web area.
+    /// Keeping this with the draft preserves detection when a project is reopened.
+    var recordedBrowserContentRect: CGRect?
+    /// Present while the toolbar toggle owns the crop. Retain the previous crop
+    /// so switching off restores it even after saving and reopening a project.
+    var browserToolbarCrop: BrowserToolbarCrop?
+
+    var isBrowserToolbarHidden: Bool { browserToolbarCrop != nil }
 
     var usesCanvas: Bool { backgroundEnabled || ratio != .original || layout != .desktop }
 
@@ -50,6 +58,10 @@ struct VideoEditSettings: Equatable, Codable {
         exportResolution.size(source: source, crop: crop, ratio: ratio, layout: layout,
                               usesCanvas: usesCanvas, phoneMode: phoneMode)
     }
+}
+
+struct BrowserToolbarCrop: Equatable, Codable {
+    var previousCrop: PhoneCrop
 }
 
 enum CameraLayout: String, CaseIterable, Codable {

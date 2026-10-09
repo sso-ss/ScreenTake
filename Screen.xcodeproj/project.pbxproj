@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */; };
+		ED1800010000000000000002 /* BrowserContentDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1800010000000000000001 /* BrowserContentDetector.swift */; };
 		CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14E136D206B494934809F1B /* EditorConnection.swift */; };
 		722F179F5261BE4CFED75348 /* MCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281A6EB43E5620CC29F28115 /* MCPBridge.swift */; };
 		ED8D0E8FD9F699AE82AB67F7 /* MCPStdio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */; };
@@ -109,6 +111,8 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXFileReference section */
+		E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverHelp.swift; sourceTree = "<group>"; };
+		ED1800010000000000000001 /* BrowserContentDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentDetector.swift; sourceTree = "<group>"; };
 		E14E136D206B494934809F1B /* EditorConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorConnection.swift; sourceTree = "<group>"; };
 		281A6EB43E5620CC29F28115 /* MCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPBridge.swift; sourceTree = "<group>"; };
 		6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStdio.swift; sourceTree = "<group>"; };
@@ -245,6 +249,7 @@
 			isa = PBXGroup;
 			children = (
 				8C7D09BC358AB7CE58549271 /* DesignTokens.swift */,
+				E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -343,6 +348,7 @@
 				B468B1848245FFEC920E284F /* CaptureConfiguration.swift */,
 				1023AEA77834B62F61A85132 /* CursorImageProvider.swift */,
 				E55331421FC25D744A0C9C80 /* GlobalHotkeyManager.swift */,
+				ED1800010000000000000001 /* BrowserContentDetector.swift */,
 				7D8303EE077B22AE6A1E42F4 /* PermissionsManager.swift */,
 				2CEA795A1B9B4147FEA254AF /* ScreenCaptureManager.swift */,
 			);
@@ -503,6 +509,7 @@
 				0D1ACBC7DFEB5A8198DE061B /* CountdownPanel.swift in Sources */,
 				1AEE7E7589EE5E32A6AFA0E2 /* CursorImageProvider.swift in Sources */,
 				75ED98801192AADCD5FCCC20 /* DesignTokens.swift in Sources */,
+				E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */,
 				54B08F57EDCC8C57840429E2 /* EditorAudio.swift in Sources */,
 				95A7C50B767540A097381DDF /* ExportEngine.swift in Sources */,
 				65FBB33BC9495A2909F6CD60 /* FrameEvaluator.swift in Sources */,
@@ -517,6 +524,7 @@
 				BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */,
 				5427F3A799B85A284210C0EE /* ObjCExceptionCatcher.m in Sources */,
 				A61C71D2524A31E6712E402A /* PermissionSetupWizardView.swift in Sources */,
+				ED1800010000000000000002 /* BrowserContentDetector.swift in Sources */,
 				0BE99912DC2EC57789666D18 /* PermissionsManager.swift in Sources */,
 				DD61E313D18DBC0101B39A1F /* RecordingCoordinator.swift in Sources */,
 				B562E9E34B4A6BD1C13F18E0 /* RecordingSession.swift in Sources */,

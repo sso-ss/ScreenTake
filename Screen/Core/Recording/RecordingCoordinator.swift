@@ -12,6 +12,7 @@ struct RecordingResult {
     var webcamVideoURL: URL?
     var micAudioStartOffset: CMTime = .zero
     var systemAudioStartOffset: CMTime = .zero
+    var browserContentRect: CGRect?
 }
 
 /// Recording session state machine
@@ -56,6 +57,7 @@ final class RecordingCoordinator: ObservableObject {
     private var captureConfiguration: CaptureConfiguration?
     private var captureTarget: CaptureTarget?
     private var captureBounds: CGRect = .zero
+    private var browserContentRect: CGRect?
 
     private(set) var outputURL: URL?
 
@@ -154,6 +156,8 @@ final class RecordingCoordinator: ObservableObject {
             webcamRecorder = nil
             throw error
         }
+
+        browserContentRect = await BrowserContentDetector.recordedBounds(for: target)
 
         // Start screen capture
         captureManager = ScreenCaptureManager()
@@ -290,6 +294,15 @@ final class RecordingCoordinator: ObservableObject {
         // Keep audio files separate — mux happens AFTER export/zoom to avoid distortion
         Log.recording.info("Recording stopped: video=\(videoURL?.lastPathComponent ?? "nil"), sysAudio=\(systemAudioURL?.lastPathComponent ?? "nil"), mic=\(micURL?.lastPathComponent ?? "nil")")
 
+        // Use the accessibility hint only when bounds match at the start and end.
+        var stableBrowserRect: CGRect?
+        if let initial = browserContentRect, let target = captureTarget,
+           let refreshed = try? await ScreenCaptureManager.refreshedTarget(target),
+           let final = await BrowserContentDetector.recordedBounds(for: refreshed),
+           BrowserContentDetector.agree(initial, final) {
+            stableBrowserRect = initial
+        }
+
         return RecordingResult(
             videoURL: videoURL,
             mouseDataURL: mouseDataURL,
@@ -297,7 +310,8 @@ final class RecordingCoordinator: ObservableObject {
             systemAudioURL: systemAudioURL,
             webcamVideoURL: webcamURL,
             micAudioStartOffset: micOffset,
-            systemAudioStartOffset: systemOffset
+            systemAudioStartOffset: systemOffset,
+            browserContentRect: stableBrowserRect
         )
     }
 

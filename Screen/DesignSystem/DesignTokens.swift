@@ -1,31 +1,78 @@
+import AppKit
 import Foundation
 import SwiftUI
 
-/// Design system color tokens — macOS dark mode grays from mockup-tool
+enum AppBrand {
+    /// Bypass Launch Services' cached icon, which can belong to an older installation.
+    static var icon: NSImage? {
+        guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else { return nil }
+        return NSImage(contentsOf: url)
+    }
+}
+
+/// An app preference, independent of recording and export settings.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    static let defaultsKey = "appAppearance"
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: return "Follow System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var nativeAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil // Inherit macOS, including changes while the app is open.
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+
+    @MainActor
+    func apply() {
+        NSApplication.shared.appearance = nativeAppearance
+    }
+}
+
+/// Adaptive interface colors. Media and exported canvas colors remain independent.
 enum DesignColors {
+    static func adaptive(light: String, dark: String) -> Color {
+        let lightColor = NSColor(Color(hex: light))
+        let darkColor = NSColor(Color(hex: dark))
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? darkColor : lightColor
+        })
+    }
+
+    static let previewBackground = adaptive(light: "#e9e9ed", dark: "#141415")
+
     // MARK: - Background Colors
 
-    static let windowBackground = Color(hex: "#1c1c1e")
-    static let controlBackground = Color(hex: "#2c2c2e")
-    static let inputBackground = Color(hex: "#3a3a3c")
+    static let windowBackground = adaptive(light: "#f5f5f7", dark: "#1c1c1e")
+    static let controlBackground = adaptive(light: "#ffffff", dark: "#2c2c2e")
+    static let inputBackground = adaptive(light: "#eaeaef", dark: "#3a3a3c")
 
     // MARK: - Border Colors
 
-    static let separator = Color(hex: "#1a1a1c")
-    static let inputBorder = Color(hex: "#48484a")
+    static let separator = adaptive(light: "#dcdce2", dark: "#1a1a1c")
+    static let inputBorder = adaptive(light: "#c5c5ce", dark: "#48484a")
 
     // MARK: - Text Colors
 
-    static let primaryLabel = Color(hex: "#e5e5ea")
-    static let secondaryLabel = Color(hex: "#98989d")
-    static let tertiaryLabel = Color(hex: "#636366")
+    static let primaryLabel = adaptive(light: "#242428", dark: "#e5e5ea")
+    static let secondaryLabel = adaptive(light: "#61616a", dark: "#98989d")
+    static let tertiaryLabel = adaptive(light: "#70707a", dark: "#8e8e93")
 
     // MARK: - Track Colors
 
-    static let cameraTrack = Color(hex: "#60a5fa")    // Blue
-    static let cursorTrack = Color(hex: "#4ade80")     // Green
-    static let keystrokeTrack = Color(hex: "#fb923c")  // Orange
-    static let audioTrack = Color(hex: "#fbbf24")      // Yellow
+    static let cameraTrack = adaptive(light: "#2563c9", dark: "#60a5fa")    // Blue
+    static let cursorTrack = adaptive(light: "#16803c", dark: "#4ade80")     // Green
+    static let keystrokeTrack = adaptive(light: "#b45309", dark: "#fb923c")  // Orange
+    static let audioTrack = adaptive(light: "#946200", dark: "#fbbf24")      // Yellow
 
     static func trackColor(for type: String) -> Color {
         switch type {
@@ -132,8 +179,8 @@ enum WindowChrome {
     static let maximizeColor = Color(hex: "#28c840")
 
     // Title bar gradient
-    static let titleBarTop = Color(hex: "#3a3a3c")
-    static let titleBarBottom = Color(hex: "#2c2c2e")
+    static let titleBarTop = DesignColors.inputBackground
+    static let titleBarBottom = DesignColors.controlBackground
 
     // Shadow
     static let shadowRadius: CGFloat = 60

@@ -29,6 +29,7 @@ struct EditorTakeRow: View {
     let removeLabel: String
     let select: () -> Void
     let remove: () -> Void
+    var disabledReason: String? = nil
 
     var body: some View {
         HStack {
@@ -46,9 +47,10 @@ struct EditorTakeRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+            .hoverHelp(disabledReason)
             Button(action: remove) { Image(systemName: "trash") }
                 .buttonStyle(.plain)
-                .help(removeLabel)
+                .hoverHelp(disabledReason ?? removeLabel)
                 .accessibilityLabel(removeLabel)
         }
     }
@@ -94,6 +96,7 @@ struct EditorAudioPanel: View {
                 HStack {
                     Button("Stop & Keep") { recorder.stop() }
                         .buttonStyle(CompactActionButtonStyle()).disabled(!recorder.isRecording)
+                        .hoverHelp(recorder.isRecording ? "Stop and keep the voiceover." : recorder.isFinishing ? "Wait for the voiceover to finish saving." : "Wait for the microphone recording to start.")
                     Button("Cancel") { recorder.cancel() }.buttonStyle(CompactActionButtonStyle())
                 }
             } else {
@@ -104,6 +107,7 @@ struct EditorAudioPanel: View {
                     }
                     .buttonStyle(CompactActionButtonStyle())
                     .disabled(duration <= 0)
+                    .hoverHelp(duration <= 0 ? "Keep a video section before recording a voiceover." : "Record a voiceover over the current timeline.")
                     Button(action: importAudio) { Label("Import Audio…", systemImage: "waveform.badge.plus") }
                         .buttonStyle(CompactActionButtonStyle())
                 }
@@ -132,7 +136,7 @@ struct EditorAudioPanel: View {
                                   removeLabel: "Remove voiceover take", select: { selectedClip = clip.id }, remove: {
                         settings.voiceOvers.removeAll { $0.id == clip.id }
                         if selectedClip == clip.id { selectedClip = nil }
-                    })
+                    }, disabledReason: recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : nil)
                 }
                 if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
                     clipControls(index)
@@ -147,6 +151,7 @@ struct EditorAudioPanel: View {
     private func volumeControl(_ title: String, enabled: Binding<Bool>, volume: Binding<Double>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(title, isOn: enabled)
+                .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : nil)
             HStack {
                 Image(systemName: enabled.wrappedValue ? "speaker.wave.2" : "speaker.slash")
                 Slider(value: volume, in: 0...1).accessibilityLabel("\(title) volume")
@@ -154,6 +159,7 @@ struct EditorAudioPanel: View {
                     .font(.system(size: 12)).monospacedDigit().lineLimit(1)
                     .fixedSize().frame(width: 36, alignment: .trailing)
             }.disabled(!enabled.wrappedValue)
+            .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : !enabled.wrappedValue ? "Turn on \(title) to adjust its volume." : "Adjust \(title) volume.")
         }
     }
 
@@ -165,6 +171,7 @@ struct EditorAudioPanel: View {
             }), in: 0...max(0, duration - 0.05), step: 0.1) {
                 Text(String(format: "Start at %.1fs", clip.start))
             }
+            .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Move this take on the timeline.")
             Stepper(value: Binding(get: { settings.voiceOvers[index].sourceStart }, set: {
                 let value = min(clip.sourceStart + clip.duration - 0.05, max(0, $0))
                 settings.voiceOvers[index].duration += clip.sourceStart - value
@@ -172,11 +179,13 @@ struct EditorAudioPanel: View {
             }), in: 0...max(0, clip.sourceStart + clip.duration - 0.05), step: 0.1) {
                 Text(String(format: "Trim beginning %.1fs", clip.sourceStart))
             }
+            .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Trim the beginning of this take.")
             Stepper(value: Binding(get: { settings.voiceOvers[index].duration }, set: {
                 settings.voiceOvers[index].duration = max(0.05, min(clip.sourceDuration - clip.sourceStart, $0))
             }), in: 0.05...max(0.05, clip.sourceDuration - clip.sourceStart), step: 0.1) {
                 Text(String(format: "Length %.1fs", clip.duration))
             }
+            .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Adjust the duration of this take.")
         }
         .font(.caption)
     }
@@ -256,7 +265,7 @@ struct VoiceOverTimelineClip: View {
             .gesture(drag(edge: 0))
             .overlay(alignment: .leading) { handle(edge: -1) }
             .overlay(alignment: .trailing) { handle(edge: 1) }
-            .help("Drag to move this voiceover; drag either edge to trim")
+            .hoverHelp("Drag to move this voiceover; drag either edge to trim")
             .accessibilityLabel("Voiceover take \(number)")
             .accessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds", clip.start, clip.duration))
             .accessibilityAdjustableAction { direction in
@@ -418,7 +427,7 @@ struct VideoOverlayFilmstrip: View {
             if let timing { self.timing = timing.adjusted(by: direction == .increment ? 0.1 : -0.1,
                                                          adjustment: .move, total: total, sourceDuration: mediaDuration) }
         }
-        .help(timing == nil ? "Camera footage follows the screen recording’s clips. Click to adjust its appearance."
+        .hoverHelp(timing == nil ? "Camera footage follows the screen recording’s clips. Click to adjust its appearance."
               : "Click to select; drag to move; drag either edge to trim")
         .overlay(alignment: .leading) {
             if timing != nil && selected, range.sourceStart == ranges.first?.sourceStart { handle(.trimStart) }

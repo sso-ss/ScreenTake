@@ -41,6 +41,7 @@ struct SettingsView: View {
     @State private var isShowingCameraPreview = false
     @State private var isShowingSavePanel = false
     @State private var pendingReplacement: VideoReplacementAction?
+    @State private var isShowingAppSettings = false
 
     private var videoURL: URL? { session.videoURL }
     private var videoPlayer: AVPlayer? { session.player }
@@ -110,7 +111,7 @@ struct SettingsView: View {
                 } else {
                     previewColumn
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black.opacity(0.3))
+                        .background(DesignColors.previewBackground)
                 }
 
                 Divider()
@@ -124,11 +125,17 @@ struct SettingsView: View {
             .frame(maxHeight: .infinity)
         }
         .background(DesignColors.windowBackground)
-        .preferredColorScheme(.dark)
+        .hoverHelpContainer()
     }
 
     var body: some View {
         settingsPresentation
+        .sheet(isPresented: $isShowingAppSettings) {
+            AppSettingsView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAppSettings)) { _ in
+            isShowingAppSettings = true
+        }
         .alert("Export Error", isPresented: Binding(
             get: { session.exportError != nil },
             set: { if !$0 { session.exportError = nil } }
@@ -251,6 +258,7 @@ struct SettingsView: View {
             .buttonStyle(CompactActionButtonStyle())
             .accessibilityLabel("Import video file")
             .disabled(editsBusy)
+            .hoverHelp(editBusyReason ?? "Open a video file for editing.")
 
             // Record button
             Button {
@@ -268,6 +276,7 @@ struct SettingsView: View {
             .buttonStyle(CompactActionButtonStyle(prominent: true))
             .accessibilityLabel("Start recording")
             .disabled(editsBusy || !appState.capture.isLayoutReady)
+            .hoverHelp(editBusyReason ?? (!appState.capture.isLayoutReady ? "Choose a phone video before recording this layout." : "Choose a source and start recording."))
         }
         .padding(.horizontal, Spacing.lg)
         .frame(height: 52)
@@ -437,7 +446,7 @@ struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(DesignColors.inputBorder, lineWidth: 1)
         )
     }
 
@@ -445,6 +454,40 @@ struct SettingsView: View {
 
     private var editingRecording: Bool { session.editingRecording }
     private var editsBusy: Bool { isCroppingScreen || isShowingSavePanel || session.isBusy }
+    private var editBusyReason: String? {
+        if isCroppingScreen { return "Finish or cancel Crop Screen first." }
+        if isShowingSavePanel { return "Finish or cancel the save dialog first." }
+        if session.isDetectingBrowser { return "Wait for browser toolbar detection to finish." }
+        if session.isLoading { return "Wait for the video to finish loading." }
+        if isExporting || appState.recording.processingStage != nil { return "Wait for the video to finish processing." }
+        if isSaving { return "Wait for the video to finish saving." }
+        if voiceOverRecorder.isBusy { return "Finish or cancel the voiceover recording first." }
+        if videoOverlayRecorder.isBusy { return "Finish or cancel the camera recording first." }
+        if appState.isRecording { return "Stop the current recording first." }
+        if session.isAnalyzing { return "Wait for video analysis to finish." }
+        return nil
+    }
+    private var cropDisabledReason: String? {
+        if phoneCropSource == nil { return "Record or open a video first." }
+        if let reason = editBusyReason { return reason }
+        if !previewReady {
+            return previewError == nil ? "Wait for the video preview to finish loading." : "The video preview is unavailable. Reopen the video to try again."
+        }
+        return nil
+    }
+    private var applyDisabledReason: String? {
+        if let reason = editBusyReason { return reason }
+        if appState.updates.isPresenting { return "Close the app update dialog first." }
+        if !hasValidTimeline { return "Keep at least one valid video section before applying changes." }
+        if !hasEditChanges { return "Make an edit first; there are no pending changes to apply." }
+        return nil
+    }
+    private var downloadDisabledReason: String? {
+        if videoURL == nil { return "Record or open a video first." }
+        if let reason = editBusyReason { return reason }
+        if hasEditChanges { return "Apply your pending changes before downloading the video." }
+        return nil
+    }
     private var hasEditChanges: Bool { session.hasEditChanges }
     private var hasValidTimeline: Bool { session.hasValidTimeline }
 
@@ -456,7 +499,7 @@ struct SettingsView: View {
                     Spacer()
                     Button { session.resetPendingChanges() } label: { Image(systemName: "arrow.counterclockwise") }
                         .buttonStyle(.plain)
-                        .help("Reset pending changes")
+                        .hoverHelp(editBusyReason ?? (!hasEditChanges ? "There are no pending changes to reset." : "Reset pending changes"))
                         .accessibilityLabel("Reset pending changes")
                         .disabled(!hasEditChanges || editsBusy)
                 }
@@ -510,11 +553,31 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!available)
+                .hoverHelp(editBusyReason ?? (!available
+                    ? "Cursor editing requires pointer data from a ScreenTake recording."
+                    : nil))
                 .opacity(available ? 1 : 0.38)
                 .accessibilityLabel(panel.rawValue)
                 .accessibilityAddTraits(selectedPanel == panel ? .isSelected : [])
             }
             Spacer(minLength: 0)
+            Button {
+                isShowingAppSettings = true
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(height: 18)
+                    Text("Settings")
+                        .font(.system(size: 9, weight: .medium))
+                }
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityIdentifier("appSettingsButton")
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.lg)
@@ -550,6 +613,7 @@ struct SettingsView: View {
                         .pickerStyle(.segmented)
                     }
                     cropScreenButton
+                    browserToolbarCropControl
                 }
                 Divider()
                 settingsSection("Background") {
@@ -604,6 +668,7 @@ struct SettingsView: View {
                                 Button("Stop & Keep") { videoOverlayRecorder.stop() }
                                     .buttonStyle(CompactActionButtonStyle(prominent: true))
                                     .disabled(!videoOverlayRecorder.isRecording)
+                                    .hoverHelp(videoOverlayRecorder.isRecording ? "Stop and keep the camera recording." : videoOverlayRecorder.isFinishing ? "Wait for the camera recording to finish saving." : "Wait for the camera recording to start.")
                                 Button("Cancel") { videoOverlayRecorder.cancel() }
                                     .buttonStyle(CompactActionButtonStyle())
                             }
@@ -614,6 +679,7 @@ struct SettingsView: View {
                                 Button { startVideoOverlay() } label: { Label("Record Video", systemImage: "video.fill") }
                                     .buttonStyle(CompactActionButtonStyle())
                                     .disabled(!previewReady || editedVideoDuration <= 0)
+                                    .hoverHelp(!previewReady ? (cropDisabledReason ?? "Wait for the video preview to finish loading.") : editedVideoDuration <= 0 ? "Keep a video section before recording camera video." : "Record camera video over the current timeline.")
                                 Button { openVideoOverlayPanel() } label: { Label("Import Video…", systemImage: "video.badge.plus") }
                                     .buttonStyle(CompactActionButtonStyle())
                             }
@@ -643,11 +709,12 @@ struct SettingsView: View {
                             session.draft.webcamEnabled = false
                             session.isVideoOverlaySelected = false
                         })
-                        .help(overlay.lastPathComponent)
+                        .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before replacing its video." : overlay.lastPathComponent)
                         .accessibilityIdentifier("cameraTakeRow")
                         .disabled(videoOverlayRecorder.isBusy)
                         settingsToggle(icon: "video.fill", label: "Show Camera", isOn: $session.draft.webcamEnabled)
                             .disabled(videoOverlayRecorder.isBusy)
+                            .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before changing its visibility." : nil)
                         if session.draft.webcamEnabled {
                             Group {
                                 cameraLayoutControls
@@ -659,6 +726,7 @@ struct SettingsView: View {
                                     cameraFramingControls
                                 }
                             }.disabled(videoOverlayRecorder.isBusy)
+                                .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before removing its video." : "Remove the camera video.")
                         }
                     }
                 }
@@ -754,6 +822,7 @@ struct SettingsView: View {
             }
             .buttonStyle(CompactActionButtonStyle(size: .medium))
             .disabled(!hasEditChanges || !hasValidTimeline || editsBusy || appState.updates.isPresenting)
+            .hoverHelp(applyDisabledReason ?? "Render the video with your current edits.")
             .accessibilityIdentifier("applyVideoChanges")
             Button {
                 if let videoURL { presentSavePanel(for: videoURL) }
@@ -764,6 +833,7 @@ struct SettingsView: View {
             .buttonStyle(CompactActionButtonStyle(prominent: true, size: .medium))
             .keyboardShortcut("s", modifiers: .command)
             .disabled(videoURL == nil || hasEditChanges || editsBusy)
+            .hoverHelp(downloadDisabledReason ?? "Save the finished video to a file.")
             .accessibilityIdentifier("downloadVideo")
         }
         .padding(Spacing.lg)
@@ -800,6 +870,7 @@ struct SettingsView: View {
                         .pickerStyle(.segmented)
                     }
                     cropScreenButton
+                    browserToolbarCropControl
                 }
                 Divider()
                 settingsSection("Background") { wallpaperGrid }
@@ -881,7 +952,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(CompactActionButtonStyle())
                         .accessibilityIdentifier("previewCamera")
-                        .help("Show your live camera in the recording preview.")
+                        .hoverHelp("Show your live camera in the recording preview.")
                         if let error = cameraPreview.errorMessage {
                             Text(error)
                                 .font(Typography.caption)
@@ -996,7 +1067,6 @@ struct SettingsView: View {
                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .help("Select the camera strip and use Split to give each section its own layout.")
     }
 
     private var cameraTransitionControls: some View {
@@ -1004,17 +1074,13 @@ struct SettingsView: View {
             settingsToggle(icon: "arrow.up.left.and.arrow.down.right", label: "Smooth Transition", isOn: Binding(
                 get: { canTransitionCameraSection && currentCameraLayout.smoothTransition },
                 set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
-            ))
-            .disabled(!canTransitionCameraSection)
+            ), disabledReason: !canTransitionCameraSection
+                ? (cameraLayoutChangeIndex == nil
+                    ? "Split the camera clip, then change the next section’s layout or framing to enable Smooth Transition."
+                    : "Change this camera section’s layout or framing to enable Smooth Transition.")
+                : nil)
             .accessibilityIdentifier("cameraSmoothTransition")
-            .help("Animate from the previous camera section’s layout or framing. Turn off for a direct cut.")
-            if !canTransitionCameraSection {
-                Text(cameraLayoutChangeIndex == nil
-                     ? "Split the camera clip and change the next section’s layout or framing to add a transition."
-                     : "Change this section’s layout or framing to add a transition from the previous section.")
-                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if currentCameraLayout.smoothTransition {
+            if canTransitionCameraSection && currentCameraLayout.smoothTransition {
                 VStack(alignment: .leading, spacing: Spacing.labelToControl) {
                     HStack {
                         cameraSettingLabel("Duration", symbol: "clock")
@@ -1086,8 +1152,10 @@ struct SettingsView: View {
             }
             cameraFramingSlider("Horizontal Framing", symbol: "arrow.left.and.right", keyPath: \.centerX)
                 .disabled(currentCameraLayout.followFace)
+                .hoverHelp(editBusyReason ?? (currentCameraLayout.followFace ? "Turn off Follow face to adjust framing manually." : "Adjust camera framing."))
             cameraFramingSlider("Vertical Framing", symbol: "arrow.up.and.down", keyPath: \.centerY)
                 .disabled(currentCameraLayout.followFace)
+                .hoverHelp(editBusyReason ?? (currentCameraLayout.followFace ? "Turn off Follow face to adjust framing manually." : "Adjust camera framing."))
             Button {
                 updateCameraLayout { $0.zoom = 1; $0.centerX = 0.5; $0.centerY = 0.5 }
             } label: {
@@ -1107,6 +1175,47 @@ struct SettingsView: View {
         }
     }
 
+    private var browserToolbarCropControl: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Toggle(isOn: Binding(
+                get: { session.draft.isBrowserToolbarHidden || session.isDetectingBrowser },
+                set: { hidden in Task { await session.setBrowserToolbarHidden(hidden) } }
+            )) {
+                HStack {
+                    Image(systemName: "rectangle.topthird.inset.filled")
+                        .font(.system(size: 13))
+                        .foregroundColor(DesignColors.secondaryLabel)
+                        .frame(width: 20)
+                        .accessibilityHidden(true)
+                    Text("Hide Browser Toolbar")
+                        .font(Typography.body)
+                        .foregroundColor(DesignColors.primaryLabel)
+                    Spacer()
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(DesignColors.accent)
+            .frame(minHeight: ControlMetrics.actionHeight)
+            .disabled(phoneCropSource == nil || !previewReady || editsBusy)
+            .hoverHelp(cropDisabledReason ?? (session.draft.isBrowserToolbarHidden
+                ? "Turn off to restore your previous crop."
+                : "Detect and hide the toolbar in Edge, Chrome, or Safari videos."))
+            if session.isDetectingBrowser {
+                HStack(spacing: Spacing.sm) {
+                    ProgressView().controlSize(.small)
+                    Text("Detecting Browser…").font(Typography.caption)
+                }
+                .foregroundColor(DesignColors.secondaryLabel)
+            }
+            if let message = session.browserCropMessage {
+                Text(message)
+                    .font(Typography.caption)
+                    .foregroundColor(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     private var cropScreenButton: some View {
         Button {
             guard !editsBusy, previewReady, let player = videoPlayer else { return }
@@ -1116,7 +1225,7 @@ struct SettingsView: View {
         } label: { Label("Crop Screen", systemImage: "crop") }
         .buttonStyle(CompactActionButtonStyle())
         .disabled(phoneCropSource == nil || !previewReady || editsBusy)
-        .help(phoneCropSource == nil ? "Import or record a video to crop its screen." : "Adjust the crop directly in the preview.")
+        .hoverHelp(cropDisabledReason ?? "Adjust the crop directly in the preview.")
     }
 
     private func stopCameraPreview() {
@@ -1143,7 +1252,7 @@ struct SettingsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == layout ? DesignColors.accent : .clear, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .help(layout.displayName)
+                .hoverHelp(editBusyReason)
                 .accessibilityLabel("\(layout.displayName) layout")
                 .accessibilityAddTraits(selection.wrappedValue == layout ? .isSelected : [])
             }
@@ -1168,7 +1277,7 @@ struct SettingsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .help(shape.displayName)
+                .hoverHelp(editBusyReason)
                 .accessibilityLabel("\(shape.displayName) cursor")
                 .accessibilityAddTraits(selection.wrappedValue == shape ? .isSelected : [])
             }
@@ -1194,7 +1303,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, minHeight: 32)
                 }
                 .buttonStyle(.plain)
-                .help(highlightColor.displayName)
+                .hoverHelp(editBusyReason)
                 .accessibilityLabel("\(highlightColor.displayName) click highlight")
                 .accessibilityAddTraits(selection.wrappedValue == highlightColor ? .isSelected : [])
             }
@@ -1208,6 +1317,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.menu)
             .accessibilityIdentifier("exportResolution")
+            .hoverHelp(editBusyReason)
             Text(selection.wrappedValue == .preserveSource
                  ? "Keeps screen detail by allowing room for the background. Larger files."
                  : "Sets canvas size independently of its shape. Screen content may be reduced.")
@@ -1267,7 +1377,7 @@ struct SettingsView: View {
     }
 
     private func settingsToggle(icon: String, label: String, isOn: Binding<Bool>,
-                                isProcessing: Bool = false) -> some View {
+                                isProcessing: Bool = false, disabledReason: String? = nil) -> some View {
         Button { isOn.wrappedValue.toggle() } label: {
             HStack {
                 Image(systemName: icon)
@@ -1305,6 +1415,8 @@ struct SettingsView: View {
         .accessibilityLabel(label)
         .accessibilityValue(isOn.wrappedValue ? "On" : "Off")
         .accessibilityAddTraits(.isButton)
+        .disabled(disabledReason != nil)
+        .hoverHelp(editBusyReason ?? disabledReason)
     }
 
     private var microphonePicker: some View {
@@ -1339,6 +1451,7 @@ struct SettingsView: View {
             .labelsHidden()
             .pickerStyle(.segmented)
             .frame(maxWidth: .infinity)
+            .hoverHelp(editBusyReason)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1361,6 +1474,10 @@ struct SettingsView: View {
         let pixels = Int((shortestSide * selection.wrappedValue).rounded())
         let maximumPixels = Int((shortestSide * 0.1).rounded())
         let usesBackground = videoURL == nil || session.draft.backgroundEnabled || ratio != .original || layout != .desktop
+        let help = editBusyReason ?? (!usesBackground
+            ? "Turn on Background to adjust corner radius."
+            : shortestSide <= 0 ? "Choose a desktop layout with visible screen content to adjust corner radius."
+            : "Round the video corners inside the background.")
         return VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
                 Image(systemName: "rectangle.roundedtop")
@@ -1378,16 +1495,16 @@ struct SettingsView: View {
                         guard shortestSide > 0 else { return }
                         selection.wrappedValue = min(0.1, max(0, Double(requestedPixels) / Double(shortestSide)))
                     }
-                ), range: 0...maximumPixels, unit: "px", label: "Corner radius in pixels")
+                ), range: 0...maximumPixels, unit: "px", label: "Corner radius in pixels", helpText: help)
                 .disabled(shortestSide <= 0)
             }
             primarySlider(selection: selection, range: 0...0.1,
                           label: "Canvas content corner radius",
                           value: "\(pixels) pixels")
+                .hoverHelp(help)
         }
         .disabled(!usesBackground || shortestSide <= 0)
         .opacity(usesBackground ? 1 : 0.45)
-        .help(usesBackground ? "Round the video corners inside the background." : "Turn on Background to adjust corner radius. Without a background, the video fills the canvas.")
     }
 
     private func cursorSizeSlider(selection: Binding<Double>) -> some View {
@@ -1415,6 +1532,7 @@ struct SettingsView: View {
 
     private func primarySlider(selection: Binding<Double>, range: ClosedRange<Double>, label: String, value: String) -> some View {
         LineSlider(selection: selection, range: range, label: label, value: value)
+            .hoverHelp(editBusyReason)
     }
 
     private func zoomLevelSlider(selection: Binding<Double>) -> some View {
@@ -1489,7 +1607,7 @@ struct SettingsView: View {
                         .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
-                    .help(shape.displayName)
+                    .hoverHelp(editBusyReason)
                     .accessibilityLabel("\(shape.displayName) camera shape")
                     .accessibilityAddTraits(selection.wrappedValue == shape ? .isSelected : [])
                 }
@@ -1525,7 +1643,7 @@ struct SettingsView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(position.displayName)
+                    .hoverHelp(editBusyReason)
                     .accessibilityLabel("\(position.displayName) camera position")
                     .accessibilityAddTraits(selection.wrappedValue == position ? .isSelected : [])
                 }
@@ -1589,18 +1707,19 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.sm))
                     .overlay(
                         RoundedRectangle(cornerRadius: CornerRadius.sm)
-                            .stroke(isSelected ? DesignColors.accent : Color.white.opacity(0.1),
+                            .stroke(isSelected ? DesignColors.accent : DesignColors.inputBorder,
                                     lineWidth: isSelected ? 2 : 1)
                     )
 
                 Text(preset.displayName)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(isSelected ? .white : DesignColors.tertiaryLabel)
+                    .foregroundColor(isSelected ? DesignColors.primaryLabel : DesignColors.tertiaryLabel)
                     .lineLimit(1)
             }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(preset.displayName) background")
+        .hoverHelp(editBusyReason)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -1645,6 +1764,7 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close video")
                 .disabled(editsBusy)
+                .hoverHelp(editBusyReason ?? "Close the current video.")
 
                 Spacer()
 
@@ -1950,7 +2070,6 @@ struct VideoReplacementDialog: View {
         .frame(width: 440)
         .fixedSize(horizontal: false, vertical: true)
         .background(DesignColors.windowBackground)
-        .preferredColorScheme(.dark)
         .onExitCommand { onResolve(false) }
     }
 }
@@ -1984,7 +2103,7 @@ struct InlineScreenCropEditor: View {
                 Button("Reset") { crop = PhoneCrop() }
                     .buttonStyle(CompactActionButtonStyle())
                     .disabled(image == nil)
-                    .help("Restore the full source frame")
+                    .hoverHelp(image == nil ? (error == nil ? "Wait for the crop preview to finish loading." : "The crop preview could not be loaded. Cancel and reopen Crop Screen to try again.") : "Restore the full source frame")
             }
             .padding(Spacing.lg)
 
@@ -2016,10 +2135,11 @@ struct InlineScreenCropEditor: View {
                     .buttonStyle(CompactActionButtonStyle(prominent: true))
                     .keyboardShortcut(.defaultAction)
                     .disabled(image == nil)
+                    .hoverHelp(image == nil ? (error == nil ? "Wait for the crop preview to finish loading." : "The crop preview could not be loaded. Cancel and reopen Crop Screen to try again.") : "Apply the selected crop.")
             }
             .padding(Spacing.lg)
         }
-        .background(Color.black.opacity(0.3))
+        .background(DesignColors.previewBackground)
         .task(id: sourceURL) {
             do {
                 let asset = AVURLAsset(url: sourceURL)
@@ -2081,7 +2201,7 @@ struct PhoneCropSelection: View {
                     .position(x: selection.midX, y: selection.midY)
                     .gesture(drag(size: fitted.size))
                     .accessibilityLabel("Selected crop area")
-                    .help("Drag to reposition the crop")
+                    .hoverHelp("Drag to reposition the crop")
                 ForEach(Array(PhoneCrop.Corner.allCases.enumerated()), id: \.offset) { _, corner in
                     let left = corner == .topLeft || corner == .bottomLeft
                     let top = corner == .topLeft || corner == .topRight
@@ -2817,13 +2937,15 @@ struct VideoTrimControls: View {
                     .padding(.horizontal, 6)
                 icon("minus", "Zoom timeline out") { zoom = max(1, zoom - 1) }
                     .disabled(zoom <= 1)
+                    .modifier(TimelineTooltip(text: zoom <= 1 ? "The timeline is already fully zoomed out" : "Zoom timeline out"))
                 if expanded {
                     LineSlider(selection: $zoom, range: 1...8, label: "Timeline zoom",
-                               value: String(format: "%.2f×", zoom), thumbSize: 12, height: 24, keyboardStep: 0.25)
+                               value: String(format: "%.2f×", zoom), thumbSize: 14, height: 24, keyboardStep: 0.25)
                         .frame(width: 80)
                 }
                 icon("plus", "Zoom timeline in") { zoom = min(8, zoom + 1) }
                     .disabled(zoom >= 8)
+                    .modifier(TimelineTooltip(text: zoom >= 8 ? "The timeline is at its maximum zoom" : "Zoom timeline in"))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -2892,7 +3014,7 @@ struct VideoTrimControls: View {
                         set: { if $0 { silence.selected.insert(active.id) } else { silence.selected.remove(active.id) } }
                     ))
                     .toggleStyle(.checkbox)
-                    .help("Include this pause in the removal")
+                    .hoverHelp("Include this pause in the removal")
                 }
                 Spacer(minLength: 4)
                 Button("Remove \(silence.selected.count)") {
@@ -2902,7 +3024,7 @@ struct VideoTrimControls: View {
                     }
                 }
                 .disabled(silence.applying(to: trim, duration: duration) == nil)
-                .help("Remove the checked pauses; Undo restores them")
+                .hoverHelp(silence.applying(to: trim, duration: duration) == nil ? "Select pauses to remove while keeping at least one video section." : "Remove the checked pauses; Undo restores them")
                 icon("xmark", "Dismiss silence suggestions") {
                     player.pause()
                     player.currentItem?.forwardPlaybackEndTime = .invalid
@@ -3002,7 +3124,7 @@ struct VideoTrimControls: View {
                 .accessibilityLabel("Timeline playhead")
                 .accessibilityValue(timestamp(playback.seconds))
                 .accessibilityAdjustableAction { direction in seekOutput(playback.seconds + (direction == .increment ? 1 : -1) / 30) }
-                .help("Drag the ruler to scrub through the edited video")
+                .hoverHelp("Drag the ruler to scrub through the edited video")
             ForEach(silence.suggestions) { cut in
                 ForEach(segments.indices, id: \.self) { index in
                 let segment = segments[index]
@@ -3028,7 +3150,7 @@ struct VideoTrimControls: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
-                .help("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
+                .hoverHelp("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
                 }
                 }
@@ -3132,9 +3254,10 @@ struct VideoTrimControls: View {
                     addZoom(from: range.lowerBound, to: range.upperBound)
                 })
             .accessibilityLabel("Add zoom in empty section")
-            .help("Click or drag to add a zoom")
+            .hoverHelp("Click or drag to add a zoom")
             .contextMenu {
                 Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(!canUndoZoom)
+                    .hoverHelp(!canUndoZoom ? "There are no zoom edits to undo." : "Undo the last zoom edit.")
             }
     }
 
@@ -3175,13 +3298,15 @@ struct VideoTrimControls: View {
         .contextMenu {
             Button("Delete Zoom") { selectZoom(segment.id); removeSelectedZoom() }
             Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(!canUndoZoom)
+                    .hoverHelp(!canUndoZoom ? "There are no zoom edits to undo." : "Undo the last zoom edit.")
             Button("Restore Automatic Zooms") {
                 if session == nil { zoomHistory.append(zoomSegments) }
                 zoomSegments = nil
                 selectedZoomID = nil
             }.disabled(zoomSegments == nil || !automaticZoomsReady)
+                .hoverHelp(zoomSegments == nil ? "Automatic zooms are already in use." : !automaticZoomsReady ? "Wait for automatic zoom analysis to finish." : "Restore automatically detected zooms.")
         }
-        .help("Drag to move zoom; drag ends to change duration")
+        .hoverHelp("Drag to move zoom; drag ends to change duration")
     }
 
     private func zoomEdge(_ segment: ZoomSegment, scale: Double, edge: Int) -> some View {
@@ -3247,12 +3372,14 @@ struct VideoTrimControls: View {
             })
         .contextMenu {
             Button("Move Earlier") { moveSegment(from: index, to: index - 1) }.disabled(index == 0)
+                .hoverHelp(index == 0 ? "This is already the first video section." : "Move this section earlier.")
             Button("Move Later") { moveSegment(from: index, to: index + 1) }.disabled(index == segments.count - 1)
+                .hoverHelp(index == segments.count - 1 ? "This is already the last video section." : "Move this section later.")
         }
         .accessibilityLabel("Clip \(index + 1), \(timestamp(segment.duration.seconds))")
         .accessibilityAction(named: "Move Earlier") { moveSegment(from: index, to: index - 1) }
         .accessibilityAction(named: "Move Later") { moveSegment(from: index, to: index + 1) }
-        .help("Click to select; drag to reorder")
+        .hoverHelp("Click to select; drag to reorder")
     }
 
     private func trimHandle(isStart: Bool, width: Double) -> some View {
@@ -3280,7 +3407,7 @@ struct VideoTrimControls: View {
             .accessibilityAdjustableAction { direction in
                 commit(adjustedEdge(delta: direction == .increment ? 0.1 : -0.1, isStart: isStart, from: trim))
             }
-            .help(isStart ? "Drag to trim the beginning" : "Drag to trim the end")
+            .hoverHelp(isStart ? "Drag to trim the beginning" : "Drag to trim the end")
     }
 }
 
@@ -3331,15 +3458,15 @@ struct VideoCutEditor: View {
                 TextField("In seconds", value: $cutStart, format: .number.precision(.fractionLength(2)))
                     .frame(width: 76).accessibilityLabel("Cut start in seconds")
                 Button { cutStart = max(0, min(duration, player.currentTime().seconds)) } label: { Image(systemName: "arrow.left.to.line") }
-                    .help("Set start at playhead").accessibilityLabel("Set cut start at playhead")
+                    .hoverHelp("Set start at playhead").accessibilityLabel("Set cut start at playhead")
                 Text("Out")
                 TextField("Out seconds", value: $cutEnd, format: .number.precision(.fractionLength(2)))
                     .frame(width: 76).accessibilityLabel("Cut end in seconds")
                 Button { cutEnd = max(0, min(duration, player.currentTime().seconds)) } label: { Image(systemName: "arrow.right.to.line") }
-                    .help("Set end at playhead").accessibilityLabel("Set cut end at playhead")
+                    .hoverHelp("Set end at playhead").accessibilityLabel("Set cut end at playhead")
                 Spacer()
                 Button { play(.init(start: cutStart, end: cutEnd)) } label: { Image(systemName: "play.fill") }
-                    .help("Preview selected section").accessibilityLabel("Preview selected section")
+                    .hoverHelp(!canAdd([.init(start: cutStart, end: cutEnd)]) ? "Choose a nonoverlapping range inside the video and keep at least one section." : "Preview selected section").accessibilityLabel("Preview selected section")
                     .disabled(!canAdd([.init(start: cutStart, end: cutEnd)]))
                 Button {
                     if let editingCut { trim.cuts.removeAll { $0.id == editingCut } }
@@ -3348,9 +3475,10 @@ struct VideoCutEditor: View {
                 } label: { Label(editingCut == nil ? "Remove" : "Update", systemImage: "scissors") }
                     .accessibilityIdentifier("saveCut")
                     .disabled(!canAdd([.init(start: cutStart, end: cutEnd)]))
+                    .hoverHelp(!canAdd([.init(start: cutStart, end: cutEnd)]) ? "Choose a nonoverlapping range inside the video and keep at least one section." : "Remove the selected section from the video.")
                 if editingCut != nil {
                     Button { editingCut = nil } label: { Image(systemName: "xmark") }
-                        .help("Cancel cut adjustment").accessibilityLabel("Cancel cut adjustment")
+                        .hoverHelp("Cancel cut adjustment").accessibilityLabel("Cancel cut adjustment")
                 }
             }
             .textFieldStyle(.roundedBorder)
@@ -3368,14 +3496,14 @@ struct VideoCutEditor: View {
                                 cutEnd = cut.end
                                 editingCut = cut.id
                             } label: { Image(systemName: "pencil") }
-                                .help("Adjust section").accessibilityLabel("Adjust removed section")
+                                .hoverHelp("Adjust section").accessibilityLabel("Adjust removed section")
                             Button { play(cut) } label: { Image(systemName: "play.fill") }
-                                .help("Preview removed section").accessibilityLabel("Preview removed section")
+                                .hoverHelp("Preview removed section").accessibilityLabel("Preview removed section")
                             Button {
                                 trim.cuts.removeAll { $0.id == cut.id }
                                 if editingCut == cut.id { editingCut = nil }
                             } label: { Image(systemName: "arrow.uturn.backward") }
-                                .help("Restore section").accessibilityLabel("Restore section")
+                                .hoverHelp("Restore section").accessibilityLabel("Restore section")
                         }
                     }
                 }
@@ -3386,6 +3514,7 @@ struct VideoCutEditor: View {
                 Button { trim.cuts = []; editingCut = nil } label: { Label("Restore All Cuts", systemImage: "arrow.counterclockwise") }
                     .accessibilityIdentifier("restoreAllCuts")
                     .disabled(trim.cuts.isEmpty)
+                    .hoverHelp(trim.cuts.isEmpty ? "There are no removed sections to restore." : "Restore all removed sections.")
                 Spacer()
             }
         }
@@ -3520,6 +3649,7 @@ private struct NumericSettingInput: View {
     let range: ClosedRange<Int>
     let unit: String
     let label: String
+    var helpText: String? = nil
     @State private var draft = ""
     @FocusState private var isFocused: Bool
 
@@ -3550,7 +3680,7 @@ private struct NumericSettingInput: View {
             RoundedRectangle(cornerRadius: CornerRadius.md)
                 .stroke(isFocused ? DesignColors.accent : DesignColors.inputBorder, lineWidth: 1)
         )
-        .help("\(label): \(range.lowerBound)–\(range.upperBound)\(unit). Press Return to apply.")
+        .hoverHelp(helpText ?? "\(label): \(range.lowerBound)–\(range.upperBound)\(unit). Press Return to apply.")
         .onAppear { draft = String(value) }
         .onChange(of: value) { newValue in
             if !isFocused { draft = String(newValue) }
@@ -3635,6 +3765,9 @@ private struct LineSlider: View {
                 Circle()
                     .fill(.white)
                     .frame(width: thumbSize, height: thumbSize)
+                    .overlay(Circle().strokeBorder(isEnabled ? DesignColors.accent : DesignColors.secondaryLabel,
+                                                  lineWidth: 1.5))
+                    .shadow(color: .black.opacity(0.16), radius: 1, y: 1)
                     .offset(x: trackWidth * min(1, max(0, progress)))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3676,5 +3809,150 @@ private struct LineSlider: View {
             }
         }
         .frame(height: height)
+    }
+}
+
+// MARK: - App Settings
+
+private struct AppSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(AppAppearance.defaultsKey) private var appearance: AppAppearance = .system
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Settings")
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(CompactActionButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+            Divider()
+            HStack(spacing: 0) {
+                VStack(alignment: .leading) {
+                    Label("Appearance", systemImage: "circle.lefthalf.filled")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 12)
+                        .frame(height: 34)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(DesignColors.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                        .accessibilityAddTraits(.isSelected)
+                    Spacer()
+                }
+                .padding(12)
+                .frame(width: 170)
+                .background(DesignColors.windowBackground)
+                Divider()
+                VStack(alignment: .leading, spacing: 28) {
+                    Text("Appearance")
+                        .font(.system(size: 24, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Visual style")
+                            .font(.system(size: 13, weight: .medium))
+                        HStack(spacing: 12) {
+                            Text("Mode")
+                                .font(.system(size: 13))
+                            Spacer(minLength: 16)
+                            ForEach(AppAppearance.allCases) { option in
+                                modeButton(option)
+                            }
+                        }
+                        .padding(16)
+                        .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(DesignColors.inputBorder.opacity(0.5)))
+                        Text("Follow System automatically matches your Mac’s light or dark appearance.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(DesignColors.secondaryLabel)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .foregroundStyle(DesignColors.primaryLabel)
+        .frame(width: 760, height: 360)
+        .background(DesignColors.controlBackground)
+        .onExitCommand { dismiss() }
+    }
+
+    private func modeButton(_ option: AppAppearance) -> some View {
+        Button {
+            appearance = option
+        } label: {
+            VStack(spacing: 8) {
+                AppearanceThumbnail(mode: option)
+                    .padding(4)
+                    .background(DesignColors.inputBackground.opacity(0.5), in: RoundedRectangle(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9)
+                        .strokeBorder(appearance == option ? DesignColors.accent : DesignColors.inputBorder.opacity(0.5),
+                                      lineWidth: appearance == option ? 2 : 1))
+                Text(option.title)
+                    .font(.system(size: 11, weight: appearance == option ? .semibold : .regular))
+                    .foregroundStyle(appearance == option ? DesignColors.primaryLabel : DesignColors.secondaryLabel)
+            }
+            .frame(width: 88)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(option.title)
+        .accessibilityAddTraits(appearance == option ? .isSelected : [])
+        .accessibilityIdentifier("appearance-\(option.rawValue)")
+    }
+}
+
+/// Fixed light/dark miniatures keep every mode recognizable in either app appearance.
+private struct AppearanceThumbnail: View {
+    let mode: AppAppearance
+
+    var body: some View {
+        miniature(dark: mode == .dark)
+            .overlay(alignment: .trailing) {
+                if mode == .system {
+                    miniature(dark: true)
+                        .frame(width: 40, alignment: .trailing)
+                        .clipped()
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .accessibilityHidden(true)
+    }
+
+    private func miniature(dark: Bool) -> some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 5) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 6))
+                RoundedRectangle(cornerRadius: 1).frame(width: 6, height: 2)
+                RoundedRectangle(cornerRadius: 1).frame(width: 6, height: 2)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(dark ? Color.gray : Color.gray.opacity(0.5))
+            .padding(.top, 6)
+            .frame(width: 17)
+            .background(dark ? Color(white: 0.21) : Color(white: 0.94))
+            VStack(alignment: .leading, spacing: 5) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(DesignColors.accent.opacity(0.6))
+                    .frame(width: 30, height: 2)
+                RoundedRectangle(cornerRadius: 1).frame(height: 2)
+                RoundedRectangle(cornerRadius: 1).frame(width: 24, height: 2)
+                RoundedRectangle(cornerRadius: 1).frame(height: 2)
+                HStack {
+                    Spacer(minLength: 0)
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(DesignColors.accent)
+                        .frame(width: 20, height: 3)
+                }
+            }
+            .foregroundStyle(dark ? Color(white: 0.38) : Color(white: 0.85))
+            .padding(7)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(dark ? Color(white: 0.1) : Color.white)
+        }
+        .frame(width: 80, height: 50)
     }
 }

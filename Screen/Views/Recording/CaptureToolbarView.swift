@@ -31,6 +31,7 @@ struct CaptureToolbarView: View {
         }
         .padding(48)
         .fixedSize()
+        .hoverHelpContainer()
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: coordinator.toolbarPhase)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.captureMode)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: coordinator.statusMessage)
@@ -87,6 +88,7 @@ struct CaptureToolbarView: View {
                 coordinator.dismiss()
             }
             .accessibilityLabel("Close")
+            .hoverHelp(coordinator.isStarting ? "Wait for the recording to start." : "Close recording options.")
             .padding(.leading, 10)
             .padding(.trailing, 4)
 
@@ -131,6 +133,7 @@ struct CaptureToolbarView: View {
             }
             .buttonStyle(.plain)
             .disabled(coordinator.isLoadingSources)
+            .hoverHelp(coordinator.isStarting ? "Wait for the recording to start." : coordinator.isLoadingSources ? "Wait for available capture sources to finish loading." : "Start recording the selected source.")
             .padding(.trailing, 6)
             .padding(.leading, 4)
         }
@@ -164,7 +167,7 @@ struct CaptureToolbarView: View {
                 coordinator.togglePause()
             }
             .accessibilityLabel(coordinator.isPaused ? "Resume recording" : "Pause recording")
-            .help(coordinator.isPaused ? "Resume (Ctrl+Space)" : "Pause (Ctrl+Space)")
+            .hoverHelp(coordinator.isPaused ? "Resume (Ctrl+Space)" : "Pause (Ctrl+Space)")
 
             // Zoom toggle
             Button {
@@ -182,7 +185,7 @@ struct CaptureToolbarView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(coordinator.isZoomedIn ? "Zoom out" : "Zoom in")
-            .help(coordinator.isZoomedIn ? "Zoom out (Ctrl+Z)" : "Zoom in (Ctrl+Z)")
+            .hoverHelp(coordinator.isZoomedIn ? "Zoom out (Ctrl+Z)" : "Zoom in (Ctrl+Z)")
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isZoomedIn)
 
             // Webcam toggle
@@ -203,7 +206,7 @@ struct CaptureToolbarView: View {
                 .buttonStyle(.plain)
                 .disabled(coordinator.isUpdatingMicrophone)
                 .accessibilityLabel(coordinator.isWebcamActive ? "Disable webcam" : "Enable webcam")
-                .help(coordinator.isWebcamActive ? "Webcam On" : "Webcam Off")
+                .hoverHelp(coordinator.isUpdatingMicrophone ? "Wait for the microphone update to finish before changing the webcam." : (coordinator.isWebcamActive ? "Webcam On" : "Webcam Off"))
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isWebcamActive)
             }
 
@@ -220,7 +223,7 @@ struct CaptureToolbarView: View {
             .buttonStyle(.plain)
             .disabled(coordinator.isUpdatingMicrophone)
             .accessibilityLabel(coordinator.isMicrophoneEnabled ? "Turn microphone off" : "Turn microphone on")
-            .help(coordinator.isUpdatingMicrophone ? "Preparing microphone…" : (coordinator.isMicrophoneEnabled ? "Microphone On" : "Microphone Off"))
+            .hoverHelp(coordinator.isUpdatingMicrophone ? "Preparing microphone…" : (coordinator.isMicrophoneEnabled ? "Microphone On" : "Microphone Off"))
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isMicrophoneEnabled)
 
             // Stop
@@ -235,7 +238,7 @@ struct CaptureToolbarView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Stop recording")
-            .help("Stop recording (Esc)")
+            .hoverHelp("Stop recording (Esc)")
         }
         .padding(.horizontal, 14)
         .frame(height: 48)
@@ -261,7 +264,7 @@ struct CaptureToolbarView: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(tooltip)
+        .hoverHelp(coordinator.isStarting ? "Wait for the recording to start." : tooltip)
     }
 
     private func toolbarIconButton(

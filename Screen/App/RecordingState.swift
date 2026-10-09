@@ -53,6 +53,7 @@ final class RecordingState: ObservableObject {
     private weak var navigationState: NavigationState?
     private var lastMicAudioStartOffset: CMTime = .zero
     private var lastSystemAudioStartOffset: CMTime = .zero
+    private var lastBrowserContentRect: CGRect?
 
     func configure(captureSettings: CaptureSettings, navigationState: NavigationState) {
         self.captureSettings = captureSettings
@@ -129,6 +130,7 @@ final class RecordingState: ObservableObject {
         lastWebcamVideoURL = result.webcamVideoURL
         lastMicAudioStartOffset = result.micAudioStartOffset
         lastSystemAudioStartOffset = result.systemAudioStartOffset
+        lastBrowserContentRect = result.browserContentRect
 
         isRecording = false
         isPaused = false
@@ -289,7 +291,8 @@ final class RecordingState: ObservableObject {
                 webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
                 webcamSize: captureSettings?.webcamPiPSize ?? .medium,
                 videoOverlayURL: lastWebcamVideoURL,
-                exportResolution: captureSettings?.exportResolution ?? .preserveSource)
+                exportResolution: captureSettings?.exportResolution ?? .preserveSource,
+                recordedBrowserContentRect: lastBrowserContentRect)
             var keyframes: [CameraKeyframe] = []
             if generateZoom, let mouseDataURL {
                 keyframes = try await ClickZoomGenerator.generate(

@@ -106,7 +106,6 @@ struct PermissionSetupContent: View {
         .frame(maxHeight: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DesignColors.windowBackground)
-        .preferredColorScheme(.dark)
         .onAppear {
             permissions.refreshAll()
         }

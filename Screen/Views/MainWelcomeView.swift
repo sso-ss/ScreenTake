@@ -18,9 +18,9 @@ struct MainWelcomeView: View {
             // Background gradient
             LinearGradient(
                 colors: [
-                    Color(hex: "#0a0a12"),
-                    Color(hex: "#111128"),
-                    Color(hex: "#0a0a12")
+                    DesignColors.adaptive(light: "#f5f5fa", dark: "#0a0a12"),
+                    DesignColors.adaptive(light: "#eaeafa", dark: "#111128"),
+                    DesignColors.adaptive(light: "#f5f5fa", dark: "#0a0a12")
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -34,13 +34,13 @@ struct MainWelcomeView: View {
                     var path = Path()
                     path.move(to: CGPoint(x: x, y: 0))
                     path.addLine(to: CGPoint(x: x, y: size.height))
-                    context.stroke(path, with: .color(.white.opacity(0.03)), lineWidth: 0.5)
+                    context.stroke(path, with: .color(DesignColors.primaryLabel.opacity(0.03)), lineWidth: 0.5)
                 }
                 for y in stride(from: 0, through: size.height, by: spacing) {
                     var path = Path()
                     path.move(to: CGPoint(x: 0, y: y))
                     path.addLine(to: CGPoint(x: size.width, y: y))
-                    context.stroke(path, with: .color(.white.opacity(0.03)), lineWidth: 0.5)
+                    context.stroke(path, with: .color(DesignColors.primaryLabel.opacity(0.03)), lineWidth: 0.5)
                 }
             }
             .ignoresSafeArea()
@@ -60,7 +60,7 @@ struct MainWelcomeView: View {
                         .font(.system(size: 42, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.white, Color(hex: "#a0a0b0")],
+                                colors: [DesignColors.primaryLabel, DesignColors.secondaryLabel],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -68,7 +68,7 @@ struct MainWelcomeView: View {
 
                     Text("Capture · Edit · Export")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#6b6b80"))
+                        .foregroundColor(DesignColors.secondaryLabel)
                         .tracking(2)
                 }
                 .padding(.bottom, 48)
@@ -87,15 +87,15 @@ struct MainWelcomeView: View {
                             Text("New Recording")
                                 .font(.system(size: 14, weight: .semibold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(DesignColors.primaryLabel)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(isHoveringRecord ? 0.12 : 0.07))
+                                .fill(DesignColors.primaryLabel.opacity(isHoveringRecord ? 0.12 : 0.07))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                        .stroke(DesignColors.primaryLabel.opacity(0.1), lineWidth: 1)
                                 )
                         )
                         .scaleEffect(isHoveringRecord ? 1.03 : 1.0)
@@ -114,15 +114,15 @@ struct MainWelcomeView: View {
                             Text("Open File")
                                 .font(.system(size: 14, weight: .semibold))
                         }
-                        .foregroundColor(Color(hex: "#a0a0b0"))
+                        .foregroundColor(DesignColors.secondaryLabel)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(isHoveringOpen ? 0.08 : 0.04))
+                                .fill(DesignColors.primaryLabel.opacity(isHoveringOpen ? 0.08 : 0.04))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                                        .stroke(DesignColors.primaryLabel.opacity(0.06), lineWidth: 1)
                                 )
                         )
                         .scaleEffect(isHoveringOpen ? 1.03 : 1.0)
@@ -140,7 +140,7 @@ struct MainWelcomeView: View {
                     Text("Drop a video file to import")
                         .font(.system(size: 12))
                 }
-                .foregroundColor(Color(hex: "#4a4a5a"))
+                .foregroundColor(DesignColors.tertiaryLabel)
                 .padding(.bottom, 24)
             }
         }
@@ -157,7 +157,7 @@ struct MainWelcomeView: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 15))
-                    .foregroundColor(Color(hex: "#6b6b80"))
+                    .foregroundColor(DesignColors.secondaryLabel)
                     .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }

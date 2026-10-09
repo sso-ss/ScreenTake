@@ -6,10 +6,11 @@ import UniformTypeIdentifiers
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let appearance = AppAppearance(rawValue: UserDefaults.standard.string(forKey: AppAppearance.defaultsKey) ?? "") ?? .system
+        appearance.apply()
         AppState.shared.editorConnection.startIfEnabled()
         // Refresh the Dock icon when macOS has cached a placeholder for a local build.
-        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
+        if let icon = AppBrand.icon {
             NSApplication.shared.applicationIconImage = icon
         }
     }
@@ -49,6 +50,7 @@ struct ScreenApp: App {
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState.shared
+    @AppStorage(AppAppearance.defaultsKey) private var appearance: AppAppearance = .system
 
     // MARK: - Body
 
@@ -58,13 +60,30 @@ struct ScreenApp: App {
                 .environmentObject(appState)
                 .accentColor(DesignColors.accent)
                 .frame(minWidth: 800, minHeight: 500)
+                .onChange(of: appearance) { $0.apply() }
                 .onAppear {
+                    appearance.apply()
                     GlobalHotkeyManager.shared.registerHotkeys()
                     appState.updates.start(appState: appState)
                 }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About ScreenTake") {
+                    var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
+                    if let icon = AppBrand.icon { options[.applicationIcon] = icon }
+                    NSApplication.shared.orderFrontStandardAboutPanel(options: options)
+                }
+            }
+
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    NotificationCenter.default.post(name: .openAppSettings, object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandGroup(after: .appInfo) {
                 Button("AI Connection…") { appState.editorConnection.showSetup() }
 
