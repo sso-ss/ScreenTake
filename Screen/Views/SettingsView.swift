@@ -587,6 +587,10 @@ struct SettingsView: View {
                     if editDraft.showCursor {
                         cursorShapePicker(selection: $editDraft.cursorShape)
                         cursorSizeSlider(selection: $editDraft.cursorScale)
+                        settingsToggle(icon: "waveform.path", label: "Smooth Motion", isOn: $editDraft.smoothCursor)
+                        if editDraft.smoothCursor {
+                            cursorSmoothingSlider(selection: $editDraft.smoothCursorSigma)
+                        }
                     }
                 }
                 Divider()
