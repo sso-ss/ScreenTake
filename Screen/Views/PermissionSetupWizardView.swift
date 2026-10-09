@@ -49,12 +49,12 @@ struct PermissionSetupContent: View {
                     .padding(.bottom, 20)
 
                 VStack(spacing: 10) {
-                    Text(steps[currentStep].title)
+                    Text(LocalizedStringKey(steps[currentStep].title))
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(DesignColors.primaryLabel)
                         .accessibilityAddTraits(.isHeader)
 
-                    Text(steps[currentStep].description)
+                    Text(LocalizedStringKey(steps[currentStep].description))
                         .font(Typography.body)
                         .foregroundColor(DesignColors.secondaryLabel)
                         .lineSpacing(4)
@@ -142,7 +142,7 @@ struct PermissionSetupContent: View {
         HStack(spacing: Spacing.md) {
             Image(systemName: currentPermissionGranted ? "checkmark.circle.fill" : "info.circle")
                 .accessibilityHidden(true)
-            Text(permissionStatus)
+            Text(LocalizedStringKey(permissionStatus))
         }
         .font(Typography.caption)
         .foregroundColor(currentPermissionGranted ? DesignColors.success : DesignColors.secondaryLabel)

@@ -44,9 +44,11 @@ private struct HoverHelpKey: PreferenceKey {
 
 private struct HoverHelpModifier: ViewModifier {
     let text: String?
+    @Environment(\.locale) private var locale
     @State private var hoverPosition: CGPoint?
 
     func body(content: Content) -> some View {
+        let text = text.map { AppLanguage.text($0) }
         content
             .accessibilityHint(Text(text ?? ""))
             .overlay {

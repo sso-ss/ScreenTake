@@ -29,7 +29,7 @@ struct ContentView: View {
         .alert("Error", isPresented: $showErrorAlert) {
             Button("OK") {}
         } message: {
-            Text(errorAlertMessage)
+            Text(LocalizedStringKey(errorAlertMessage))
         }
     }
 }

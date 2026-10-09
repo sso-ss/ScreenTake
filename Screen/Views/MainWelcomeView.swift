@@ -162,7 +162,7 @@ struct MainWelcomeView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
+            .localizedAccessibilityLabel("Settings")
             .padding(12)
         }
     }

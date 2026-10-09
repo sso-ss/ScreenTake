@@ -16,3 +16,4 @@ test_mux.swift
 
 # Private blog content must remain local-only.
 **/*[Bb][Ll][Oo][Gg]*
+/Saved Projects/

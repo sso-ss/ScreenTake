@@ -80,7 +80,7 @@ struct SettingsView: View {
             if let stage = appState.recording.processingStage, videoURL == nil {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack {
-                        Text(stage.title)
+                        Text(LocalizedStringKey(stage.title))
                             .foregroundColor(DesignColors.primaryLabel)
                         Spacer()
                         if let progress = appState.recording.processingProgress {
@@ -94,7 +94,7 @@ struct SettingsView: View {
                     ProgressView(value: appState.recording.processingProgress, total: 1)
                         .progressViewStyle(.linear)
                         .tint(DesignColors.cameraTrack)
-                        .accessibilityLabel(stage.title)
+                        .localizedAccessibilityLabel(stage.title)
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.md)
@@ -142,7 +142,7 @@ struct SettingsView: View {
         )) {
             Button("OK") { session.exportError = nil }
         } message: {
-            Text(session.exportError ?? "Unknown error")
+            Text(LocalizedStringKey(session.exportError ?? "Unknown error"))
         }
         .alert("Processing Failed", isPresented: Binding(
             get: { appState.recording.processingError != nil },
@@ -150,7 +150,7 @@ struct SettingsView: View {
         )) {
             Button("OK") { appState.recording.processingError = nil }
         } message: {
-            Text(appState.recording.processingError ?? "")
+            Text(LocalizedStringKey(appState.recording.processingError ?? ""))
         }
         .alert("Could Not Save Recording", isPresented: Binding(
             get: { session.saveError != nil },
@@ -158,7 +158,7 @@ struct SettingsView: View {
         )) {
             Button("OK") { session.saveError = nil }
         } message: {
-            Text(session.saveError ?? "")
+            Text(LocalizedStringKey(session.saveError ?? ""))
         }
     }
 
@@ -256,7 +256,7 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(CompactActionButtonStyle())
-            .accessibilityLabel("Import video file")
+            .localizedAccessibilityLabel("Import video file")
             .disabled(editsBusy)
             .hoverHelp(editBusyReason ?? "Open a video file for editing.")
 
@@ -274,7 +274,7 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(CompactActionButtonStyle(prominent: true))
-            .accessibilityLabel("Start recording")
+            .localizedAccessibilityLabel("Start recording")
             .disabled(editsBusy || !appState.capture.isLayoutReady)
             .hoverHelp(editBusyReason ?? (!appState.capture.isLayoutReady ? "Choose a phone video before recording this layout." : "Choose a source and start recording."))
         }
@@ -306,7 +306,7 @@ struct SettingsView: View {
                             .resizable()
                             .frame(width: previewWidth, height: previewHeight)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .accessibilityLabel("\(appState.capture.deviceLayout.displayName), \(appState.capture.canvasRatio.displayName) preview")
+                            .localizedAccessibilityLabel("\(appState.capture.deviceLayout.displayName), \(appState.capture.canvasRatio.displayName) preview")
                     }
 
                     // Mock cursor (positioned bottom-right of window)
@@ -344,7 +344,7 @@ struct SettingsView: View {
                     .shadow(color: .black.opacity(0.35), radius: 1.5, x: 1, y: 1)
             }
         }
-        .accessibilityLabel("Cursor preview, scale \(Int(appState.capture.cursorScale * 100))%")
+        .localizedAccessibilityLabel("Cursor preview, scale \(Int(appState.capture.cursorScale * 100))%")
     }
 
     // MARK: - Webcam Preview PiP
@@ -367,17 +367,17 @@ struct SettingsView: View {
             )
             if isShowingCameraPreview, let session = cameraPreview.session {
                 CameraFeedView(session: session, rotationAngle: cameraPreview.rotationAngle)
-                    .accessibilityLabel("Live camera preview")
+                    .localizedAccessibilityLabel("Live camera preview")
                     .accessibilityIdentifier("inlineCameraPreview")
             } else if isShowingCameraPreview, cameraPreview.isStarting {
                 ProgressView()
                     .controlSize(.small)
-                    .accessibilityLabel("Preparing camera preview")
+                    .localizedAccessibilityLabel("Preparing camera preview")
             } else if isShowingCameraPreview, cameraPreview.errorMessage != nil {
                 Image(systemName: "video.slash.fill")
                     .font(.system(size: diameter * 0.3))
                     .foregroundColor(.white.opacity(0.7))
-                    .accessibilityLabel("Camera preview unavailable")
+                    .localizedAccessibilityLabel("Camera preview unavailable")
             } else {
                 Image(systemName: "person.fill")
                     .font(.system(size: diameter * 0.35))
@@ -500,7 +500,7 @@ struct SettingsView: View {
                     Button { session.resetPendingChanges() } label: { Image(systemName: "arrow.counterclockwise") }
                         .buttonStyle(.plain)
                         .hoverHelp(editBusyReason ?? (!hasEditChanges ? "There are no pending changes to reset." : "Reset pending changes"))
-                        .accessibilityLabel("Reset pending changes")
+                        .localizedAccessibilityLabel("Reset pending changes")
                         .disabled(!hasEditChanges || editsBusy)
                 }
                 .padding(Spacing.xl)
@@ -542,7 +542,7 @@ struct SettingsView: View {
                         Image(systemName: panel.icon)
                             .font(.system(size: 14, weight: .medium))
                             .frame(height: 16)
-                        Text(panel.rawValue)
+                        Text(LocalizedStringKey(panel.rawValue))
                             .font(.system(size: 9, weight: .medium))
                             .lineLimit(1)
                     }
@@ -557,7 +557,7 @@ struct SettingsView: View {
                     ? "Cursor editing requires pointer data from a ScreenTake recording."
                     : nil))
                 .opacity(available ? 1 : 0.38)
-                .accessibilityLabel(panel.rawValue)
+                .localizedAccessibilityLabel(panel.rawValue)
                 .accessibilityAddTraits(selectedPanel == panel ? .isSelected : [])
             }
             Spacer(minLength: 0)
@@ -576,7 +576,7 @@ struct SettingsView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
+            .localizedAccessibilityLabel("Settings")
             .accessibilityIdentifier("appSettingsButton")
         }
         .padding(.horizontal, Spacing.md)
@@ -608,7 +608,7 @@ struct SettingsView: View {
                     }
                     if session.draft.layout.isPhone {
                         Picker("Content", selection: $session.draft.phoneMode) {
-                            ForEach(PhoneContentMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                            ForEach(PhoneContentMode.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
                         }
                         .pickerStyle(.segmented)
                     }
@@ -659,9 +659,9 @@ struct SettingsView: View {
                                 if videoOverlayRecorder.isRecording {
                                     Circle().fill(.red).frame(width: 8, height: 8)
                                 } else { ProgressView().controlSize(.small) }
-                                Text(videoOverlayRecorder.isRecording
-                                     ? String(format: "Recording  %.1fs", videoOverlayRecorder.elapsed)
-                                     : (videoOverlayRecorder.isFinishing ? "Saving camera take…" : "Preparing camera…"))
+                                Text(LocalizedStringKey(videoOverlayRecorder.isRecording
+                                     ? String(format: AppLanguage.text("Recording  %.1fs"), locale: AppLanguage.current.locale, videoOverlayRecorder.elapsed)
+                                     : (videoOverlayRecorder.isFinishing ? "Saving camera take…" : "Preparing camera…")))
                                     .font(Typography.caption).monospacedDigit()
                             }
                             HStack(spacing: Spacing.labelToControl) {
@@ -674,7 +674,7 @@ struct SettingsView: View {
                             }
                         } else {
                             webcamDevicePicker
-                                .accessibilityLabel("Camera device")
+                                .localizedAccessibilityLabel("Camera device")
                             VStack(alignment: .leading, spacing: Spacing.labelToControl) {
                                 Button { startVideoOverlay() } label: { Label("Record Video", systemImage: "video.fill") }
                                     .buttonStyle(CompactActionButtonStyle())
@@ -687,7 +687,7 @@ struct SettingsView: View {
                                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                         }
                         if let error = videoOverlayRecorder.error {
-                            Text(error).font(Typography.caption).foregroundStyle(.red)
+                            Text(LocalizedStringKey(error)).font(Typography.caption).foregroundStyle(.red)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -726,7 +726,7 @@ struct SettingsView: View {
                                     cameraFramingControls
                                 }
                             }.disabled(videoOverlayRecorder.isBusy)
-                                .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before removing its video." : "Remove the camera video.")
+                                .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before editing its appearance." : nil)
                         }
                     }
                 }
@@ -757,7 +757,7 @@ struct SettingsView: View {
 
     private func zoomFocusControls(_ segment: ZoomSegment) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(String(format: "Zoom at %.1fs", segment.start))
+            Text(LocalizedStringKey(String(format: AppLanguage.text("Zoom at %.1fs"), locale: AppLanguage.current.locale, segment.start)))
                 .foregroundStyle(DesignColors.primaryLabel)
             if let focusFrame {
                 GeometryReader { geometry in
@@ -787,7 +787,7 @@ struct SettingsView: View {
                             .onEnded { _ in session.endUndoGroup(); editingZoomFocus = false })
                 }
                 .frame(height: 176)
-                .accessibilityLabel("Drag to position zoom focus")
+                .localizedAccessibilityLabel("Drag to position zoom focus")
             }
             Picker("Focus", selection: Binding(get: { segment.followsCursor }, set: { value in
                 updateZoomFocus { $0.followsCursor = value }
@@ -813,7 +813,7 @@ struct SettingsView: View {
             if isExporting || appState.recording.processingStage != nil {
                 let progress = editingRecording ? appState.recording.processingProgress : session.exportEngine.progress
                 ProgressView(value: progress, total: 1)
-                Text(appState.recording.processingStage?.title ?? "Applying changes...")
+                Text(LocalizedStringKey(appState.recording.processingStage?.title ?? "Applying changes..."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Button { Task { await applyLayout() } } label: {
@@ -865,7 +865,7 @@ struct SettingsView: View {
                             get: { appState.capture.phoneContentMode },
                             set: { appState.capture.phoneContentMode = $0 }
                         )) {
-                            ForEach(PhoneContentMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                            ForEach(PhoneContentMode.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
                         }
                         .pickerStyle(.segmented)
                     }
@@ -915,9 +915,9 @@ struct SettingsView: View {
                         set: { appState.capture.isWebcamEnabled = $0 }
                     ))
                     if appState.capture.isWebcamEnabled {
-                        Text(appState.capture.isMicrophoneEnabled
+                        Text(LocalizedStringKey(appState.capture.isMicrophoneEnabled
                              ? "Microphone is on. Manage it in Audio."
-                             : "Microphone is off. Manage it in Audio.")
+                             : "Microphone is off. Manage it in Audio."))
                             .font(Typography.caption)
                             .foregroundStyle(DesignColors.secondaryLabel)
                         webcamDevicePicker
@@ -945,7 +945,7 @@ struct SettingsView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "video")
                                     .font(.system(size: 11))
-                                Text(isShowingCameraPreview ? "Stop Preview" : "Preview Camera")
+                                Text(LocalizedStringKey(isShowingCameraPreview ? "Stop Preview" : "Preview Camera"))
                                     .font(.system(size: 12, weight: .medium))
                             }
                                 .frame(maxWidth: .infinity)
@@ -954,7 +954,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("previewCamera")
                         .hoverHelp("Show your live camera in the recording preview.")
                         if let error = cameraPreview.errorMessage {
-                            Text(error)
+                            Text(LocalizedStringKey(error))
                                 .font(Typography.caption)
                                 .foregroundStyle(DesignColors.secondaryLabel)
                             if cameraPreview.needsPermission {
@@ -1042,7 +1042,7 @@ struct SettingsView: View {
                 get: { currentCameraLayout.layout },
                 set: { layout in updateCameraLayout { $0.layout = layout } }
             )) {
-                ForEach(CameraLayout.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                ForEach(CameraLayout.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
@@ -1055,15 +1055,15 @@ struct SettingsView: View {
             ), isProcessing: currentCameraLayout.followFace && session.isPreparingFaceTracking)
             .accessibilityIdentifier("cameraFollowFace")
             if currentCameraLayout.followFace {
-                Text(session.isPreparingFaceTracking
+                Text(LocalizedStringKey(session.isPreparingFaceTracking
                      ? "Preparing face tracking… Longer clips may take a moment."
-                     : "Gently crops to follow one face. If no face is visible, your framing is kept.")
+                     : "Gently crops to follow one face. If no face is visible, your framing is kept."))
                     .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(session.draft.cameraLayoutChanges.isEmpty
+            Text(LocalizedStringKey(session.draft.cameraLayoutChanges.isEmpty
                  ? "Applies to the entire camera clip."
-                 : "Applies to the camera section at the playhead.")
+                 : "Applies to the camera section at the playhead."))
                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1076,7 +1076,9 @@ struct SettingsView: View {
                 set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
             ), disabledReason: !canTransitionCameraSection
                 ? (cameraLayoutChangeIndex == nil
-                    ? "Split the camera clip, then change the next section’s layout or framing to enable Smooth Transition."
+                    ? (session.draft.cameraLayoutChanges.isEmpty
+                        ? "Split the camera clip, then change the next section’s layout or framing to enable Smooth Transition."
+                        : "Select a later camera section. Smooth Transition applies at its start, from the previous section.")
                     : "Change this camera section’s layout or framing to enable Smooth Transition.")
                 : nil)
             .accessibilityIdentifier("cameraSmoothTransition")
@@ -1085,7 +1087,7 @@ struct SettingsView: View {
                     HStack {
                         cameraSettingLabel("Duration", symbol: "clock")
                         Spacer()
-                        Text(String(format: "%.2g s", currentCameraLayout.clampedTransitionDuration))
+                        Text(LocalizedStringKey(String(format: "%.2g s", currentCameraLayout.clampedTransitionDuration)))
                             .font(Typography.caption).monospacedDigit()
                             .foregroundStyle(DesignColors.secondaryLabel)
                     }
@@ -1103,7 +1105,7 @@ struct SettingsView: View {
                         set: { motion in updateCameraLayout { $0.transitionMotion = motion } }
                     )) {
                         ForEach(CameraTransitionMotion.allCases, id: \.self) { motion in
-                            Text(motion.displayName).tag(motion)
+                            Text(LocalizedStringKey(motion.displayName)).tag(motion)
                         }
                     }
                     .labelsHidden()
@@ -1125,7 +1127,7 @@ struct SettingsView: View {
                 .foregroundStyle(DesignColors.secondaryLabel)
                 .frame(width: 20)
                 .accessibilityHidden(true)
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(Typography.body)
                 .foregroundStyle(DesignColors.primaryLabel)
         }
@@ -1208,7 +1210,7 @@ struct SettingsView: View {
                 .foregroundColor(DesignColors.secondaryLabel)
             }
             if let message = session.browserCropMessage {
-                Text(message)
+                Text(LocalizedStringKey(message))
                     .font(Typography.caption)
                     .foregroundColor(DesignColors.secondaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1243,7 +1245,7 @@ struct SettingsView: View {
                         Image(systemName: layout.symbol)
                             .font(.system(size: 19))
                             .frame(height: 22)
-                        Text(layout.displayName).font(.system(size: 11, weight: .medium))
+                        Text(LocalizedStringKey(layout.displayName)).font(.system(size: 11, weight: .medium))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 58)
@@ -1253,7 +1255,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .hoverHelp(editBusyReason)
-                .accessibilityLabel("\(layout.displayName) layout")
+                .localizedAccessibilityLabel("\(layout.displayName) layout")
                 .accessibilityAddTraits(selection.wrappedValue == layout ? .isSelected : [])
             }
         }
@@ -1278,7 +1280,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .hoverHelp(editBusyReason)
-                .accessibilityLabel("\(shape.displayName) cursor")
+                .localizedAccessibilityLabel("\(shape.displayName) cursor")
                 .accessibilityAddTraits(selection.wrappedValue == shape ? .isSelected : [])
             }
         }
@@ -1304,7 +1306,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .hoverHelp(editBusyReason)
-                .accessibilityLabel("\(highlightColor.displayName) click highlight")
+                .localizedAccessibilityLabel("\(highlightColor.displayName) click highlight")
                 .accessibilityAddTraits(selection.wrappedValue == highlightColor ? .isSelected : [])
             }
         }
@@ -1313,14 +1315,14 @@ struct SettingsView: View {
     private func exportResolutionPicker(selection: Binding<ExportResolution>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Picker("Resolution", selection: selection) {
-                ForEach(ExportResolution.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                ForEach(ExportResolution.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
             }
             .pickerStyle(.menu)
             .accessibilityIdentifier("exportResolution")
             .hoverHelp(editBusyReason)
-            Text(selection.wrappedValue == .preserveSource
+            Text(LocalizedStringKey(selection.wrappedValue == .preserveSource
                  ? "Keeps screen detail by allowing room for the background. Larger files."
-                 : "Sets canvas size independently of its shape. Screen content may be reduced.")
+                 : "Sets canvas size independently of its shape. Screen content may be reduced."))
                 .font(Typography.caption)
                 .foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1335,9 +1337,9 @@ struct SettingsView: View {
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("\(Int(output.width)) × \(Int(output.height)) pixels")
                 .font(Typography.body).monospacedDigit()
-            Text(scale < 0.999
+            Text(LocalizedStringKey(scale < 0.999
                  ? "Screen detail reduced to \(Int((scale * 100).rounded()))% of source size before zoom."
-                 : "Screen detail preserved before zoom.")
+                 : "Screen detail preserved before zoom."))
                 .font(Typography.caption)
                 .foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1357,7 +1359,7 @@ struct SettingsView: View {
                     .foregroundColor(DesignColors.primaryLabel)
             }
             Picker("Ratio", selection: selection) {
-                ForEach(CanvasRatio.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                ForEach(CanvasRatio.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
             }
             .labelsHidden()
             .pickerStyle(.menu)
@@ -1366,7 +1368,7 @@ struct SettingsView: View {
 
     private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(DesignColors.primaryLabel)
 
@@ -1384,7 +1386,7 @@ struct SettingsView: View {
                     .font(.system(size: 13))
                     .foregroundColor(DesignColors.secondaryLabel)
                     .frame(width: 20)
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(Typography.body)
                     .foregroundColor(DesignColors.primaryLabel)
                 if isProcessing {
@@ -1392,7 +1394,7 @@ struct SettingsView: View {
                         .progressViewStyle(.circular)
                         .controlSize(.small)
                         .frame(width: 16, height: 16)
-                        .accessibilityLabel("Preparing face tracking")
+                        .localizedAccessibilityLabel("Preparing face tracking")
                         .accessibilityIdentifier("faceTrackingProgress")
                 }
                 Spacer()
@@ -1412,8 +1414,8 @@ struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityValue(isOn.wrappedValue ? "On" : "Off")
+        .localizedAccessibilityLabel(label)
+        .localizedAccessibilityValue(isOn.wrappedValue ? "On" : "Off")
         .accessibilityAddTraits(.isButton)
         .disabled(disabledReason != nil)
         .hoverHelp(editBusyReason ?? disabledReason)
@@ -1542,8 +1544,8 @@ struct SettingsView: View {
                 .foregroundColor(DesignColors.tertiaryLabel)
 
             Slider(value: selection, in: 1.25...3, step: 0.25)
-                .accessibilityLabel("Zoom magnification")
-                .accessibilityValue("\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))) times")
+                .localizedAccessibilityLabel("Zoom magnification")
+                .localizedAccessibilityValue("\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))) times")
 
             Image(systemName: "plus.magnifyingglass")
                 .font(.system(size: 14))
@@ -1566,7 +1568,7 @@ struct SettingsView: View {
             )) {
                 Text("Default").tag("")
                 ForEach(appState.capture.availableWebcams, id: \.uniqueID) { device in
-                    Text(device.localizedName).tag(device.uniqueID)
+                    Text(verbatim: device.localizedName).tag(device.uniqueID)
                 }
             }
             .labelsHidden()
@@ -1608,7 +1610,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .hoverHelp(editBusyReason)
-                    .accessibilityLabel("\(shape.displayName) camera shape")
+                    .localizedAccessibilityLabel("\(shape.displayName) camera shape")
                     .accessibilityAddTraits(selection.wrappedValue == shape ? .isSelected : [])
                 }
             }
@@ -1644,7 +1646,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .hoverHelp(editBusyReason)
-                    .accessibilityLabel("\(position.displayName) camera position")
+                    .localizedAccessibilityLabel("\(position.displayName) camera position")
                     .accessibilityAddTraits(selection.wrappedValue == position ? .isSelected : [])
                 }
             }
@@ -1669,7 +1671,7 @@ struct SettingsView: View {
             }
             Picker("Size", selection: selection) {
                 ForEach(PiPSize.allCases, id: \.self) { size in
-                    Text(size.displayName).tag(size)
+                    Text(LocalizedStringKey(size.displayName)).tag(size)
                 }
             }
             .labelsHidden()
@@ -1711,14 +1713,14 @@ struct SettingsView: View {
                                     lineWidth: isSelected ? 2 : 1)
                     )
 
-                Text(preset.displayName)
+                Text(LocalizedStringKey(preset.displayName))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(isSelected ? DesignColors.primaryLabel : DesignColors.tertiaryLabel)
                     .lineLimit(1)
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(preset.displayName) background")
+        .localizedAccessibilityLabel("\(preset.displayName) background")
         .hoverHelp(editBusyReason)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -1762,13 +1764,13 @@ struct SettingsView: View {
                     .foregroundColor(DesignColors.secondaryLabel)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close video")
+                .localizedAccessibilityLabel("Close video")
                 .disabled(editsBusy)
                 .hoverHelp(editBusyReason ?? "Close the current video.")
 
                 Spacer()
 
-                Text(session.projectName)
+                Text(verbatim: session.projectName)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(DesignColors.primaryLabel)
                     .lineLimit(1)
@@ -1823,7 +1825,7 @@ struct SettingsView: View {
                     }
             }
             if let previewError {
-                Text(previewError).font(.caption).foregroundStyle(.red).padding(Spacing.md)
+                Text(LocalizedStringKey(previewError)).font(.caption).foregroundStyle(.red).padding(Spacing.md)
             }
         }
     }
@@ -2053,7 +2055,7 @@ struct VideoReplacementDialog: View {
             Text("Replace current video?")
                 .font(Typography.heading)
                 .foregroundStyle(DesignColors.primaryLabel)
-            Text(action.message)
+            Text(LocalizedStringKey(action.message))
                 .font(.system(size: 13))
                 .foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -2112,14 +2114,14 @@ struct InlineScreenCropEditor: View {
                     .padding(.horizontal, Spacing.lg)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error {
-                Text(error)
+                Text(LocalizedStringKey(error))
                     .font(Typography.body)
                     .foregroundStyle(DesignColors.secondaryLabel)
                     .padding(Spacing.lg)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ProgressView()
-                    .accessibilityLabel("Loading crop preview")
+                    .localizedAccessibilityLabel("Loading crop preview")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
@@ -2200,7 +2202,7 @@ struct PhoneCropSelection: View {
                     .frame(width: selection.width, height: selection.height)
                     .position(x: selection.midX, y: selection.midY)
                     .gesture(drag(size: fitted.size))
-                    .accessibilityLabel("Selected crop area")
+                    .localizedAccessibilityLabel("Selected crop area")
                     .hoverHelp("Drag to reposition the crop")
                 ForEach(Array(PhoneCrop.Corner.allCases.enumerated()), id: \.offset) { _, corner in
                     let left = corner == .topLeft || corner == .bottomLeft
@@ -2212,7 +2214,7 @@ struct PhoneCropSelection: View {
                         .contentShape(Rectangle())
                         .position(x: left ? selection.minX : selection.maxX, y: top ? selection.minY : selection.maxY)
                         .gesture(drag(size: fitted.size, corner: corner))
-                        .accessibilityLabel("\(left ? "Left" : "Right") \(top ? "top" : "bottom") crop handle")
+                        .localizedAccessibilityLabel("\(left ? "Left" : "Right") \(top ? "top" : "bottom") crop handle")
                 }
             }
             .frame(width: fitted.width, height: fitted.height)
@@ -2717,7 +2719,7 @@ struct VideoTrimControls: View {
         }
         .buttonStyle(.plain)
         .modifier(TimelineTooltip(text: label))
-        .accessibilityLabel(label)
+        .localizedAccessibilityLabel(label)
     }
 
     private func adjusted(_ value: Double, isStart: Bool, from original: VideoTrim) -> VideoTrim {
@@ -2789,7 +2791,7 @@ struct VideoTrimControls: View {
                         .font: NSFont.systemFont(ofSize: 11, weight: .medium)
                     ]).width
                     let width = min(260, geometry.size.width - 24, ceil(textWidth) + 20)
-                    Text(tooltip.text)
+                    Text(LocalizedStringKey(tooltip.text))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DesignColors.primaryLabel)
                         .multilineTextAlignment(.center)
@@ -2903,7 +2905,7 @@ struct VideoTrimControls: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(splitLabel)
+                .localizedAccessibilityLabel(splitLabel)
                 .accessibilityIdentifier("splitAtPlayhead")
                 .disabled(!canSplit)
                 .modifier(TimelineTooltip(text: canSplit ? "\(splitLabel) at the playhead"
@@ -2926,11 +2928,11 @@ struct VideoTrimControls: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             playbackControls
             HStack(spacing: 4) {
-                Text(expanded ? "\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(playback.seconds))
+                Text(LocalizedStringKey(expanded ? "\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(playback.seconds)))
                     .font(.system(size: 10, design: .monospaced))
                     .lineLimit(1)
                     .fixedSize()
-                    .accessibilityLabel("Playback time")
+                    .localizedAccessibilityLabel("Playback time")
                     .modifier(TimelineTooltip(text: "Current playback time / edited video duration"))
                 Divider()
                     .frame(height: 16)
@@ -2970,7 +2972,7 @@ struct VideoTrimControls: View {
                 }
                 .buttonStyle(.plain)
                 .modifier(TimelineTooltip(text: playback.isPlaying ? "Pause" : "Play"))
-                .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+                .localizedAccessibilityLabel(playback.isPlaying ? "Pause" : "Play")
                 icon("forward.end.fill", "Go to end") { seekOutput(editedDuration) }
             }
     }
@@ -2999,7 +3001,7 @@ struct VideoTrimControls: View {
                 Spacer(minLength: 4)
                 Button("Cancel") { silence.clear() }
             } else if let message = silence.message {
-                Text(message).font(.caption).fixedSize(horizontal: false, vertical: true)
+                Text(LocalizedStringKey(message)).font(.caption).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 icon("xmark", "Dismiss silence review") { silence.clear() }
             } else {
@@ -3101,7 +3103,7 @@ struct VideoTrimControls: View {
             ForEach(0...Int(8 * zoom), id: \.self) { tick in
                 let fraction = Double(tick) / Double(Int(8 * zoom))
                 VStack(spacing: 3) {
-                    Text(timestamp(total * fraction)).font(.system(size: 9, design: .monospaced))
+                    Text(LocalizedStringKey(timestamp(total * fraction))).font(.system(size: 9, design: .monospaced))
                     Rectangle().frame(width: 1, height: 4)
                 }
                 .foregroundStyle(DesignColors.secondaryLabel)
@@ -3121,8 +3123,8 @@ struct VideoTrimControls: View {
                     .onChanged { gesture in
                         seekOutput((gesture.location.x - 12) / width * total)
                     })
-                .accessibilityLabel("Timeline playhead")
-                .accessibilityValue(timestamp(playback.seconds))
+                .localizedAccessibilityLabel("Timeline playhead")
+                .localizedAccessibilityValue(timestamp(playback.seconds))
                 .accessibilityAdjustableAction { direction in seekOutput(playback.seconds + (direction == .increment ? 1 : -1) / 30) }
                 .hoverHelp("Drag the ruler to scrub through the edited video")
             ForEach(silence.suggestions) { cut in
@@ -3149,7 +3151,7 @@ struct VideoTrimControls: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
+                .localizedAccessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .hoverHelp("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
                 }
@@ -3253,7 +3255,7 @@ struct VideoTrimControls: View {
                     pendingZoomGapID = nil
                     addZoom(from: range.lowerBound, to: range.upperBound)
                 })
-            .accessibilityLabel("Add zoom in empty section")
+            .localizedAccessibilityLabel("Add zoom in empty section")
             .hoverHelp("Click or drag to add a zoom")
             .contextMenu {
                 Button("Undo Zoom Edit") { undoZoomEdit() }.disabled(!canUndoZoom)
@@ -3265,7 +3267,7 @@ struct VideoTrimControls: View {
                            outputStart: Double, sourceOffset: Double) -> some View {
         HStack(spacing: 0) {
             zoomEdge(segment, scale: scale, edge: -1)
-            Text(String(format: "%.1fx", zoomLevel))
+            Text(LocalizedStringKey(String(format: "%.1fx", zoomLevel)))
                 .font(.system(size: 9, weight: .semibold))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
@@ -3292,7 +3294,7 @@ struct VideoTrimControls: View {
         .frame(width: width, height: 19)
         .background(DesignColors.cameraTrack.opacity(selectedZoomID == segment.id ? 0.85 : 0.5), in: RoundedRectangle(cornerRadius: 3))
         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(DesignColors.cameraTrack, lineWidth: 1))
-        .accessibilityLabel("Zoom from \(timestamp(segment.start)) to \(timestamp(segment.end))")
+        .localizedAccessibilityLabel("Zoom from \(timestamp(segment.start)) to \(timestamp(segment.end))")
         .focusable()
         .focused($focusedZoomID, equals: segment.id)
         .contextMenu {
@@ -3376,7 +3378,7 @@ struct VideoTrimControls: View {
             Button("Move Later") { moveSegment(from: index, to: index + 1) }.disabled(index == segments.count - 1)
                 .hoverHelp(index == segments.count - 1 ? "This is already the last video section." : "Move this section later.")
         }
-        .accessibilityLabel("Clip \(index + 1), \(timestamp(segment.duration.seconds))")
+        .localizedAccessibilityLabel("Clip \(index + 1), \(timestamp(segment.duration.seconds))")
         .accessibilityAction(named: "Move Earlier") { moveSegment(from: index, to: index - 1) }
         .accessibilityAction(named: "Move Later") { moveSegment(from: index, to: index + 1) }
         .hoverHelp("Click to select; drag to reorder")
@@ -3402,8 +3404,8 @@ struct VideoTrimControls: View {
                     if let dragging { commit(dragging) }
                     dragging = nil
                 })
-            .accessibilityLabel(isStart ? "Trim start" : "Trim end")
-            .accessibilityValue(String(format: "%.2f seconds", isStart ? (segments.first?.start.seconds ?? 0) : (segments.last?.end.seconds ?? duration)))
+            .localizedAccessibilityLabel(isStart ? "Trim start" : "Trim end")
+            .localizedAccessibilityValue(String(format: "%.2f seconds", isStart ? (segments.first?.start.seconds ?? 0) : (segments.last?.end.seconds ?? duration)))
             .accessibilityAdjustableAction { direction in
                 commit(adjustedEdge(delta: direction == .increment ? 0.1 : -0.1, isStart: isStart, from: trim))
             }
@@ -3456,17 +3458,17 @@ struct VideoCutEditor: View {
             HStack(spacing: 8) {
                 Text("In")
                 TextField("In seconds", value: $cutStart, format: .number.precision(.fractionLength(2)))
-                    .frame(width: 76).accessibilityLabel("Cut start in seconds")
+                    .frame(width: 76).localizedAccessibilityLabel("Cut start in seconds")
                 Button { cutStart = max(0, min(duration, player.currentTime().seconds)) } label: { Image(systemName: "arrow.left.to.line") }
-                    .hoverHelp("Set start at playhead").accessibilityLabel("Set cut start at playhead")
+                    .hoverHelp("Set start at playhead").localizedAccessibilityLabel("Set cut start at playhead")
                 Text("Out")
                 TextField("Out seconds", value: $cutEnd, format: .number.precision(.fractionLength(2)))
-                    .frame(width: 76).accessibilityLabel("Cut end in seconds")
+                    .frame(width: 76).localizedAccessibilityLabel("Cut end in seconds")
                 Button { cutEnd = max(0, min(duration, player.currentTime().seconds)) } label: { Image(systemName: "arrow.right.to.line") }
-                    .hoverHelp("Set end at playhead").accessibilityLabel("Set cut end at playhead")
+                    .hoverHelp("Set end at playhead").localizedAccessibilityLabel("Set cut end at playhead")
                 Spacer()
                 Button { play(.init(start: cutStart, end: cutEnd)) } label: { Image(systemName: "play.fill") }
-                    .hoverHelp(!canAdd([.init(start: cutStart, end: cutEnd)]) ? "Choose a nonoverlapping range inside the video and keep at least one section." : "Preview selected section").accessibilityLabel("Preview selected section")
+                    .hoverHelp(!canAdd([.init(start: cutStart, end: cutEnd)]) ? "Choose a nonoverlapping range inside the video and keep at least one section." : "Preview selected section").localizedAccessibilityLabel("Preview selected section")
                     .disabled(!canAdd([.init(start: cutStart, end: cutEnd)]))
                 Button {
                     if let editingCut { trim.cuts.removeAll { $0.id == editingCut } }
@@ -3478,32 +3480,32 @@ struct VideoCutEditor: View {
                     .hoverHelp(!canAdd([.init(start: cutStart, end: cutEnd)]) ? "Choose a nonoverlapping range inside the video and keep at least one section." : "Remove the selected section from the video.")
                 if editingCut != nil {
                     Button { editingCut = nil } label: { Image(systemName: "xmark") }
-                        .hoverHelp("Cancel cut adjustment").accessibilityLabel("Cancel cut adjustment")
+                        .hoverHelp("Cancel cut adjustment").localizedAccessibilityLabel("Cancel cut adjustment")
                 }
             }
             .textFieldStyle(.roundedBorder)
             Divider()
-            if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
+            if let message { Text(LocalizedStringKey(message)).font(.caption).foregroundStyle(.secondary) }
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(trim.cuts) { cut in
                         HStack {
                             Image(systemName: "scissors").foregroundStyle(.secondary)
-                            Text(String(format: "Removed: %.2f - %.2f s", cut.start, cut.end)).monospacedDigit()
+                            Text(LocalizedStringKey(String(format: AppLanguage.text("Removed: %.2f - %.2f s"), locale: AppLanguage.current.locale, cut.start, cut.end))).monospacedDigit()
                             Spacer()
                             Button {
                                 cutStart = cut.start
                                 cutEnd = cut.end
                                 editingCut = cut.id
                             } label: { Image(systemName: "pencil") }
-                                .hoverHelp("Adjust section").accessibilityLabel("Adjust removed section")
+                                .hoverHelp("Adjust section").localizedAccessibilityLabel("Adjust removed section")
                             Button { play(cut) } label: { Image(systemName: "play.fill") }
-                                .hoverHelp("Preview removed section").accessibilityLabel("Preview removed section")
+                                .hoverHelp("Preview removed section").localizedAccessibilityLabel("Preview removed section")
                             Button {
                                 trim.cuts.removeAll { $0.id == cut.id }
                                 if editingCut == cut.id { editingCut = nil }
                             } label: { Image(systemName: "arrow.uturn.backward") }
-                                .hoverHelp("Restore section").accessibilityLabel("Restore section")
+                                .hoverHelp("Restore section").localizedAccessibilityLabel("Restore section")
                         }
                     }
                 }
@@ -3659,7 +3661,7 @@ private struct NumericSettingInput: View {
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.trailing)
                 .focused($isFocused)
-                .accessibilityLabel(label)
+                .localizedAccessibilityLabel(label)
                 .onSubmit {
                     commit()
                     isFocused = false
@@ -3668,7 +3670,7 @@ private struct NumericSettingInput: View {
                     draft = String(value)
                     isFocused = false
                 }
-            Text(unit)
+            Text(LocalizedStringKey(unit))
                 .foregroundColor(DesignColors.secondaryLabel)
         }
         .font(Typography.monoSmall)
@@ -3782,8 +3784,8 @@ private struct LineSlider: View {
                     }
             )
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(label)
-            .accessibilityValue(value)
+            .localizedAccessibilityLabel(label)
+            .localizedAccessibilityValue(value)
             .accessibilityAdjustableAction { direction in
                 guard isEnabled else { return }
                 let step = keyboardStep ?? (range.upperBound - range.lowerBound) / 100
@@ -3817,6 +3819,18 @@ private struct LineSlider: View {
 private struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppAppearance.defaultsKey) private var appearance: AppAppearance = .system
+    @AppStorage(AppLanguage.defaultsKey) private var language: AppLanguage = .system
+    @State private var page: Page = .appearance
+
+    private enum Page: String, CaseIterable {
+        case appearance = "Appearance", language = "Language"
+        var symbol: String {
+            switch self {
+            case .appearance: return "circle.lefthalf.filled"
+            case .language: return "globe"
+            }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -3832,13 +3846,20 @@ private struct AppSettingsView: View {
             Divider()
             HStack(spacing: 0) {
                 VStack(alignment: .leading) {
-                    Label("Appearance", systemImage: "circle.lefthalf.filled")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(DesignColors.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
-                        .accessibilityAddTraits(.isSelected)
+                    ForEach(Page.allCases, id: \.self) { item in
+                        Button { page = item } label: {
+                            Label(LocalizedStringKey(item.rawValue), systemImage: item.symbol)
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .frame(height: 34)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(page == item ? DesignColors.accent.opacity(0.12) : .clear,
+                                            in: RoundedRectangle(cornerRadius: 7))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(page == item ? [.isSelected] : [])
+                        .accessibilityIdentifier("settings-\(item.rawValue.lowercased())")
+                    }
                     Spacer()
                 }
                 .padding(12)
@@ -3846,26 +3867,55 @@ private struct AppSettingsView: View {
                 .background(DesignColors.windowBackground)
                 Divider()
                 VStack(alignment: .leading, spacing: 28) {
-                    Text("Appearance")
+                    Text(LocalizedStringKey(page.rawValue))
                         .font(.system(size: 24, weight: .semibold))
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Visual style")
-                            .font(.system(size: 13, weight: .medium))
-                        HStack(spacing: 12) {
-                            Text("Mode")
-                                .font(.system(size: 13))
-                            Spacer(minLength: 16)
-                            ForEach(AppAppearance.allCases) { option in
-                                modeButton(option)
+                    if page == .appearance {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Visual style")
+                                .font(.system(size: 13, weight: .medium))
+                            HStack(spacing: 12) {
+                                Text("Mode")
+                                    .font(.system(size: 13))
+                                Spacer(minLength: 16)
+                                ForEach(AppAppearance.allCases) { option in
+                                    modeButton(option)
+                                }
                             }
+                            .padding(16)
+                            .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(DesignColors.inputBorder.opacity(0.5)))
+                            Text("Follow System automatically matches your Mac’s light or dark appearance.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(DesignColors.secondaryLabel)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(16)
-                        .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(DesignColors.inputBorder.opacity(0.5)))
-                        Text("Follow System automatically matches your Mac’s light or dark appearance.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(DesignColors.secondaryLabel)
-                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 16) {
+                                Text("App language")
+                                    .font(.system(size: 13, weight: .medium))
+                                Spacer(minLength: 8)
+                                Picker("App language", selection: $language) {
+                                    ForEach(AppLanguage.allCases) { option in
+                                        if option == .system {
+                                            Text("Follow System").tag(option)
+                                        } else {
+                                            Text(verbatim: option.nativeName).tag(option)
+                                        }
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 240)
+                                .accessibilityIdentifier("appLanguagePicker")
+                            }
+                            .padding(16)
+                            .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(DesignColors.inputBorder.opacity(0.5)))
+                            Text("Changes apply immediately. Follow System uses your Mac’s preferred language.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(DesignColors.secondaryLabel)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -3874,8 +3924,9 @@ private struct AppSettingsView: View {
             }
         }
         .foregroundStyle(DesignColors.primaryLabel)
-        .frame(width: 760, height: 360)
+        .frame(width: 760, height: 420)
         .background(DesignColors.controlBackground)
+        .environment(\.locale, language.locale)
         .onExitCommand { dismiss() }
     }
 
@@ -3890,7 +3941,7 @@ private struct AppSettingsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 9)
                         .strokeBorder(appearance == option ? DesignColors.accent : DesignColors.inputBorder.opacity(0.5),
                                       lineWidth: appearance == option ? 2 : 1))
-                Text(option.title)
+                Text(LocalizedStringKey(option.title))
                     .font(.system(size: 11, weight: appearance == option ? .semibold : .regular))
                     .foregroundStyle(appearance == option ? DesignColors.primaryLabel : DesignColors.secondaryLabel)
             }
@@ -3898,7 +3949,7 @@ private struct AppSettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(option.title)
+        .localizedAccessibilityLabel(option.title)
         .accessibilityAddTraits(appearance == option ? .isSelected : [])
         .accessibilityIdentifier("appearance-\(option.rawValue)")
     }

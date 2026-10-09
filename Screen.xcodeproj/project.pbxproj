@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA1800000000000000000002 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000001 /* AppLanguage.swift */; };
+		FA1800000000000000000004 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000003 /* Localizable.strings */; };
 		E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */; };
 		ED1800010000000000000002 /* BrowserContentDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1800010000000000000001 /* BrowserContentDetector.swift */; };
 		CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14E136D206B494934809F1B /* EditorConnection.swift */; };
@@ -111,6 +113,16 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXFileReference section */
+		FA1800000000000000000001 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		FA1800000000000000000010 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "en.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000011 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ko"; path = "ko.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000012 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ja"; path = "ja.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000013 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000014 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000015 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es"; path = "es.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000016 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "fr"; path = "fr.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000017 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "de"; path = "de.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000018 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt"; path = "pt.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverHelp.swift; sourceTree = "<group>"; };
 		ED1800010000000000000001 /* BrowserContentDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentDetector.swift; sourceTree = "<group>"; };
 		E14E136D206B494934809F1B /* EditorConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorConnection.swift; sourceTree = "<group>"; };
@@ -249,6 +261,7 @@
 			isa = PBXGroup;
 			children = (
 				8C7D09BC358AB7CE58549271 /* DesignTokens.swift */,
+				FA1800000000000000000001 /* AppLanguage.swift */,
 				E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */,
 			);
 			path = DesignSystem;
@@ -358,6 +371,7 @@
 		C2D01ADF2185BA163EED870A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				FA1800000000000000000003 /* Localizable.strings */,
 				585E017110E84AE6D2E27DFE /* cursor.svg */,
 			);
 			path = Resources;
@@ -439,9 +453,8 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				Base,
-				en,
-			);
+                en, Base, ko, ja, "zh-Hans", "zh-Hant", es, fr, de, pt,
+            );
 			mainGroup = C54FD93C1D0EFD6182FC0486;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
@@ -462,6 +475,7 @@
 			files = (
 				1233788A2163651F603D5D1A /* Assets.xcassets in Resources */,
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
+				FA1800000000000000000004 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -509,6 +523,7 @@
 				0D1ACBC7DFEB5A8198DE061B /* CountdownPanel.swift in Sources */,
 				1AEE7E7589EE5E32A6AFA0E2 /* CursorImageProvider.swift in Sources */,
 				75ED98801192AADCD5FCCC20 /* DesignTokens.swift in Sources */,
+				FA1800000000000000000002 /* AppLanguage.swift in Sources */,
 				E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */,
 				54B08F57EDCC8C57840429E2 /* EditorAudio.swift in Sources */,
 				95A7C50B767540A097381DDF /* ExportEngine.swift in Sources */,
@@ -549,6 +564,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		FA1800000000000000000003 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				FA1800000000000000000010 /* en */,
+				FA1800000000000000000011 /* ko */,
+				FA1800000000000000000012 /* ja */,
+				FA1800000000000000000013 /* zh-Hans */,
+				FA1800000000000000000014 /* zh-Hant */,
+				FA1800000000000000000015 /* es */,
+				FA1800000000000000000016 /* fr */,
+				FA1800000000000000000017 /* de */,
+				FA1800000000000000000018 /* pt */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		0A7FACE3BFD14A1793379D71 /* Debug */ = {

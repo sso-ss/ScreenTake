@@ -5,6 +5,7 @@ import ScreenCaptureKit
 struct CaptureToolbarView: View {
 
     @ObservedObject var coordinator: CaptureToolbarCoordinator
+    @AppStorage(AppLanguage.defaultsKey) private var language: AppLanguage = .system
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var systemAccent: Color { Color(nsColor: .controlAccentColor) }
@@ -32,6 +33,7 @@ struct CaptureToolbarView: View {
         .padding(48)
         .fixedSize()
         .hoverHelpContainer()
+        .environment(\.locale, language.locale)
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: coordinator.toolbarPhase)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.captureMode)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: coordinator.statusMessage)
@@ -40,7 +42,7 @@ struct CaptureToolbarView: View {
     // MARK: - Status / Relaunch Banners
 
     private var statusBanner: some View {
-        Text(coordinator.statusMessage)
+        Text(LocalizedStringKey(coordinator.statusMessage))
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.primary)
             .multilineTextAlignment(.center)
@@ -53,7 +55,7 @@ struct CaptureToolbarView: View {
     // MARK: - Mode Label
 
     private var modeLabel: some View {
-        Text(modeLabelText)
+        Text(LocalizedStringKey(modeLabelText))
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.primary)
             .lineLimit(2)
@@ -87,7 +89,7 @@ struct CaptureToolbarView: View {
             toolbarIconButton(systemName: "xmark.circle.fill", size: 20) {
                 coordinator.dismiss()
             }
-            .accessibilityLabel("Close")
+            .localizedAccessibilityLabel("Close")
             .hoverHelp(coordinator.isStarting ? "Wait for the recording to start." : "Close recording options.")
             .padding(.leading, 10)
             .padding(.trailing, 4)
@@ -152,7 +154,7 @@ struct CaptureToolbarView: View {
                 .opacity(coordinator.isPaused ? 0.3 : 1.0)
 
             // Duration
-            Text(formatDuration(coordinator.recordingDuration))
+            Text(LocalizedStringKey(formatDuration(coordinator.recordingDuration)))
                 .font(.system(size: 14, weight: .medium, design: .monospaced))
                 .foregroundStyle(.primary)
                 .fixedSize()
@@ -166,7 +168,7 @@ struct CaptureToolbarView: View {
             ) {
                 coordinator.togglePause()
             }
-            .accessibilityLabel(coordinator.isPaused ? "Resume recording" : "Pause recording")
+            .localizedAccessibilityLabel(coordinator.isPaused ? "Resume recording" : "Pause recording")
             .hoverHelp(coordinator.isPaused ? "Resume (Ctrl+Space)" : "Pause (Ctrl+Space)")
 
             // Zoom toggle
@@ -184,7 +186,7 @@ struct CaptureToolbarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(coordinator.isZoomedIn ? "Zoom out" : "Zoom in")
+            .localizedAccessibilityLabel(coordinator.isZoomedIn ? "Zoom out" : "Zoom in")
             .hoverHelp(coordinator.isZoomedIn ? "Zoom out (Ctrl+Z)" : "Zoom in (Ctrl+Z)")
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isZoomedIn)
 
@@ -205,7 +207,7 @@ struct CaptureToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(coordinator.isUpdatingMicrophone)
-                .accessibilityLabel(coordinator.isWebcamActive ? "Disable webcam" : "Enable webcam")
+                .localizedAccessibilityLabel(coordinator.isWebcamActive ? "Disable webcam" : "Enable webcam")
                 .hoverHelp(coordinator.isUpdatingMicrophone ? "Wait for the microphone update to finish before changing the webcam." : (coordinator.isWebcamActive ? "Webcam On" : "Webcam Off"))
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isWebcamActive)
             }
@@ -222,7 +224,7 @@ struct CaptureToolbarView: View {
             }
             .buttonStyle(.plain)
             .disabled(coordinator.isUpdatingMicrophone)
-            .accessibilityLabel(coordinator.isMicrophoneEnabled ? "Turn microphone off" : "Turn microphone on")
+            .localizedAccessibilityLabel(coordinator.isMicrophoneEnabled ? "Turn microphone off" : "Turn microphone on")
             .hoverHelp(coordinator.isUpdatingMicrophone ? "Preparing microphone…" : (coordinator.isMicrophoneEnabled ? "Microphone On" : "Microphone Off"))
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isMicrophoneEnabled)
 
@@ -237,7 +239,7 @@ struct CaptureToolbarView: View {
                     .background(Circle().fill(DesignColors.recording))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Stop recording")
+            .localizedAccessibilityLabel("Stop recording")
             .hoverHelp("Stop recording (Esc)")
         }
         .padding(.horizontal, 14)

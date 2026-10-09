@@ -51,6 +51,7 @@ struct ScreenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState.shared
     @AppStorage(AppAppearance.defaultsKey) private var appearance: AppAppearance = .system
+    @AppStorage(AppLanguage.defaultsKey) private var language: AppLanguage = .system
 
     // MARK: - Body
 
@@ -59,6 +60,7 @@ struct ScreenApp: App {
             ContentView()
                 .environmentObject(appState)
                 .accentColor(DesignColors.accent)
+                .environment(\.locale, language.locale)
                 .frame(minWidth: 800, minHeight: 500)
                 .onChange(of: appearance) { $0.apply() }
                 .onAppear {
@@ -70,7 +72,7 @@ struct ScreenApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About ScreenTake") {
+                Button(AppLanguage.text("About ScreenTake")) {
                     var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
                     if let icon = AppBrand.icon { options[.applicationIcon] = icon }
                     NSApplication.shared.orderFrontStandardAboutPanel(options: options)
@@ -78,33 +80,33 @@ struct ScreenApp: App {
             }
 
             CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
+                Button(AppLanguage.text("Settings…")) {
                     NotificationCenter.default.post(name: .openAppSettings, object: nil)
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
 
             CommandGroup(after: .appInfo) {
-                Button("AI Connection…") { appState.editorConnection.showSetup() }
+                Button(AppLanguage.text("AI Connection…")) { appState.editorConnection.showSetup() }
 
-                Button("Report a Bug…") {
+                Button(AppLanguage.text("Report a Bug…")) {
                     BugReporter.open()
                 }
 
-                Button("Check for Updates...") {
+                Button(AppLanguage.text("Check for Updates...")) {
                     Task { await appState.updates.tick(manual: true) }
                 }
                 .disabled(appState.isRecording || appState.recording.processingStage != nil || appState.isExportingVideo || appState.captureToolbarCoordinator != nil)
             }
 
             CommandGroup(replacing: .newItem) {
-                Button("Open Video…") {
+                Button(AppLanguage.text("Open Video…")) {
                     openVideoFile()
                 }
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(appState.isRecordingEditorMedia)
 
-                Button("Open Project…") {
+                Button(AppLanguage.text("Open Project…")) {
                     openProjectFile()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
@@ -112,12 +114,12 @@ struct ScreenApp: App {
             }
 
             CommandGroup(after: .newItem) {
-                Button("Save Project…") { saveProjectFile() }
+                Button(AppLanguage.text("Save Project…")) { saveProjectFile() }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
                     .disabled(appState.editorSession.videoURL == nil || appState.editorSession.isBusy)
                 Divider()
 
-                Button("Start Recording") {
+                Button(AppLanguage.text("Start Recording")) {
                     Task {
                         await appState.showCaptureToolbar()
                     }

@@ -9,7 +9,7 @@ struct MicrophoneDevicePicker: View {
         Picker("Microphone device", selection: $deviceID) {
             Text("Default").tag("")
             ForEach(devices, id: \.uniqueID) { device in
-                Text(device.localizedName).tag(device.uniqueID)
+                Text(verbatim: device.localizedName).tag(device.uniqueID)
             }
             if !deviceID.isEmpty && !devices.contains(where: { $0.uniqueID == deviceID }) {
                 Text("Unavailable microphone").tag(deviceID)
@@ -17,7 +17,7 @@ struct MicrophoneDevicePicker: View {
         }
         .labelsHidden()
         .pickerStyle(.menu)
-        .accessibilityLabel("Microphone device")
+        .localizedAccessibilityLabel("Microphone device")
     }
 }
 
@@ -35,9 +35,9 @@ struct EditorTakeRow: View {
         HStack {
             Button(action: select) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.body).foregroundStyle(.primary)
+                    Text(verbatim: title).font(.body).foregroundStyle(.primary)
                         .lineLimit(1).truncationMode(.middle)
-                    Text(String(format: "%.1fs – %.1fs", start, end))
+                    Text(LocalizedStringKey(String(format: "%.1fs – %.1fs", start, end)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,7 +51,7 @@ struct EditorTakeRow: View {
             Button(action: remove) { Image(systemName: "trash") }
                 .buttonStyle(.plain)
                 .hoverHelp(disabledReason ?? removeLabel)
-                .accessibilityLabel(removeLabel)
+                .localizedAccessibilityLabel(removeLabel)
         }
     }
 }
@@ -87,12 +87,12 @@ struct EditorAudioPanel: View {
             if recorder.isBusy {
                 HStack {
                     Circle().fill(.red).frame(width: 8, height: 8)
-                    Text(recorder.isRecording ? String(format: "Recording  %.1fs", recorder.elapsed)
-                         : (recorder.isFinishing ? "Saving voiceover…" : "Preparing microphone…"))
+                    Text(LocalizedStringKey(recorder.isRecording ? String(format: AppLanguage.text("Recording  %.1fs"), locale: AppLanguage.current.locale, recorder.elapsed)
+                         : (recorder.isFinishing ? "Saving voiceover…" : "Preparing microphone…")))
                         .monospacedDigit()
                 }
                 ProgressView(value: Double(recorder.level)).tint(.red)
-                    .accessibilityLabel("Microphone level")
+                    .localizedAccessibilityLabel("Microphone level")
                 HStack {
                     Button("Stop & Keep") { recorder.stop() }
                         .buttonStyle(CompactActionButtonStyle()).disabled(!recorder.isRecording)
@@ -116,7 +116,7 @@ struct EditorAudioPanel: View {
                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
             if let error = recorder.error {
-                Text(error).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -154,7 +154,7 @@ struct EditorAudioPanel: View {
                 .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : nil)
             HStack {
                 Image(systemName: enabled.wrappedValue ? "speaker.wave.2" : "speaker.slash")
-                Slider(value: volume, in: 0...1).accessibilityLabel("\(title) volume")
+                Slider(value: volume, in: 0...1).localizedAccessibilityLabel("\(title) volume")
                 Text("\(Int(volume.wrappedValue * 100))%")
                     .font(.system(size: 12)).monospacedDigit().lineLimit(1)
                     .fixedSize().frame(width: 36, alignment: .trailing)
@@ -169,7 +169,7 @@ struct EditorAudioPanel: View {
             Stepper(value: Binding(get: { settings.voiceOvers[index].start }, set: {
                 settings.voiceOvers[index].start = min(max(0, duration - 0.05), max(0, $0))
             }), in: 0...max(0, duration - 0.05), step: 0.1) {
-                Text(String(format: "Start at %.1fs", clip.start))
+                Text(LocalizedStringKey(String(format: AppLanguage.text("Start at %.1fs"), locale: AppLanguage.current.locale, clip.start)))
             }
             .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Move this take on the timeline.")
             Stepper(value: Binding(get: { settings.voiceOvers[index].sourceStart }, set: {
@@ -177,13 +177,13 @@ struct EditorAudioPanel: View {
                 settings.voiceOvers[index].duration += clip.sourceStart - value
                 settings.voiceOvers[index].sourceStart = value
             }), in: 0...max(0, clip.sourceStart + clip.duration - 0.05), step: 0.1) {
-                Text(String(format: "Trim beginning %.1fs", clip.sourceStart))
+                Text(LocalizedStringKey(String(format: AppLanguage.text("Trim beginning %.1fs"), locale: AppLanguage.current.locale, clip.sourceStart)))
             }
             .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Trim the beginning of this take.")
             Stepper(value: Binding(get: { settings.voiceOvers[index].duration }, set: {
                 settings.voiceOvers[index].duration = max(0.05, min(clip.sourceDuration - clip.sourceStart, $0))
             }), in: 0.05...max(0.05, clip.sourceDuration - clip.sourceStart), step: 0.1) {
-                Text(String(format: "Length %.1fs", clip.duration))
+                Text(LocalizedStringKey(String(format: AppLanguage.text("Length %.1fs"), locale: AppLanguage.current.locale, clip.duration)))
             }
             .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : "Adjust the duration of this take.")
         }
@@ -221,7 +221,7 @@ struct AudioWaveformStrip: View {
         .overlay(alignment: .topLeading) {
             HStack(spacing: 4) {
                 Image(systemName: muted ? "speaker.slash.fill" : "waveform")
-                Text(failed ? "\(title) · waveform unavailable" : title)
+                Text(LocalizedStringKey(failed ? "\(title) · waveform unavailable" : title))
                     .lineLimit(1)
                 if waveform == nil && !failed { ProgressView().controlSize(.mini) }
             }
@@ -230,7 +230,7 @@ struct AudioWaveformStrip: View {
             .padding(.horizontal, 6).padding(.top, 3)
         }
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        .accessibilityLabel("\(title) waveform\(muted ? ", muted" : "")")
+        .localizedAccessibilityLabel("\(title) waveform\(muted ? ", muted" : "")")
         .task(id: url) {
             waveform = nil
             failed = false
@@ -266,8 +266,8 @@ struct VoiceOverTimelineClip: View {
             .overlay(alignment: .leading) { handle(edge: -1) }
             .overlay(alignment: .trailing) { handle(edge: 1) }
             .hoverHelp("Drag to move this voiceover; drag either edge to trim")
-            .accessibilityLabel("Voiceover take \(number)")
-            .accessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds", clip.start, clip.duration))
+            .localizedAccessibilityLabel("Voiceover take \(number)")
+            .localizedAccessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds", clip.start, clip.duration))
             .accessibilityAdjustableAction { direction in
                 pause(); selected = clip.id
                 clip.start = min(max(0, total - 0.05), max(0, clip.start + (direction == .increment ? 0.1 : -0.1)))
@@ -278,7 +278,7 @@ struct VoiceOverTimelineClip: View {
         RoundedRectangle(cornerRadius: 1).fill(.white.opacity(0.7)).frame(width: 2, height: 16)
             .frame(width: 8, height: 44).contentShape(Rectangle())
             .gesture(drag(edge: edge))
-            .accessibilityLabel(edge < 0 ? "Trim voiceover beginning" : "Trim voiceover end")
+            .localizedAccessibilityLabel(edge < 0 ? "Trim voiceover beginning" : "Trim voiceover end")
             .accessibilityAdjustableAction { direction in
                 pause(); selected = clip.id
                 adjust(from: clip, delta: direction == .increment ? 0.1 : -0.1, edge: edge)
@@ -352,7 +352,7 @@ struct VideoOverlayFilmstrip: View {
                 Button(action: select) {
                     HStack(spacing: 4) {
                         Image(systemName: "video.fill")
-                        Text(sourceDuration == 0 && !thumbnailError ? "Loading camera…" : "Camera · outside visible timeline")
+                        Text(LocalizedStringKey(sourceDuration == 0 && !thumbnailError ? "Loading camera…" : "Camera · outside visible timeline"))
                         Spacer(minLength: 0)
                     }
                     .font(.system(size: 10, weight: .medium))
@@ -397,27 +397,30 @@ struct VideoOverlayFilmstrip: View {
         .clipped()
         .overlay(alignment: .topLeading) {
             HStack(spacing: 4) {
-                Image(systemName: enabled ? "video.fill" : "eye.slash.fill")
-                Text(enabled ? "Camera · \(layout.displayName)" : "Camera · hidden")
+                Image(systemName: sectionSelected ? "checkmark.circle.fill" : enabled ? "video.fill" : "eye.slash.fill")
+                Text("\(AppLanguage.text("Camera")) · \(AppLanguage.text(enabled ? layout.displayName : "Hidden"))")
                     .lineLimit(1)
             }
             .font(.system(size: 9, weight: .medium))
             .foregroundStyle(.white)
             .padding(.horizontal, 6).padding(.vertical, 3)
-            .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 3))
+            .background(sectionSelected ? DesignColors.accent : .black.opacity(0.65),
+                        in: RoundedRectangle(cornerRadius: 3))
             .padding(3)
             .allowsHitTesting(false)
         }
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .opacity(enabled ? 1 : 0.45)
         .overlay(RoundedRectangle(cornerRadius: 4)
-            .strokeBorder(sectionSelected ? Color.white : DesignColors.cameraTrack, lineWidth: sectionSelected ? 2 : 1.5))
+            .strokeBorder(sectionSelected ? DesignColors.accent : DesignColors.cameraTrack,
+                          lineWidth: sectionSelected ? 3 : 1.5))
         .contentShape(Rectangle())
         .gesture(drag(.move, range: range))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Camera \(layout.displayName) section")
-        .accessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds%@", range.outputStart, range.duration, enabled ? "" : ", hidden"))
+        .localizedAccessibilityLabel("Camera \(layout.displayName) section")
+        .localizedAccessibilityValue(String(format: "Starts at %.1f seconds, length %.1f seconds%@", range.outputStart, range.duration, enabled ? "" : ", hidden"))
         .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(sectionSelected ? [.isSelected] : [])
         .accessibilityAction {
             select()
             seek?(range.outputStart + min(0.01, range.duration / 2))
@@ -442,7 +445,7 @@ struct VideoOverlayFilmstrip: View {
             .frame(width: 2, height: 20)
             .frame(width: 10, height: 44).contentShape(Rectangle())
             .gesture(drag(adjustment))
-            .accessibilityLabel(adjustment == .trimStart ? "Trim camera beginning" : "Trim camera end")
+            .localizedAccessibilityLabel(adjustment == .trimStart ? "Trim camera beginning" : "Trim camera end")
             .accessibilityAdjustableAction { direction in
                 select()
                 if let timing { self.timing = timing.adjusted(by: direction == .increment ? 0.1 : -0.1,
