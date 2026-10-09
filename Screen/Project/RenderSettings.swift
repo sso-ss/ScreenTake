@@ -19,6 +19,8 @@ struct VideoEditSettings: Equatable {
     var showCursor = true
     var cursorShape: CursorShape = .arrow
     var cursorScale: Double = 1
+    var smoothCursor = false
+    var smoothCursorSigma: Double = 0.06
     var zoomEnabled = false
     var zoomLevel: Double = 2
     var zoomSegments: [ZoomSegment]? = nil

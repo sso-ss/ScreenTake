@@ -774,6 +774,16 @@ struct SettingsView: View {
                             get: { appState.capture.cursorScale },
                             set: { appState.capture.cursorScale = $0 }
                         ))
+                        settingsToggle(icon: "waveform.path", label: "Smooth Motion", isOn: Binding(
+                            get: { appState.capture.smoothCursor },
+                            set: { appState.capture.smoothCursor = $0 }
+                        ))
+                        if appState.capture.smoothCursor {
+                            cursorSmoothingSlider(selection: Binding(
+                                get: { appState.capture.smoothCursorSigma },
+                                set: { appState.capture.smoothCursorSigma = $0 }
+                            ))
+                        }
                     }
                     settingsToggle(icon: "circle.circle", label: "Highlight Clicks", isOn: Binding(
                         get: { appState.capture.highlightClicks },
@@ -1108,6 +1118,28 @@ struct SettingsView: View {
             primarySlider(selection: selection, range: 0.5...3.0,
                           label: "Cursor size",
                           value: "\(Int((selection.wrappedValue * 100).rounded()))%")
+        }
+    }
+
+    private func cursorSmoothingSlider(selection: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack {
+                Image(systemName: "waveform.path")
+                    .font(.system(size: 13))
+                    .foregroundColor(DesignColors.secondaryLabel)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
+                Text("Smoothing")
+                    .font(Typography.body)
+                    .foregroundColor(DesignColors.primaryLabel)
+                Spacer()
+                Text("\(Int((selection.wrappedValue * 1000).rounded())) ms")
+                    .font(Typography.monoSmall)
+                    .foregroundColor(DesignColors.secondaryLabel)
+            }
+            primarySlider(selection: selection, range: 0.02...0.25,
+                          label: "Cursor smoothing",
+                          value: "\(Int((selection.wrappedValue * 1000).rounded())) milliseconds")
         }
     }
 
@@ -1753,6 +1785,8 @@ struct SettingsView: View {
                 cursorScale: appState.capture.cursorScale,
                 cursorShape: appState.capture.cursorShape,
                 showCursor: appState.capture.showCursor,
+                smoothCursor: appState.capture.smoothCursor,
+                smoothCursorSigma: appState.capture.smoothCursorSigma,
                 canvasRatio: appState.capture.canvasRatio,
                 deviceLayout: appState.capture.deviceLayout,
                 wallpaper: appState.capture.selectedWallpaper,
