@@ -108,7 +108,8 @@ struct BeautyExportChecks {
         precondition(compositor.filteredFrameCount == 28, "A different source at the same timestamp must invalidate the cache")
         let size = CGSize(width: 1920, height: 1080)
         precondition(CameraBeautyPreviewRenderer.renderLongEdge(source: size, display: CGSize(width: 280, height: 280)) == 640)
-        precondition(CameraBeautyPreviewRenderer.renderLongEdge(source: size, display: CGSize(width: 1280, height: 720)) == 960)
+        precondition(CameraBeautyPreviewRenderer.renderLongEdge(source: size, display: CGSize(width: 1280, height: 720)) == 640)
+        precondition(CameraBeautyPreviewRenderer.renderLongEdge(source: size, display: CGSize(width: 1280, height: 720), beautyEnabled: false) == 960)
         print("PASS: 25 camera samples for 60 output frames, slider/source/seek invalidation, independent layout, preview size budget")
         settings.videoOverlayURL = camera
         let item = try await LiveVideoPreview.makeItem(.init(source: source, audio: nil, mouse: nil, webcam: camera, settings: settings))

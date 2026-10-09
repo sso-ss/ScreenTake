@@ -108,3 +108,23 @@ The lateral jaw vertices now project to the current independent Vision contour w
 The latest recording's closed-eye frame at 2.6s exposed a separate mesh failure: dense eye opening remained 0.308/0.347 while sparse current lids measured 0.053/0.064. During closure, both dense lid arcs now continuously fit the independent observation, retaining vertex identities and Z; corrected opening is 0.055/0.063 on that frame. Lash roots use current lids and current mesh orientation. Upper extensions retain coverage and rotate their attachment frame downward through closure; lower extensions fade. Head pose is not applied twice. Raw/filtered crops of the actual closed-eye frame were inspected. Nose bridge and alar-width anchors now both come from the mesh, the bridge reaches farther toward the tip, and softly blurred contour opacity is increased modestly.
 
 Validation: mesh tests exercise actual lid fitting followed by downward lash projection, retained roots through closure, both-side silhouette displacement and interior foreground protection. Sparse makeup/hand/lip regressions and real-video preview/export parity pass. These checks cover the observed blink, not every gaze or head tilt; the aesthetic jaw fit still needs user review in motion.
+
+### Live preview and makeup rendering optimization
+Live beauty previews now use a 640 px long-edge budget even in larger windows; plain camera previews retain their 960 px budget. Camera capture, editor processing and export retain their existing resolution. The 468-point model and `.cpuAndGPU` configuration remain. Face/hand detection and the separate revision-3 pose request still run at the same cadence.
+
+Makeup bitmap layers allocate only a padded region around the current and tracked face, with integer translations preserving raster coordinates. Jaw boundary and feature exclusion masks share graphs within each frame. Padding includes cosmetic feathering and lash extensions. Texture-preserving pigment kernels still run over the output bounds, and hand/lip protection remains in place.
+
+The controlled comparison freezes identical mesh-fitting and eyelash code for both variants, removing only this rendering optimization from the baseline. This includes concurrent eyelash updates in the workspace. Four optimized replay passes use before/after/after/before order, reversing resolution order in the second pair and excluding each pass's first 12 frames. Mean times average two 192-frame measured passes per resolution:
+
+| Long edge | Previous renderer mean | Optimized renderer mean | Processing time reduction |
+| --- | --- | --- | --- |
+| 640 px | 34.80 ms | 31.51 ms | 9.4% |
+| 960 px | 44.39 ms | 34.74 ms | 21.7% |
+
+For a large live beauty preview, the combined resolution and rendering changes reduce mean replay cost from 44.39 ms at 960 px to 31.51 ms at 640 px (29.0%). This does not establish live recording FPS, battery savings or thermal behavior. Small previews already used 640 px and receive only the rendering gain.
+
+Separate quality replays compare 24 sampled frames at each of 640, 960 and 1920 px from the 204-frame recording, and 27 sampled frames at 640/960 px from the 222-frame hand-occlusion recording. Face/mesh presence, hand counts and all mesh XYZ coordinates match exactly for every frame at each resolution; both variants retain 203/204 and 221/222 faces, respectively (initial frames are black). Across the sampled images, maximum channel error is 1/255, with fewer than 0.003% of channels changed. Side-by-side face/hand/lip images were inspected. Makeup, dense-mesh and Natural regression suites pass, including blinking, recovery, seeking and protected foreground pixels.
+
+Final reports and frozen comparison sources are in `.build/beauty-optimization/`: `final-timing-comparison.json`, `pixel-comparison.json`, `BeforeFinal/` and `AfterFinal/`. `run-timings.py` runs the sequential performance passes; `compare.py` compares sampled rasters and every frame's mesh observations. Only `final-*` runs use the identical source snapshots on both sides.
+
+The signed app builds through `./Launch ScreenTake.command`. Developer ID authority `So Eun Ahn (43LSH32H5S)` and strict signature verification pass with macOS trust access; the new binary is running and the editor project was saved/reopened with its latest settings. `test_face_beauty_export.swift --makeup`, linked against the newly built app objects with bundled mesh resources, passes the preview size budget, held-frame cache/invalidation, serialization and real-video preview/export parity checks. Logs are in `.build/beauty-optimization/`.

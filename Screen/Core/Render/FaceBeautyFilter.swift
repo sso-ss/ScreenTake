@@ -445,8 +445,8 @@ final class FaceBeautyFilter {
             geometry.mesh = mesh
             geometry.features[0] = mesh.polygon(DenseFaceMesh.eyes[0])
             geometry.features[1] = mesh.polygon(DenseFaceMesh.eyes[1])
-            geometry.features[2] = mesh.polygon(DenseFaceMesh.brows[0])
-            geometry.features[3] = mesh.polygon(DenseFaceMesh.brows[1])
+            // The dense model describes a generic brow surface, not the actual
+            // hair boundary. Keep Vision's current brow perimeter for pigment.
             // Keep bridge and alar width in the same coordinate model. Mixing
             // the dense bridge with Vision's nose edge could erase one side.
             geometry.features[4] = mesh.polygon([98,97,2,326,327,1])
@@ -909,6 +909,59 @@ enum FaceMakeupRenderer {
         var opacity: CGFloat
     }
 
+    /// Smooth small detector noise without allowing pigment to trail onto skin
+    /// during a turn or expression. The current hair perimeter bounds the lag.
+    static func anchoredBrow(_ tracked: [CGPoint], current: [CGPoint], faceWidth: CGFloat) -> [CGPoint] {
+        guard tracked.count == current.count else { return current }
+        let limit = faceWidth*0.005
+        return zip(tracked,current).map { old, now in
+            let dx = old.x-now.x, dy = old.y-now.y
+            let weight = min(1,limit/max(0.000001,hypot(dx,dy)))
+            return CGPoint(x:now.x+dx*weight,y:now.y+dy*weight)
+        }
+    }
+
+    private static let detailContext = CIContext(options:[.cacheIntermediates:false])
+
+    /// Estimate optical softness in a fixed eye-sized patch. A contrast-relative
+    /// derivative ratio distinguishes blur from a dark eye or dim exposure.
+    /// Sample both eyes in one small readback; no full-frame CPU rasterization.
+    static func detailSoftness(_ source: CIImage, eyes: [[CGPoint]], size: CGSize) -> [CGFloat] {
+        let bounds = source.extent
+        let raster = source.transformed(by:CGAffineTransform(translationX:-bounds.minX,y:-bounds.minY))
+            .transformed(by:CGAffineTransform(scaleX:size.width/bounds.width,y:size.height/bounds.height))
+        var patches = CIImage.empty(), widths = [CGFloat](repeating:0,count:2)
+        for i in 0..<min(2,eyes.count) {
+            guard let lids = eyelids(eyes[i],right:CGPoint(x:1,y:0)) else { continue }
+            widths[i] = lids.width
+            let c = center(eyes[i]), k = 64/(lids.width*1.2), right = lids.right, up = lids.up
+            let transform = CGAffineTransform(a:right.x*k,b:up.x*k,c:right.y*k,d:up.y*k,
+                tx:32+CGFloat(i)*64-dot(c,right)*k,ty:20-dot(c,up)*k)
+            let patch = raster.transformed(by:transform).cropped(to:CGRect(x:i*64,y:0,width:64,height:40))
+            patches = patch.composited(over:patches)
+        }
+        var pixels = [UInt8](repeating:0,count:128*40*4)
+        detailContext.render(patches,toBitmap:&pixels,rowBytes:128*4,bounds:CGRect(x:0,y:0,width:128,height:40),
+                             format:.RGBA8,colorSpace:CGColorSpaceCreateDeviceRGB())
+        return (0..<2).map { eye in
+            func gray(_ x: Int, _ y: Int) -> Double {
+                let i = (y*128+eye*64+x)*4
+                return (0.2126*Double(pixels[i])+0.7152*Double(pixels[i+1])+0.0722*Double(pixels[i+2]))/255
+            }
+            var laplacian = 0.0, gradient = 0.0
+            for y in 1..<39 { for x in 1..<63 {
+                let a = gray(x-1,y), b = gray(x+1,y), c = gray(x,y-1), d = gray(x,y+1)
+                let lap = 4*gray(x,y)-a-b-c-d
+                laplacian += lap*lap; gradient += (b-a)*(b-a)+(d-c)*(d-c)
+            } }
+            // A featureless patch supplies no optical-blur evidence.
+            guard gradient > 0.01 else { return 0 }
+            let ratio = laplacian/max(0.001,gradient)
+            let sigma = sqrt(max(0,0.15/max(0.03,ratio)-0.25))
+            return min(widths[eye]*0.035,CGFloat(sigma)*widths[eye]*1.2/64)
+        }
+    }
+
     /// Lid crown height changes when the upper lid rotates over the eyeball.
     /// Keep this independent of head pose, and smooth the estimate in the face
     /// tracker. This is deliberately bounded because six eye points cannot
@@ -1098,6 +1151,8 @@ enum FaceMakeupRenderer {
         let right = CGPoint(x: (eyeB.x-eyeA.x)/distance, y: (eyeB.y-eyeA.y)/distance)
         let up = CGPoint(x: -right.y, y: right.x)
         let strength = CGFloat(settings.amount * opacity)
+        let softness = settings.lashes > 0 || settings.brows > 0
+            ? detailSoftness(unfiltered ?? image,eyes:Array(actual.prefix(2)),size:size) : [0,0]
         func context() -> CGContext? {
             CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
@@ -1234,7 +1289,8 @@ enum FaceMakeupRenderer {
         }
         // Eyeshadow and aegyo-sal use eyelid curves, not a rectangle under the eye.
         // Clear the real eye interior after feathering through an exclusion mask.
-        if let shadow = context(), let fold = context(), let eyeMask = context(), let detail = context() {
+        if let shadow = context(), let fold = context(), let eyeMask = context() {
+            var lashLayers: [(CGContext,CGFloat)] = []
             eyeMask.setFillColor(CGColor(gray: 0, alpha: 1)); eyeMask.fill(extent)
             eyeMask.setFillColor(CGColor(gray: 1, alpha: 1))
             // Under-eye pigment is anchored to stabilized skin geometry, not
@@ -1283,7 +1339,8 @@ enum FaceMakeupRenderer {
                 let lidColor = color(0.64,0.38,0.30,strength*CGFloat(settings.eyeshadow)*0.28*fade)
                 stroke(shadow,points:lids.upper.map { add($0,lids.up,width*0.08) },width:width*0.20,color:lidColor)
                 eyeMask.addPath(path(eye)); eyeMask.fillPath()
-                guard settings.lashes > 0 else { continue }
+                guard settings.lashes > 0, let detail = context() else { continue }
+                lashLayers.append((detail,softness[i]))
                 for lower in [false,true] {
                     let opacity = pow(strength,0.65)*CGFloat(settings.lashes)*(lower ? open : 0.85+0.15*open)*fade
                     for hair in lashHairs(lids,outerSign:i == 0 ? -1 : 1,amount:CGFloat(settings.lashes),
@@ -1319,20 +1376,20 @@ enum FaceMakeupRenderer {
             // The skin fold has its own feathering and retains source texture;
             // sharing a flat overlay with eyelid shadow made it look painted on.
             composite(fold,blur:max(0.65,fw*0.010),excluding:[actual[0],actual[1],features[0],features[1]],preserveTexture:0.30)
-            composite(detail)
+            for (detail,blur) in lashLayers { composite(detail,blur:blur) }
         }
         if let browLayer = context(), settings.brows > 0 {
             // Vision returns the brow perimeter, not a hair centerline. Tint its
             // interior and retain the source hairs; outlining it creates a hollow
             // stencil and per-segment hair counts pop as landmarks move.
             for i in 2...3 {
-                let brow = features[i]
+                let brow = anchoredBrow(features[i],current:actual[i],faceWidth:fw)
                 guard brow.count >= 3 else { continue }
                 browLayer.addPath(path(smooth(brow,closed:true)))
                 browLayer.setFillColor(color(0.24,0.16,0.12,strength*CGFloat(settings.brows)*0.28))
                 browLayer.fillPath()
             }
-            composite(browLayer, blur:max(0.65,fw*0.006), preserveTexture:0.65)
+            composite(browLayer, blur:max(0.65,fw*0.006,(softness.max() ?? 0)*0.65), preserveTexture:0.65)
         }
         if let lipLayer = context(), settings.lips > 0 {
             // Mouth motion is independent of the eye-based skin transport.

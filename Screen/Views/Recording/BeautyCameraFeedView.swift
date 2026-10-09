@@ -79,14 +79,14 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
         lock.withLock { displayPixelSize = size }
     }
 
-    /// Keep enough source pixels for aspect-fill and Retina display, with a
-    /// 640px floor for facial detail. Large previews retain the existing 960px
-    /// budget; the raw recording and offline export are never resized here.
-    static func renderLongEdge(source: CGSize, display: CGSize) -> CGFloat {
+    /// Beauty previews use a 640px budget while the camera is live. Plain camera
+    /// previews can use 960px for larger displays. Capture/export keep their
+    /// source resolution; this only controls the view's working image.
+    static func renderLongEdge(source: CGSize, display: CGSize, beautyEnabled: Bool = true) -> CGFloat {
         guard source.width > 0, source.height > 0 else { return 640 }
         let scale = max(display.width / source.width, display.height / source.height)
         let required = max(source.width, source.height) * scale
-        return min(960, max(640, ceil(required / 80) * 80))
+        return min(beautyEnabled ? 640 : 960, max(640, ceil(required / 80) * 80))
     }
 
     func stop() {
@@ -100,7 +100,8 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
         guard active, let recorder, let frame = recorder.previewFrame else { return }
         if lastRecorder != ObjectIdentifier(recorder) { filter = FaceBeautyFilter(); lastTime = nil; lastRecorder = ObjectIdentifier(recorder) }
         let raw = CIImage(cvPixelBuffer: frame.buffer)
-        let edge = Self.renderLongEdge(source: raw.extent.size, display: displaySize)
+        let edge = Self.renderLongEdge(source: raw.extent.size, display: displaySize,
+                                      beautyEnabled: amount > 0 || makeup.amount > 0)
         guard lastTime != frame.time || lastAmount != amount || lastMakeup != makeup || lastRenderEdge != edge else { return }
         lastTime = frame.time; lastAmount = amount; lastMakeup = makeup; lastRenderEdge = edge
         let scale = min(1, edge / max(raw.extent.width, raw.extent.height))

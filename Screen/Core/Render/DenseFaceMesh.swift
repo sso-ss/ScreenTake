@@ -101,18 +101,15 @@ struct DenseFaceMesh {
             result.points[i].x += Float((closest.x-p.x)*weight/size.width)
             result.points[i].y += Float((closest.y-p.y)*weight/size.height)
         }
-        // This small mesh can retain an open-eye prior during a real blink.
-        // Fit both lid arcs to the independently observed closing eye. Keep
-        // vertex identity and relative depth, and blend continuously so an
-        // opening eye does not switch between two different landmark sets.
+        // Presence confidence does not establish eyelid accuracy. This small
+        // mesh also shifts open eyes during turns, leaving lash roots detached.
+        // Fit both arcs to the current observed lids on every frame, preserving
+        // vertex identity and relative depth through opening and closure.
         let eyeAxis = CGPoint(x:(eyeB.x-eyeA.x)/eyeLength,y:(eyeB.y-eyeA.y)/eyeLength)
         for eye in 0..<2 {
             guard let observed = FaceMakeupRenderer.eyelids(face.features[eye].map(pixel),right:eyeAxis),
                   let predicted = FaceMakeupRenderer.eyelids(result.polygon(Self.eyes[eye]).map(pixel),right:eyeAxis),
                   let origin = predicted.upper.first else { continue }
-            let closing = min(1,max(0,(0.24-observed.opening)/0.14))
-            let weight = closing*closing*(3-2*closing)
-            guard weight > 0 else { continue }
             let upper = Set(Self.upperEyes[eye])
             for index in Self.eyes[eye] {
                 let p = pixel(result.polygon([index])[0])
@@ -126,8 +123,8 @@ struct DenseFaceMesh {
                 let mix = min(1,max(0,(target-along(a))/max(0.001,along(b)-along(a))))
                 let q = CGPoint(x:a.x+(b.x-a.x)*mix,y:a.y+(b.y-a.y)*mix)
                 guard hypot(q.x-p.x,q.y-p.y) < fw*0.10 else { continue }
-                result.points[index].x += Float((q.x-p.x)*weight/size.width)
-                result.points[index].y += Float((q.y-p.y)*weight/size.height)
+                result.points[index].x += Float((q.x-p.x)/size.width)
+                result.points[index].y += Float((q.y-p.y)/size.height)
             }
         }
         return result

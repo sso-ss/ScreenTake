@@ -22,6 +22,67 @@ import simd
   let sparseFilter=FaceBeautyFilter(meshEnabled:false)
   _=sparseFilter.render(image,at:0,amount:0,makeup:settings)
   let observed=sparseFilter.lastDetectedGeometry!
+  precondition(face.features[2] == observed.features[2] && face.features[3] == observed.features[3],
+               "Brow pigment must follow observed source hairs, not the generic mesh brow")
+  // Reproduce a confident open-eye mesh shifted during a turn. Opening the
+  // eye must not disable fitting and leave a second lash line on adjacent skin.
+  var shiftedEyes = mesh
+  for eye in 0..<2 { for index in DenseFaceMesh.eyes[eye] {
+   shiftedEyes.points[index].x += 0.02; shiftedEyes.points[index].y -= 0.015
+  } }
+  let fittedOpen = shiftedEyes.fitted(to:observed)
+  func distance(_ p: CGPoint, to arc: [CGPoint]) -> CGFloat {
+   zip(arc,arc.dropFirst()).map { a,b in
+    let dx=b.x-a.x,dy=b.y-a.y
+    let t=min(1,max(0,((p.x-a.x)*dx+(p.y-a.y)*dy)/max(0.000001,dx*dx+dy*dy)))
+    return hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)
+   }.min()!
+  }
+  for eye in 0..<2 {
+   func px(_ points: [CGPoint]) -> [CGPoint] { points.map { CGPoint(x:$0.x*image.extent.width,y:$0.y*image.extent.height) } }
+   let reference=FaceMakeupRenderer.eyelids(px(observed.features[eye]),right:CGPoint(x:1,y:0))!
+   let actual=FaceMakeupRenderer.eyelids(px(fittedOpen.polygon(DenseFaceMesh.eyes[eye])),right:CGPoint(x:1,y:0))!
+   for index in DenseFaceMesh.upperEyes[eye] {
+    let p=px(fittedOpen.polygon([index]))[0]
+    precondition(distance(p,to:reference.upper)<reference.width*0.01,"Open-eye roots must fit the current observed upper lid")
+    precondition(fittedOpen.points[index].z == shiftedEyes.points[index].z,"XY attachment fitting must retain relative depth")
+   }
+   let hairs=FaceMakeupRenderer.lashHairs(actual,outerSign:eye == 0 ? -1:1,amount:1,open:1,brow:[])
+   precondition(hairs.allSatisfy { distance($0.root,to:reference.upper)<reference.width*0.04 },
+                "Interpolated lash roots must remain on the observed lid")
+  }
+  let brow=observed.features[2].map { CGPoint(x:$0.x*image.extent.width,y:$0.y*image.extent.height) }
+  let lagged=brow.map { CGPoint(x:$0.x-25,y:$0.y-18) }
+  let anchored=FaceMakeupRenderer.anchoredBrow(lagged,current:brow,faceWidth:300)
+  precondition(zip(anchored,brow).allSatisfy { hypot($0.x-$1.x,$0.y-$1.y)<=1.501 },
+               "Brow stabilization must not trail the current hair perimeter")
+  // Source softness follows blur, stays independent of exposure, and scales
+  // with render size so loaded full-resolution video matches preview detail.
+  let testEyes=[0,1].map { eye -> [CGPoint] in
+   let x=CGFloat(eye*100+20)
+   return [CGPoint(x:x,y:50),CGPoint(x:x+15,y:64),CGPoint(x:x+45,y:64),CGPoint(x:x+60,y:50),CGPoint(x:x+45,y:40),CGPoint(x:x+15,y:40)]
+  }
+  let eyeCanvas=CGContext(data:nil,width:200,height:100,bitsPerComponent:8,bytesPerRow:0,
+      space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+  eyeCanvas.setFillColor(CGColor(gray:0.8,alpha:1));eyeCanvas.fill(CGRect(x:0,y:0,width:200,height:100))
+  eyeCanvas.setFillColor(CGColor(gray:0.05,alpha:1))
+  for eye in testEyes { eyeCanvas.addLines(between:eye);eyeCanvas.closePath();eyeCanvas.fillPath() }
+  let sharp=CIImage(cgImage:eyeCanvas.makeImage()!),blurred=sharp.clampedToExtent().applyingGaussianBlur(sigma:3).cropped(to:sharp.extent)
+  let sharpness=FaceMakeupRenderer.detailSoftness(sharp,eyes:testEyes,size:sharp.extent.size)
+  let softness=FaceMakeupRenderer.detailSoftness(blurred,eyes:testEyes,size:sharp.extent.size)
+  precondition(zip(softness,sharpness).allSatisfy { $0>$1+0.5 },"Blurred source must soften synthetic lash detail")
+  let dimmed=blurred.applyingFilter("CIColorMatrix",parameters:[
+      "inputRVector":CIVector(x:0.45,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:0.45,z:0,w:0),
+      "inputBVector":CIVector(x:0,y:0,z:0.45,w:0)])
+  let dimSoftness=FaceMakeupRenderer.detailSoftness(dimmed,eyes:testEyes,size:sharp.extent.size)
+  precondition(zip(dimSoftness,softness).allSatisfy { abs($0-$1)<0.15 },"Dark exposure alone must not alter optical softness")
+  let uniform=CIImage(color:.gray).cropped(to:sharp.extent)
+  precondition(FaceMakeupRenderer.detailSoftness(uniform,eyes:testEyes,size:sharp.extent.size).allSatisfy{$0 == 0},
+               "A featureless patch must not invent blur and erase mascara")
+  let doubled=FaceMakeupRenderer.detailSoftness(blurred.transformed(by:CGAffineTransform(scaleX:2,y:2)),
+      eyes:testEyes.map{$0.map{CGPoint(x:$0.x*2,y:$0.y*2)}},size:CGSize(width:400,height:200))
+  precondition(zip(doubled,softness).allSatisfy { abs($0-2*$1)<0.01 },"Lash softness must retain its scale in loaded video")
+  print("PASS: current open/closed lid attachment, observed brows, bounded brow lag, exposure-relative source softness and raster scaling")
   let chin=observed.contour[observed.contour.count/2]
   let chinError=hypot((CGFloat(mesh.points[152].x)-chin.x)*image.extent.width,
                       (CGFloat(mesh.points[152].y)-chin.y)*image.extent.height)
