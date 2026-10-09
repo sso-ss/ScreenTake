@@ -382,10 +382,10 @@ final class MouseDataRecorder: @unchecked Sendable {
     }
 }
 
-extension MouseDataRecorder {
+// MARK: - Smoothing Extension
 
-    /// Time-weighted Gaussian smoothing of cursor positions.
-    /// The kernel is symmetric in time, so it removes jitter without adding lag.
+extension MouseDataRecorder {
+    // Smooths the mouse positions using a Gaussian kernel with the specified sigma value.
     static func smoothedPositions(_ positions: [MousePosition], sigma: TimeInterval = 0.06) -> [MousePosition] {
         guard positions.count > 2 else { return positions }
         let radius = sigma * 3

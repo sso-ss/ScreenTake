@@ -41,7 +41,6 @@ final class ExportEngine: ObservableObject {
         var cursorShape: CursorShape = .arrow
         var showCursor: Bool = true
         var smoothCursor: Bool = false
-        /// Gaussian sigma in seconds for cursor smoothing
         var smoothCursorSigma: Double = 0.06
         var canvasRatio: CanvasRatio = .original
         var deviceLayout: DeviceLayout = .desktop
