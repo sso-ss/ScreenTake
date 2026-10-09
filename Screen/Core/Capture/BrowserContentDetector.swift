@@ -94,8 +94,8 @@ enum BrowserContentDetector {
         return CGRect(origin: point, size: dimensions)
     }
 
-    /// Imported videos have no accessibility metadata. Require a URL, macOS
-    /// window controls, and a strong toolbar boundary at the same height in
+    /// Videos without accessibility metadata need a URL, macOS window controls
+    /// (or the sharing indicator and browser navigation), and a strong boundary in
     /// multiple frames. Uncertain results leave the user's crop alone.
     static func detect(in source: URL, at time: Double) async throws -> CGRect {
         try await Task.detached(priority: .userInitiated) {
@@ -126,7 +126,8 @@ enum BrowserContentDetector {
     }
 
     static func detect(image: CGImage) throws -> CGRect? {
-        guard let pixels = Pixels(image), pixels.hasWindowControls else { return nil }
+        guard let pixels = Pixels(image) else { return nil }
+        let hasWindowControls = pixels.hasWindowControls
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = false
@@ -144,6 +145,7 @@ enum BrowserContentDetector {
             return top
         }.sorted { $0.minY < $1.minY }
         for address in addresses {
+            guard hasWindowControls || pixels.hasSharingBrowserChrome(around: address) else { continue }
             if let bottom = pixels.toolbarBottom(below: address) {
                 let rect = CGRect(x: 0, y: bottom, width: 1, height: 1 - bottom)
                 if valid(rect) { return rect }
@@ -199,6 +201,92 @@ enum BrowserContentDetector {
                 }
             }
             return false
+        }
+
+        /// macOS replaces the traffic lights with a screen-sharing capsule while
+        /// capturing a window. Require that capsule above a row of three evenly
+        /// spaced navigation icons to the left of the URL, not just a page URL.
+        func hasSharingBrowserChrome(around address: CGRect) -> Bool {
+            let textHeight = address.height * CGFloat(height)
+            let url = CGRect(x: address.minX * CGFloat(width), y: address.minY * CGFloat(height),
+                             width: address.width * CGFloat(width), height: textHeight)
+            let regionWidth = min(Int(url.minX), width / 6)
+            let regionHeight = min(Int(url.maxY + textHeight), height / 4)
+            guard textHeight >= 5, regionWidth >= 20, regionHeight >= 15 else { return false }
+            let components = edgeComponents(width: regionWidth, height: regionHeight)
+            let navigation = components.filter {
+                $0.minX > 2 && $0.maxX < url.minX - textHeight * 0.4
+                    && abs($0.midY - url.midY) < textHeight * 0.45
+                    && (0.5...1.8).contains($0.width / textHeight)
+                    && (0.5...1.8).contains($0.height / textHeight)
+                    && (0.65...1.5).contains($0.width / $0.height)
+            }.sorted { $0.minX < $1.minX }
+            guard navigation.count >= 3 else { return false }
+            let hasNavigation = (0..<(navigation.count - 2)).contains { index in
+                let firstGap = navigation[index + 1].midX - navigation[index].midX
+                let secondGap = navigation[index + 2].midX - navigation[index + 1].midX
+                return (1.3...3.5).contains(firstGap / textHeight)
+                    && abs(firstGap - secondGap) < textHeight * 0.6
+            }
+            guard hasNavigation else { return false }
+            return components.contains { rect in
+                guard rect.minX > 2, rect.midX < url.minX * 0.65,
+                      rect.minY < CGFloat(height) * 0.06,
+                      rect.maxY < url.minY - textHeight * 0.5,
+                      (2...5).contains(rect.width / textHeight),
+                      (0.8...2).contains(rect.height / textHeight),
+                      (1.8...4).contains(rect.width / rect.height) else { return false }
+                // A sharing glyph has contrast inside the capsule; an empty
+                // pill, tab underline, or window edge is insufficient evidence.
+                let inner = rect.insetBy(dx: rect.width * 0.25, dy: rect.height * 0.25)
+                var darkest = 255, lightest = 0
+                for y in Int(inner.minY)...Int(inner.maxY) {
+                    for x in Int(inner.minX)...Int(inner.maxX) {
+                        let color = rgb(x, y)
+                        let gray = (color.0 + color.1 + color.2) / 3
+                        darkest = min(darkest, gray)
+                        lightest = max(lightest, gray)
+                    }
+                }
+                return lightest - darkest >= 24
+            }
+        }
+
+        /// Small, contrast-based components work for both light and dark chrome,
+        /// and tolerate video compression. Only inspect the area left of the URL.
+        private func edgeComponents(width regionWidth: Int, height regionHeight: Int) -> [CGRect] {
+            var edges = [Bool](repeating: false, count: regionWidth * regionHeight)
+            for y in 2..<(regionHeight - 2) {
+                for x in 2..<(regionWidth - 2) {
+                    let a = rgb(x - 2, y), b = rgb(x + 2, y), c = rgb(x, y - 2), d = rgb(x, y + 2)
+                    edges[y * regionWidth + x] = max(abs(a.0 - b.0), abs(a.1 - b.1), abs(a.2 - b.2),
+                                                    abs(c.0 - d.0), abs(c.1 - d.1), abs(c.2 - d.2)) >= 12
+                }
+            }
+            var result: [CGRect] = []
+            for seed in edges.indices where edges[seed] {
+                edges[seed] = false
+                var queue = [seed], index = 0
+                var minX = seed % regionWidth, maxX = minX
+                var minY = seed / regionWidth, maxY = minY
+                while index < queue.count {
+                    let pixel = queue[index]
+                    index += 1
+                    let x = pixel % regionWidth, y = pixel / regionWidth
+                    minX = min(minX, x); maxX = max(maxX, x)
+                    minY = min(minY, y); maxY = max(maxY, y)
+                    for ny in max(0, y - 1)...min(regionHeight - 1, y + 1) {
+                        for nx in max(0, x - 1)...min(regionWidth - 1, x + 1) {
+                            let next = ny * regionWidth + nx
+                            if edges[next] { edges[next] = false; queue.append(next) }
+                        }
+                    }
+                }
+                if queue.count > 10 {
+                    result.append(CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1))
+                }
+            }
+            return result
         }
 
         func toolbarBottom(below address: CGRect) -> CGFloat? {
