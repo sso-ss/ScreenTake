@@ -1153,37 +1153,76 @@ enum FaceMakeupRenderer {
         let strength = CGFloat(settings.amount * opacity)
         let softness = settings.lashes > 0 || settings.brows > 0
             ? detailSoftness(unfiltered ?? image,eyes:Array(actual.prefix(2)),size:size) : [0,0]
+        // Keep the same pixel coordinates and raster phase, but allocate and
+        // blur layers only around the current/tracked face. Padding contains
+        // cosmetic feathering and lash extensions before clipping to the image.
+        var region = CGRect(x:face.bounds.minX*size.width,y:face.bounds.minY*size.height,
+                            width:fw,height:fh)
+            .union(CGRect(x:current.bounds.minX*size.width,y:current.bounds.minY*size.height,
+                          width:current.bounds.width*size.width,height:current.bounds.height*size.height))
+        for p in features.flatMap({$0}) + actual.flatMap({$0}) + pixels(face.contour) + pixels(current.contour) {
+            region = region.union(CGRect(x:p.x,y:p.y,width:1,height:1))
+        }
+        let padding = max(8,fw*0.20)
+        let drawingExtent = region.insetBy(dx:-padding,dy:-padding).integral.intersection(extent)
+        guard !drawingExtent.isEmpty else { return image }
         func context() -> CGContext? {
-            CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
+            guard let ctx = CGContext(data: nil, width: Int(drawingExtent.width), height: Int(drawingExtent.height), bitsPerComponent: 8, bytesPerRow: 0,
                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return nil }
+            ctx.translateBy(x:-drawingExtent.minX,y:-drawingExtent.minY)
+            return ctx
+        }
+        func layer(_ cg: CGImage) -> CIImage {
+            CIImage(cgImage:cg).transformed(by:CGAffineTransform(translationX:drawingExtent.minX,y:drawingExtent.minY))
+        }
+        // The same jaw boundary and feature cutouts are used by several pigment
+        // layers. Share their graphs within this frame, never across observations.
+        func maskKey(_ polygons: [[CGPoint]]) -> [[Double]] {
+            polygons.map { $0.flatMap { [Double($0.x),Double($0.y)] } }
+        }
+        var boundaries: [[[Double]]:CIImage] = [:]
+        var exclusions: [[[Double]]:CIImage] = [:]
+        func boundary(_ polygon: [CGPoint]) -> CIImage? {
+            let key = maskKey([polygon])
+            if let cached = boundaries[key] { return cached }
+            guard let mask = context() else { return nil }
+            mask.setFillColor(CGColor(gray:0,alpha:1)); mask.fill(extent)
+            mask.setFillColor(CGColor(gray:1,alpha:1)); mask.addPath(path(polygon)); mask.fillPath()
+            guard let cg = mask.makeImage() else { return nil }
+            let feathered = layer(cg).applyingFilter("CIMorphologyMinimum",parameters:[kCIInputRadiusKey:fw*0.008])
+                .applyingGaussianBlur(sigma:fw*0.012).cropped(to:drawingExtent)
+            boundaries[key] = feathered
+            return feathered
+        }
+        func exclusion(_ polygons: [[CGPoint]]) -> CIImage? {
+            let key = maskKey(polygons)
+            if let cached = exclusions[key] { return cached }
+            guard let mask = context() else { return nil }
+            mask.setFillColor(CGColor(gray:1,alpha:1)); mask.fill(extent)
+            mask.setFillColor(CGColor(gray:0,alpha:1)); mask.setStrokeColor(CGColor(gray:0,alpha:1))
+            mask.setLineWidth(max(0.75,fw*0.003))
+            for polygon in polygons { mask.addPath(path(polygon)); mask.drawPath(using:.fillStroke) }
+            guard let cg = mask.makeImage() else { return nil }
+            let image = layer(cg)
+            exclusions[key] = image
+            return image
         }
         var result = image
         func composite(_ ctx: CGContext, blur: CGFloat = 0, excluding: [[CGPoint]] = [],
                        within: [CGPoint] = [], preserveTexture: CGFloat = 0, lipSupport: Bool = false) {
             guard let cg = ctx.makeImage() else { return }
-            var overlay = CIImage(cgImage: cg)
+            var overlay = layer(cg)
             if blur > 0 { overlay = overlay.applyingGaussianBlur(sigma: blur) }
-            if !excluding.isEmpty || !within.isEmpty, let mask = context() {
-                mask.setFillColor(CGColor(gray: within.isEmpty ? 1 : 0, alpha: 1)); mask.fill(extent)
-                if !within.isEmpty {
-                    mask.setFillColor(CGColor(gray: 1, alpha: 1)); mask.addPath(path(within)); mask.fillPath()
-                }
-                if !within.isEmpty, let boundary = mask.makeImage() {
-                    let feathered = CIImage(cgImage:boundary).applyingFilter("CIMorphologyMinimum", parameters:[kCIInputRadiusKey:fw*0.008])
-                        .applyingGaussianBlur(sigma:fw*0.012).cropped(to:extent)
-                    overlay = overlay.applyingFilter("CIBlendWithMask",parameters:[
-                        kCIInputBackgroundImageKey:CIImage.empty(),kCIInputMaskImageKey:feathered])
-                    mask.setFillColor(CGColor(gray:1,alpha:1)); mask.fill(extent)
-                }
-                mask.setFillColor(CGColor(gray: 0, alpha: 1))
-                mask.setStrokeColor(CGColor(gray: 0, alpha: 1)); mask.setLineWidth(max(0.75,fw*0.003))
-                for points in excluding { mask.addPath(path(points)); mask.drawPath(using: .fillStroke) }
-                if let cgMask = mask.makeImage() {
-                    overlay = overlay.applyingFilter("CIBlendWithMask", parameters: [
-                        kCIInputBackgroundImageKey: CIImage.empty(), kCIInputMaskImageKey: CIImage(cgImage: cgMask)])
-                }
+            if !within.isEmpty, let mask = boundary(within) {
+                overlay = overlay.applyingFilter("CIBlendWithMask",parameters:[
+                    kCIInputBackgroundImageKey:CIImage.empty(),kCIInputMaskImageKey:mask])
             }
-            overlay = overlay.cropped(to: extent)
+            if !excluding.isEmpty, let mask = exclusion(excluding) {
+                overlay = overlay.applyingFilter("CIBlendWithMask",parameters:[
+                    kCIInputBackgroundImageKey:CIImage.empty(),kCIInputMaskImageKey:mask])
+            }
+            overlay = overlay.cropped(to: drawingExtent)
                 .transformed(by: CGAffineTransform(scaleX: bounds.width / size.width, y: bounds.height / size.height))
                 .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY))
             if lipSupport, let support = lipSupportKernel {
@@ -1363,12 +1402,12 @@ enum FaceMakeupRenderer {
                 // comb-like base, especially around the inner corner in profile.
             }
             if let cg = shadow.makeImage(), let mask = eyeMask.makeImage() {
-                let blurred = CIImage(cgImage: cg).applyingGaussianBlur(sigma: max(0.5,fw*0.007))
+                let blurred = layer(cg).applyingGaussianBlur(sigma: max(0.5,fw*0.007))
                 let excluded = blurred.applyingFilter("CIBlendWithMask", parameters: [
                     kCIInputBackgroundImageKey: CIImage.empty(), kCIInputMaskImageKey:
-                        CIImage(cgImage: mask).applyingFilter("CIColorInvert")])
+                        layer(mask).applyingFilter("CIColorInvert")])
                 // Keep CI processing on the GPU; composite the excluded shadow directly.
-                let overlay = excluded.cropped(to: extent)
+                let overlay = excluded.cropped(to: drawingExtent)
                     .transformed(by: CGAffineTransform(scaleX: bounds.width/size.width,y: bounds.height/size.height))
                     .transformed(by: CGAffineTransform(translationX: bounds.minX,y: bounds.minY))
                 result = overlay.composited(over: result).cropped(to: bounds)
