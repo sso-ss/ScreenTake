@@ -483,6 +483,8 @@ final class EditorSession: ObservableObject {
                     videoOverlayTiming: settings.videoOverlayTiming, videoOverlayTrim: settings.trim,
                     pipPosition: settings.webcamPosition, pipSize: settings.webcamSize, pipShape: settings.webcamShape,
                     cameraLayout: settings.cameraLayout, cameraLayoutChanges: settings.cameraLayoutChanges,
+                    faceBeautyAmount: settings.faceBeautyAmount ?? 0,
+                    faceMakeup: settings.faceMakeup ?? .init(),
                     mouseDataURL: mouseURL, cursorScale: settings.cursorScale, cursorShape: settings.cursorShape,
                     showCursor: settings.showCursor && mouseURL != nil, canvasRatio: settings.ratio, deviceLayout: settings.layout,
                     wallpaper: settings.wallpaper, desktopCornerRadius: settings.desktopCornerRadius,

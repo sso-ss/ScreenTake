@@ -36,6 +36,7 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.screen.project</string>
+				<string>com.screen.project.legacy</string>
 			</array>
 		</dict>
 	</array>
@@ -50,6 +51,26 @@
 			<string>ScreenTake Project</string>
 			<key>UTTypeIdentifier</key>
 			<string>com.screen.project</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>screentake</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>ScreenTake Project</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.screen.project.legacy</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

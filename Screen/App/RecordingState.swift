@@ -290,6 +290,8 @@ final class RecordingState: ObservableObject {
                 webcamShape: captureSettings?.webcamPiPShape ?? .circle,
                 webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
                 webcamSize: captureSettings?.webcamPiPSize ?? .medium,
+                faceBeautyAmount: captureSettings?.faceBeautyAmount,
+                faceMakeup: captureSettings?.faceMakeup,
                 videoOverlayURL: lastWebcamVideoURL,
                 exportResolution: captureSettings?.exportResolution ?? .preserveSource,
                 recordedBrowserContentRect: lastBrowserContentRect)
@@ -328,6 +330,8 @@ final class RecordingState: ObservableObject {
                 pipShape: settings.webcamShape,
                 cameraLayout: settings.cameraLayout,
                 cameraLayoutChanges: settings.cameraLayoutChanges,
+                faceBeautyAmount: settings.faceBeautyAmount ?? 0,
+                    faceMakeup: settings.faceMakeup ?? .init(),
                 mouseDataURL: mouseDataURL,
                 cursorScale: settings.cursorScale,
                 cursorShape: settings.cursorShape,

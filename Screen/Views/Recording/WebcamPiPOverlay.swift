@@ -14,10 +14,8 @@ final class WebcamPiPOverlay {
 
     private var overlayWindow: NSWindow?
     private var frameLayer: CALayer?
-    private var renderTimer: DispatchSourceTimer?
-    private var renderQueue: DispatchQueue?
     private weak var webcamRecorder: WebcamRecorder?
-    private var ciContext: CIContext?
+    private var beautyRenderer: CameraBeautyPreviewRenderer?
 
     // MARK: - Show / Hide
 
@@ -27,7 +25,8 @@ final class WebcamPiPOverlay {
         position: PiPPosition,
         pipSize: PiPSize,
         shape: PiPShape,
-        screenBounds: CGRect
+        screenBounds: CGRect,
+        beautyAmount: Double = 0, makeup: FaceMakeupSettings = .init()
     ) {
         hide()
         self.webcamRecorder = webcamRecorder
@@ -88,9 +87,6 @@ final class WebcamPiPOverlay {
 
         window.contentView = backingView
 
-        // Create a CIContext for efficient pixel buffer → CGImage conversion
-        self.ciContext = CIContext(options: [.useSoftwareRenderer: false])
-
         window.alphaValue = 0
         window.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
@@ -100,17 +96,21 @@ final class WebcamPiPOverlay {
         self.overlayWindow = window
 
         // Start a 30fps background render timer
-        startRenderTimer()
+        let renderer = CameraBeautyPreviewRenderer(layer: fLayer)
+        renderer.setDisplayPixelSize(CGSize(width: fLayer.bounds.width * window.backingScaleFactor,
+                                           height: fLayer.bounds.height * window.backingScaleFactor))
+        renderer.configure(recorder: webcamRecorder, amount: beautyAmount, makeup: makeup)
+        beautyRenderer = renderer
     }
 
     /// Fade out and remove the overlay.
     func hide() {
-        stopRenderTimer()
+        beautyRenderer?.stop()
+        beautyRenderer = nil
         guard let window = overlayWindow else { return }
         overlayWindow = nil
         frameLayer = nil
         webcamRecorder = nil
-        ciContext = nil
 
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.2
@@ -132,48 +132,6 @@ final class WebcamPiPOverlay {
             screenBounds: screenBounds
         )
         window.setFrame(NSRect(x: origin.x, y: origin.y, width: diameter, height: diameter), display: true)
-    }
-
-    // MARK: - Background Render Timer
-
-    private func startRenderTimer() {
-        let queue = DispatchQueue(label: "com.screen.webcam-pip-render", qos: .userInteractive)
-        self.renderQueue = queue
-
-        // Capture what we need outside the MainActor
-        let recorder = self.webcamRecorder
-        let ctx = self.ciContext
-        let layer = self.frameLayer
-
-        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-        timer.schedule(deadline: .now(), repeating: 1.0 / 30.0, leeway: .milliseconds(2))
-        timer.setEventHandler { [weak recorder, weak layer] in
-            guard let pixelBuffer = recorder?.latestPixelBuffer,
-                  let ctx else { return }
-
-            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            let w = CVPixelBufferGetWidth(pixelBuffer)
-            let h = CVPixelBufferGetHeight(pixelBuffer)
-            guard let cgImage = ctx.createCGImage(ciImage, from: CGRect(x: 0, y: 0, width: w, height: h)) else {
-                return
-            }
-
-            // Flip to main thread only for the layer contents assignment
-            DispatchQueue.main.async { [weak layer] in
-                CATransaction.begin()
-                CATransaction.setDisableActions(true)
-                layer?.contents = cgImage
-                CATransaction.commit()
-            }
-        }
-        timer.resume()
-        self.renderTimer = timer
-    }
-
-    private func stopRenderTimer() {
-        renderTimer?.cancel()
-        renderTimer = nil
-        renderQueue = nil
     }
 
     // MARK: - Helpers

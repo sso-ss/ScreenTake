@@ -22,7 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
         let ext = url.pathExtension.lowercased()
-        if ext == "screenize" {
+        if ScreenProject.readablePackageExtensions.contains(ext) {
             NotificationCenter.default.post(
                 name: .openProjectFile,
                 object: nil,
@@ -149,7 +149,7 @@ struct ScreenApp: App {
 
     private func openProjectFile() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: "screenize") ?? .package]
+        panel.allowedContentTypes = ScreenProject.readablePackageExtensions.compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.treatsFilePackagesAsDirectories = false
@@ -168,9 +168,10 @@ struct ScreenApp: App {
         guard session.videoURL != nil, !session.isBusy else { return }
         let panel = NSSavePanel()
         panel.title = "Save Project"
-        panel.allowedContentTypes = [UTType(filenameExtension: "screenize") ?? .package]
+        panel.allowedContentTypes = [UTType(filenameExtension: ScreenProject.packageExtension) ?? .package]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = session.projectURL?.lastPathComponent ?? "\(session.projectName).screenize"
+        let name = session.projectURL?.deletingPathExtension().lastPathComponent ?? session.projectName
+        panel.nameFieldStringValue = "\(name).\(ScreenProject.packageExtension)"
         panel.directoryURL = session.projectURL?.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { @MainActor in

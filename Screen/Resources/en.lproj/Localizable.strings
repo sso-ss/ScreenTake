@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "Align this section with its matching video or audio section before linking.";
 "Open a video to change gap closing." = "Open a video to change gap closing.";
 "Wait for the current recording or processing to finish before editing the timeline." = "Wait for the current recording or processing to finish before editing the timeline.";
+
+/* Face beauty */
+"Beauty Filter" = "Beauty Filter";
+"Intensity" = "Intensity";
+"Beauty intensity" = "Beauty intensity";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost.";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "Peach Makeup";
+"Customize makeup" = "Customize makeup";
+"Eyelashes" = "Eyelashes";
+"Eyebrows" = "Eyebrows";
+"Peach blush" = "Peach blush";
+"Overlined lips" = "Overlined lips";
+"Eyeshadow" = "Eyeshadow";
+"Under-eye fullness · 애굣살" = "Under-eye fullness · 애굣살";
+"Nose & chin contour" = "Nose & chin contour";
+"Shorter face" = "Shorter face";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "Soft peach makeup that follows your face. Face shortening eases off as you turn sideways.";
+
+"Skin & fine lines" = "Skin & fine lines";
+
+"Face definition" = "Face definition";
+
+"Under-eye shadow" = "Under-eye shadow";

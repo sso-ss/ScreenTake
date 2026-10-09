@@ -146,7 +146,7 @@ struct LinkedAudioChecks {
         check(abs(session.editedDuration - 2.5) < 0.001, "Existing source-based commands must honor the materialized timeline")
         await session.waitForPreview()
         check(session.previewReady && session.previewError == nil, "Session preview must rebuild")
-        let package = directory.appendingPathComponent("edited.screenize")
+        let package = directory.appendingPathComponent("edited.screentake")
         try await session.saveProject(to: package)
         let reopened = EditorSession(); try await reopened.openProject(package)
         check(reopened.draft.trim == session.draft.trim && reopened.draft.recordedAudioClips == session.draft.recordedAudioClips,

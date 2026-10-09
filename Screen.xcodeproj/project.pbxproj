@@ -78,6 +78,12 @@
 		ED62B763570DC589CEA40015 /* MouseDataRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */; };
 		F7F9EE71FFAD3720163EBE27 /* VoiceOverRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4364AE7B341D32E889CAB3 /* VoiceOverRecorder.swift */; };
 		F8E354585A461C4A650467E8 /* ScreenCaptureManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEA795A1B9B4147FEA254AF /* ScreenCaptureManager.swift */; };
+		BEA010000000000000000001 /* FaceBeautyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA010000000000000000002 /* FaceBeautyFilter.swift */; };
+		BEA020000000000000000001 /* BeautyCameraFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA020000000000000000002 /* BeautyCameraFeedView.swift */; };
+		DFA100000000000000000001 /* DenseFaceMesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000002 /* DenseFaceMesh.swift */; };
+		DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000004 /* FaceMesh.mlmodel */; };
+		DFA100000000000000000005 /* triangles.json in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000006 /* triangles.json */; };
+		DFA100000000000000000007 /* LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000008 /* LICENSE.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -197,6 +203,12 @@
 		E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamCompositor.swift; sourceTree = "<group>"; };
 		E61F8DE4BCF6F4DE836AA57A /* Screen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Screen.entitlements; sourceTree = "<group>"; };
 		F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseDataRecorder.swift; sourceTree = "<group>"; };
+		BEA010000000000000000002 /* FaceBeautyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceBeautyFilter.swift; sourceTree = "<group>"; };
+		BEA020000000000000000002 /* BeautyCameraFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeautyCameraFeedView.swift; sourceTree = "<group>"; };
+		DFA100000000000000000002 /* DenseFaceMesh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenseFaceMesh.swift; sourceTree = "<group>"; };
+		DFA100000000000000000004 /* FaceMesh.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FaceMesh.mlmodel; sourceTree = "<group>"; };
+		DFA100000000000000000006 /* triangles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = triangles.json; sourceTree = "<group>"; };
+		DFA100000000000000000008 /* LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -253,6 +265,8 @@
 				63D5138D7A1133E7BA0D4278 /* TransformApplicator.swift */,
 				E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */,
 				FA1100000000000000000002 /* FaceTracking.swift */,
+				BEA010000000000000000002 /* FaceBeautyFilter.swift */,
+				DFA100000000000000000002 /* DenseFaceMesh.swift */,
 			);
 			path = Render;
 			sourceTree = "<group>";
@@ -327,6 +341,7 @@
 				13D9678EFB97624617212643 /* CaptureToolbarView.swift */,
 				7A6351207056B8ED49585592 /* CountdownPanel.swift */,
 				8DAEA8A9FE4AF08F1BB3A04A /* WebcamPiPOverlay.swift */,
+				BEA020000000000000000002 /* BeautyCameraFeedView.swift */,
 				39C36C81A6AF9E953D937911 /* ZoomIndicatorOverlay.swift */,
 			);
 			path = Recording;
@@ -371,6 +386,7 @@
 		C2D01ADF2185BA163EED870A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				DFA100000000000000000009 /* FaceMesh */,
 				FA1800000000000000000003 /* Localizable.strings */,
 				585E017110E84AE6D2E27DFE /* cursor.svg */,
 			);
@@ -395,6 +411,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		DFA100000000000000000009 /* FaceMesh */ = {isa = PBXGroup; children = (DFA100000000000000000004, DFA100000000000000000006, DFA100000000000000000008,); path = FaceMesh; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -475,6 +492,8 @@
 			files = (
 				1233788A2163651F603D5D1A /* Assets.xcassets in Resources */,
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
+				DFA100000000000000000007 /* LICENSE.txt in Resources */,
+				DFA100000000000000000005 /* triangles.json in Resources */,
 				FA1800000000000000000004 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -557,6 +576,10 @@
 				F7F9EE71FFAD3720163EBE27 /* VoiceOverRecorder.swift in Sources */,
 				237CA39EA30BB57C484E32B9 /* WebcamCompositor.swift in Sources */,
 				FA1100000000000000000001 /* FaceTracking.swift in Sources */,
+				BEA020000000000000000001 /* BeautyCameraFeedView.swift in Sources */,
+				BEA010000000000000000001 /* FaceBeautyFilter.swift in Sources */,
+				DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */,
+				DFA100000000000000000001 /* DenseFaceMesh.swift in Sources */,
 				C8B1A1CDBC09070BB74FAB9D /* WebcamPiPOverlay.swift in Sources */,
 				3BEC63D40FB98F9DFD3F636F /* WebcamRecorder.swift in Sources */,
 				0F225E5E991F68D8E0CF87F8 /* ZoomIndicatorOverlay.swift in Sources */,

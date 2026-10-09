@@ -89,12 +89,14 @@ enum LiveVideoPreview {
                 if let timing = request.settings.videoOverlayTiming {
                     webcamTime = timing.sampleTime(at: frame.compositionTime.seconds)
                 } else { webcamTime = sourceTime }
+                let webcamFrame = webcamTime.flatMap { time -> OverlayVideoFrames.Frame? in
+                    guard let webcamDuration, time >= .zero, time < webcamDuration else { return nil }
+                    return webcam?.frame(at: time)
+                }
                 let result = renderer.render(image, at: sourceTime.seconds,
-                                             webcamImage: webcamTime.flatMap {
-                                                 guard let webcamDuration, $0 >= .zero, $0 < webcamDuration else { return nil }
-                                                 return webcam?.image(at: $0)
-                                             },
-                                             webcamTime: webcamTime?.seconds, phoneImage: phone?.image(at: sourceTime))
+                                             webcamImage: webcamFrame?.image,
+                                             webcamTime: webcamTime?.seconds, webcamSampleTime: webcamFrame?.time.seconds,
+                                             phoneImage: phone?.image(at: sourceTime))
                 frame.finish(with: result, context: context)
             }
         }

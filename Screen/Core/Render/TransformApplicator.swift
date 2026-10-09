@@ -105,7 +105,7 @@ final class LiveEditFrameRenderer {
     }
 
     func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
-                webcamTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
+                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -146,7 +146,8 @@ final class LiveEditFrameRenderer {
             let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                            changes: settings.cameraLayoutChanges)
             image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
-                                     faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition)
+                                     faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
+                                     beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
         }
         return image.cropped(to: CGRect(origin: .zero, size: outputSize))
     }

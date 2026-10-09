@@ -55,6 +55,15 @@ struct SettingsView: View {
     private var renderedPreviewTimeline: EditedTimeline? { session.renderedPreviewTimeline }
     private var isExporting: Bool { session.isExporting }
     private var isSaving: Bool { session.isSaving }
+    private var processingTitle: String? {
+        appState.recording.processingStage?.title ?? (isExporting ? "Applying changes..." : nil)
+    }
+    private var processingProgress: Double? {
+        // A new recording may be processing while the previous video is still
+        // in the editor. Follow the active job, not the displayed video's URL.
+        appState.recording.processingStage != nil
+            ? appState.recording.processingProgress : session.exportEngine.progress
+    }
     private var voiceOverRecorder: VoiceOverRecorder { session.voiceOverRecorder }
     private var videoOverlayRecorder: VideoOverlayRecorder { session.videoOverlayRecorder }
 
@@ -77,13 +86,13 @@ struct SettingsView: View {
 
             Divider()
 
-            if let stage = appState.recording.processingStage, videoURL == nil {
+            if let title = processingTitle {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     HStack {
-                        Text(LocalizedStringKey(stage.title))
+                        Text(LocalizedStringKey(title))
                             .foregroundColor(DesignColors.primaryLabel)
                         Spacer()
-                        if let progress = appState.recording.processingProgress {
+                        if let progress = processingProgress {
                             Text(progress, format: .percent.precision(.fractionLength(0)))
                                 .monospacedDigit()
                                 .foregroundColor(DesignColors.primaryLabel)
@@ -91,10 +100,11 @@ struct SettingsView: View {
                     }
                     .font(Typography.caption)
 
-                    ProgressView(value: appState.recording.processingProgress, total: 1)
+                    ProgressView(value: processingProgress, total: 1)
                         .progressViewStyle(.linear)
                         .tint(DesignColors.cameraTrack)
-                        .localizedAccessibilityLabel(stage.title)
+                        .localizedAccessibilityLabel(title)
+                        .accessibilityIdentifier("videoProcessingProgress")
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.md)
@@ -365,8 +375,8 @@ struct SettingsView: View {
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
             )
-            if isShowingCameraPreview, let session = cameraPreview.session {
-                CameraFeedView(session: session, rotationAngle: cameraPreview.rotationAngle)
+            if isShowingCameraPreview, let recorder = cameraPreview.recorder, cameraPreview.session != nil {
+                BeautyCameraFeedView(recorder: recorder, amount: appState.capture.faceBeautyAmount, makeup: appState.capture.faceMakeup)
                     .localizedAccessibilityLabel("Live camera preview")
                     .accessibilityIdentifier("inlineCameraPreview")
             } else if isShowingCameraPreview, cameraPreview.isStarting {
@@ -644,14 +654,17 @@ struct SettingsView: View {
                 }
             case .camera:
                 settingsSection("Camera") {
+                    beautyControls(amount: Binding(get: { sessionBeautyAmount }, set: { session.draft.faceBeautyAmount = $0 }))
+                    makeupControls(settings: Binding(get: { session.draft.faceMakeup ?? .init() }, set: { session.draft.faceMakeup = $0 }))
+                        .disabled(videoOverlayRecorder.isBusy)
                     VStack(alignment: .leading, spacing: Spacing.labelToControl) {
                         Text("Place the playhead, then record a camera take while your video plays.")
                             .font(Typography.caption)
                             .foregroundStyle(DesignColors.secondaryLabel)
                             .fixedSize(horizontal: false, vertical: true)
                         if videoOverlayRecorder.isBusy {
-                            if let session = videoOverlayRecorder.session {
-                                CameraFeedView(session: session, rotationAngle: videoOverlayRecorder.rotationAngle)
+                            if videoOverlayRecorder.session != nil, let recorder = videoOverlayRecorder.camera {
+                                BeautyCameraFeedView(recorder: recorder, amount: sessionBeautyAmount, makeup: session.draft.faceMakeup ?? .init())
                                     .frame(height: 140)
                                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
                             }
@@ -810,12 +823,6 @@ struct SettingsView: View {
 
     private var editActions: some View {
         VStack(spacing: 10) {
-            if isExporting || appState.recording.processingStage != nil {
-                let progress = editingRecording ? appState.recording.processingProgress : session.exportEngine.progress
-                ProgressView(value: progress, total: 1)
-                Text(LocalizedStringKey(appState.recording.processingStage?.title ?? "Applying changes..."))
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Button { Task { await applyLayout() } } label: {
                 Label("Apply Changes", systemImage: "checkmark")
                     .frame(maxWidth: .infinity)
@@ -933,6 +940,9 @@ struct SettingsView: View {
                             get: { appState.capture.webcamPiPSize },
                             set: { appState.capture.webcamPiPSize = $0 }
                         ))
+                        beautyControls(amount: Binding(get: { appState.capture.faceBeautyAmount },
+                                                       set: { appState.capture.faceBeautyAmount = $0 }))
+                        makeupControls(settings: Binding(get: { appState.capture.faceMakeup }, set: { appState.capture.faceMakeup = $0 }))
                         Divider()
                         Button {
                             if isShowingCameraPreview {
@@ -1017,6 +1027,78 @@ struct SettingsView: View {
         guard let time = cameraSourceTime else { return nil }
         return session.draft.cameraLayoutChanges.indices.filter { session.draft.cameraLayoutChanges[$0].start <= time + 0.0001 }
             .max { session.draft.cameraLayoutChanges[$0].start < session.draft.cameraLayoutChanges[$1].start }
+    }
+
+    private var sessionBeautyAmount: Double { FaceBeautyFilter.clamped(session.draft.faceBeautyAmount ?? 0) }
+
+    private func beautyControls(amount: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            settingsToggle(icon: "sparkles", label: "Natural", isOn: Binding(
+                get: { amount.wrappedValue > 0 },
+                set: { amount.wrappedValue = $0 ? 0.5 : 0 }
+            ))
+            .accessibilityIdentifier("faceBeautyEnabled")
+            if amount.wrappedValue > 0 {
+                HStack {
+                    Text("Intensity").font(Typography.caption)
+                    Spacer()
+                    Text(amount.wrappedValue, format: .percent.precision(.fractionLength(0)))
+                        .font(Typography.caption).monospacedDigit().foregroundStyle(DesignColors.secondaryLabel)
+                }
+                primarySlider(selection: amount, range: 0.05...1, label: "Beauty intensity",
+                              value: "\(Int(amount.wrappedValue * 100))%")
+                    .accessibilityIdentifier("faceBeautyIntensity")
+                Text("Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func makeupControls(settings: Binding<FaceMakeupSettings>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            settingsToggle(icon: "paintbrush.pointed", label: "Peach Makeup", isOn: Binding(
+                get: { settings.wrappedValue.amount > 0 },
+                set: { settings.wrappedValue.amount = $0 ? 0.7 : 0 }
+            ))
+            .accessibilityIdentifier("faceMakeupEnabled")
+            if settings.wrappedValue.amount > 0 {
+                makeupSlider("Intensity", key: \.amount, settings: settings, minimum: 0.05)
+                DisclosureGroup("Customize makeup") {
+                    VStack(spacing: Spacing.labelToControl) {
+                        makeupSlider("Skin & fine lines", key: \.skin, settings: settings)
+                        makeupSlider("Face definition", key: \.definition, settings: settings)
+                        makeupSlider("Eyelashes", key: \.lashes, settings: settings)
+                        makeupSlider("Eyebrows", key: \.brows, settings: settings)
+                        makeupSlider("Peach blush", key: \.blush, settings: settings)
+                        makeupSlider("Overlined lips", key: \.lips, settings: settings)
+                        makeupSlider("Eyeshadow", key: \.eyeshadow, settings: settings)
+                        makeupSlider("Under-eye shadow", key: \.underEyeShadow, settings: settings)
+                        makeupSlider("Under-eye fullness · 애굣살", key: \.aegyo, settings: settings)
+                        makeupSlider("Nose & chin contour", key: \.contour, settings: settings)
+                        makeupSlider("Shorter face", key: \.shortening, settings: settings)
+                    }.padding(.top, Spacing.labelToControl)
+                }
+                Text("Soft peach makeup that follows your face. Face shortening eases off as you turn sideways.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func makeupSlider(_ title: String, key: WritableKeyPath<FaceMakeupSettings, Double>,
+                              settings: Binding<FaceMakeupSettings>, minimum: Double = 0) -> some View {
+        let value = Binding(get: { settings.wrappedValue[keyPath: key] }, set: { settings.wrappedValue[keyPath: key] = $0 })
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(LocalizedStringKey(title)).font(Typography.caption)
+                Spacer()
+                Text(value.wrappedValue, format: .percent.precision(.fractionLength(0)))
+                    .font(Typography.caption).monospacedDigit().foregroundStyle(DesignColors.secondaryLabel)
+            }
+            primarySlider(selection: value, range: minimum...1, label: title,
+                          value: "\(Int(value.wrappedValue * 100))%")
+        }
     }
 
     private var currentCameraLayout: CameraLayoutSettings {
@@ -2247,16 +2329,23 @@ final class TimelinePlayback: ObservableObject {
     private var rateObserver: NSKeyValueObservation?
 
     func attach(_ player: AVPlayer) {
+        guard self.player !== player || observer == nil else { return }
         detach()
         self.player = player
-        observer = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 30), queue: .main) { [weak self] time in
+        seconds = player.currentTime().seconds.isFinite ? player.currentTime().seconds : 0
+        isPlaying = player.rate > 0
+        observer = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 30), queue: .main) { [weak self, weak player] time in
             MainActor.assumeIsolated {
-                self?.seconds = time.seconds.isFinite ? time.seconds : 0
+                guard let self, let player, self.player === player else { return }
+                self.seconds = time.seconds.isFinite ? time.seconds : 0
             }
         }
         rateObserver = player.observe(\.rate, options: [.initial, .new]) { [weak self] player, _ in
             let playing = player.rate > 0
-            Task { @MainActor in self?.isPlaying = playing }
+            Task { @MainActor [weak self, weak player] in
+                guard let self, let player, self.player === player else { return }
+                self.isPlaying = playing
+            }
         }
     }
 
@@ -2907,13 +2996,18 @@ struct VideoTrimControls: View {
     }
 
     var body: some View {
+        // Read playback in this view's body, before entering GeometryReader's
+        // deferred closures, so time changes invalidate both the ruler and
+        // transport controls even when the layout itself is unchanged.
+        let playbackSeconds = playback.seconds
+        let isPlaying = playback.isPlaying
         VStack(spacing: Spacing.md) {
             GeometryReader { geometry in
-                toolbar(expanded: geometry.size.width > 650)
+                toolbar(expanded: geometry.size.width > 650, seconds: playbackSeconds, isPlaying: isPlaying)
             }.frame(height: 32)
             GeometryReader { geometry in
                 ScrollView(.horizontal) {
-                    filmstrip(width: max(1, geometry.size.width - 24) * zoom)
+                    filmstrip(width: max(1, geometry.size.width - 24) * zoom, seconds: playbackSeconds)
                 }
             }.frame(height: timelineHeight + 14)
             if silence.analyzing || !silence.suggestions.isEmpty || silence.message != nil {
@@ -3053,7 +3147,7 @@ struct VideoTrimControls: View {
         }
     }
 
-    private func toolbar(expanded: Bool) -> some View {
+    private func toolbar(expanded: Bool, seconds: Double, isPlaying: Bool) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 4) {
                 Button(action: splitSelectedTrack) {
@@ -3099,9 +3193,9 @@ struct VideoTrimControls: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            playbackControls
+            playbackControls(isPlaying: isPlaying)
             HStack(spacing: 4) {
-                Text(LocalizedStringKey(expanded ? "\(timestamp(playback.seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(playback.seconds)))
+                Text(verbatim: expanded ? "\(timestamp(seconds)) / \(timestamp(timeline?.duration.seconds ?? 0))" : timestamp(seconds))
                     .font(.system(size: 10, design: .monospaced))
                     .lineLimit(1)
                     .fixedSize()
@@ -3126,7 +3220,7 @@ struct VideoTrimControls: View {
         }
     }
 
-    private var playbackControls: some View {
+    private func playbackControls(isPlaying: Bool) -> some View {
             HStack(spacing: 4) {
                 icon("backward.end.fill", "Go to start") { seekOutput(0) }
                 Button {
@@ -3139,13 +3233,13 @@ struct VideoTrimControls: View {
                         player.play()
                     }
                 } label: {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .frame(width: 32, height: 32)
                         .background(DesignColors.inputBackground, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .modifier(TimelineTooltip(text: playback.isPlaying ? "Pause" : "Play"))
-                .localizedAccessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+                .modifier(TimelineTooltip(text: isPlaying ? "Pause" : "Play"))
+                .localizedAccessibilityLabel(isPlaying ? "Pause" : "Play")
                 icon("forward.end.fill", "Go to end") { seekOutput(editedDuration) }
             }
     }
@@ -3286,7 +3380,7 @@ struct VideoTrimControls: View {
         }
     }
 
-    private func filmstrip(width: Double) -> some View {
+    private func filmstrip(width: Double, seconds: Double) -> some View {
         let total = max(0.001, editedDuration)
         return ZStack(alignment: .topLeading) {
             ForEach(0...Int(8 * zoom), id: \.self) { tick in
@@ -3313,7 +3407,7 @@ struct VideoTrimControls: View {
                         seekOutput((gesture.location.x - 12) / width * total)
                     })
                 .localizedAccessibilityLabel("Timeline playhead")
-                .localizedAccessibilityValue(timestamp(playback.seconds))
+                .localizedAccessibilityValue(timestamp(seconds))
                 .accessibilityAdjustableAction { direction in seekOutput(playback.seconds + (direction == .increment ? 1 : -1) / 30) }
             ForEach(silence.suggestions) { cut in
                 ForEach(segments.indices, id: \.self) { index in
@@ -3364,12 +3458,12 @@ struct VideoTrimControls: View {
             }
             .foregroundStyle(DesignColors.primaryLabel)
             .frame(width: 12)
-            .offset(x: width * max(0, min(total, playback.seconds)) / total + 6, y: 3)
+            .offset(x: width * max(0, min(total, seconds)) / total + 6, y: 3)
             .allowsHitTesting(false)
         }
         .frame(width: width + 24, height: timelineHeight, alignment: .topLeading)
         .background {
-            TimelineScrollFollower(seconds: playback.seconds, duration: total, trackWidth: width)
+            TimelineScrollFollower(seconds: seconds, duration: total, trackWidth: width)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -3811,7 +3905,7 @@ private final class CameraPreviewController: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var needsPermission = false
 
-    private var recorder: WebcamRecorder?
+    private(set) var recorder: WebcamRecorder?
     private var startTask: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
 

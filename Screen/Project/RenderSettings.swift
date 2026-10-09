@@ -27,6 +27,9 @@ struct VideoEditSettings: Equatable, Codable {
     var webcamShape: PiPShape = .circle
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
+    /// Optional so projects saved before beauty filtering decode with the effect off.
+    var faceBeautyAmount: Double?
+    var faceMakeup: FaceMakeupSettings?
     var cameraLayout = CameraLayoutSettings()
     /// Layout changes follow camera source time, including moved and trimmed takes.
     var cameraLayoutChanges: [CameraLayoutChange] = []

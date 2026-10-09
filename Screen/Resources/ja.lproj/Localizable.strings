@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "リンクする前に、対応する動画または音声の区間に位置と長さを合わせてください。";
 "Open a video to change gap closing." = "隙間を詰める設定を変更するには動画を開いてください。";
 "Wait for the current recording or processing to finish before editing the timeline." = "録画または処理が完了してからタイムラインを編集してください。";
+
+/* Face beauty */
+"Beauty Filter" = "ビューティーフィルター";
+"Intensity" = "強度";
+"Beauty intensity" = "ビューティーの強度";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "見えている顔のパーツを追跡しながら肌や小じわをなめらかにします。追跡が途切れると効果が徐々に消えます。";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "ピーチメイク";
+"Customize makeup" = "メイクを調整";
+"Eyelashes" = "まつげ";
+"Eyebrows" = "眉";
+"Peach blush" = "ピーチチーク";
+"Overlined lips" = "オーバーリップ";
+"Eyeshadow" = "アイシャドウ";
+"Under-eye fullness · 애굣살" = "涙袋 · 애굣살";
+"Nose & chin contour" = "鼻・あごのシェーディング";
+"Shorter face" = "顔を少し短く";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "顔の動きに追従する柔らかなピーチメイク。横を向くと顔の長さの補正が弱まります。";
+
+"Skin & fine lines" = "肌・小じわ補正";
+
+"Face definition" = "輪郭補正";
+
+"Under-eye shadow" = "下まぶたシャドウ";

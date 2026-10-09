@@ -104,6 +104,26 @@ final class CaptureSettings: ObservableObject {
     @AppStorage("webcamPiPPositionRaw") var webcamPiPPositionRaw: String = PiPPosition.bottomRight.rawValue
     @AppStorage("webcamPiPSizeRaw") var webcamPiPSizeRaw: String = PiPSize.medium.rawValue
     @AppStorage("webcamPiPShapeRaw") var webcamPiPShapeRaw: String = PiPShape.circle.rawValue
+    @AppStorage("faceBeautyAmount") private var savedFaceBeautyAmount: Double = 0
+    var faceBeautyAmount: Double {
+        get { FaceBeautyFilter.clamped(savedFaceBeautyAmount) }
+        set {
+            let value = FaceBeautyFilter.clamped(newValue)
+            guard value != savedFaceBeautyAmount else { return }
+            objectWillChange.send()
+            savedFaceBeautyAmount = value
+        }
+    }
+
+    @AppStorage("faceMakeupSettings") private var savedFaceMakeup: Data = Data()
+    var faceMakeup: FaceMakeupSettings {
+        get { ((try? JSONDecoder().decode(FaceMakeupSettings.self, from: savedFaceMakeup)) ?? .init()).clamped }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue.clamped), data != savedFaceMakeup else { return }
+            objectWillChange.send()
+            savedFaceMakeup = data
+        }
+    }
 
     var webcamPiPPosition: PiPPosition {
         get { PiPPosition(rawValue: webcamPiPPositionRaw) ?? .bottomRight }

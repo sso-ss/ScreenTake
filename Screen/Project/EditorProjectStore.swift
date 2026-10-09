@@ -20,7 +20,7 @@ enum EditorProjectStore {
 
     static func save(_ project: EditorProject, to destination: URL,
                      retaining edits: [VideoEditSettings] = []) async throws -> SaveResult {
-        guard destination.isFileURL, destination.pathExtension.lowercased() == "screenize" else {
+        guard destination.isFileURL, destination.pathExtension.lowercased() == ScreenProject.packageExtension else {
             throw ProjectError.invalidDestination
         }
         return try await Task.detached(priority: .userInitiated) {
@@ -30,7 +30,7 @@ enum EditorProjectStore {
             let staging = try manager.url(for: .itemReplacementDirectory, in: .userDomainMask,
                                            appropriateFor: destination, create: true)
             defer { try? manager.removeItem(at: staging) }
-            let bundle = staging.appendingPathComponent("Project.screenize", isDirectory: true)
+            let bundle = staging.appendingPathComponent("Project.\(ScreenProject.packageExtension)", isDirectory: true)
             try manager.createDirectory(at: bundle.appendingPathComponent("media"), withIntermediateDirectories: true)
             var paths: [URL: URL] = [:]
             func embed(_ source: URL) throws -> URL {
@@ -129,7 +129,7 @@ enum EditorProjectStore {
         case invalidDestination, invalidManifest, missingMedia(String), unsupportedVersion(Int)
         var errorDescription: String? {
             switch self {
-            case .invalidDestination: return "Choose a ScreenTake project (.screenize) destination."
+            case .invalidDestination: return "Choose a ScreenTake project (.\(ScreenProject.packageExtension)) destination."
             case .invalidManifest: return "This project contains invalid settings or media paths."
             case .missingMedia(let path): return "Project media is missing: \(path). Restore it from a backup and reopen the project."
             case .unsupportedVersion(let version): return "Project format \(version) is not supported by this version of ScreenTake."

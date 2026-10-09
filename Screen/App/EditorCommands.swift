@@ -24,6 +24,8 @@ struct EditorEdits: Codable {
     var webcamShape: PiPShape?
     var webcamPosition: PiPPosition?
     var webcamSize: PiPSize?
+    var faceBeautyAmount: Double?
+    var faceMakeup: FaceMakeupSettings?
     var videoOverlayURL: URL?
     var cameraLayout: CameraLayoutSettings?
     var cameraLayoutChanges: [CameraLayoutChange]?
@@ -57,6 +59,8 @@ struct EditorEdits: Codable {
         if let webcamShape { settings.webcamShape = webcamShape }
         if let webcamPosition { settings.webcamPosition = webcamPosition }
         if let webcamSize { settings.webcamSize = webcamSize }
+        if let faceBeautyAmount { settings.faceBeautyAmount = faceBeautyAmount }
+        if let faceMakeup { settings.faceMakeup = faceMakeup }
         if let videoOverlayURL { settings.videoOverlayURL = videoOverlayURL }
         if let cameraLayout { settings.cameraLayout = cameraLayout }
         if let cameraLayoutChanges { settings.cameraLayoutChanges = cameraLayoutChanges }

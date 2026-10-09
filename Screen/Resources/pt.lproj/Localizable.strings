@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "Alinhe este trecho com o vídeo ou áudio correspondente antes de vincular.";
 "Open a video to change gap closing." = "Abra um vídeo para alterar o fechamento de lacunas.";
 "Wait for the current recording or processing to finish before editing the timeline." = "Aguarde a gravação ou o processamento terminar antes de editar a linha do tempo.";
+
+/* Face beauty */
+"Beauty Filter" = "Filtro de beleza";
+"Intensity" = "Intensidade";
+"Beauty intensity" = "Intensidade de beleza";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "Suaviza a pele e as linhas finas enquanto acompanha os traços visíveis do rosto. O efeito desaparece gradualmente quando o rastreamento é perdido.";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "Maquiagem pêssego";
+"Customize makeup" = "Personalizar maquiagem";
+"Eyelashes" = "Cílios";
+"Eyebrows" = "Sobrancelhas";
+"Peach blush" = "Blush pêssego";
+"Overlined lips" = "Lábios contornados";
+"Eyeshadow" = "Sombra para olhos";
+"Under-eye fullness · 애굣살" = "Volume sob os olhos · 애굣살";
+"Nose & chin contour" = "Contorno do nariz e queixo";
+"Shorter face" = "Rosto mais curto";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "Maquiagem suave em tom pêssego que acompanha o rosto. O encurtamento diminui ao virar de lado.";
+
+"Skin & fine lines" = "Pele e linhas finas";
+
+"Face definition" = "Definição facial";
+
+"Under-eye shadow" = "Sombra sob os olhos";

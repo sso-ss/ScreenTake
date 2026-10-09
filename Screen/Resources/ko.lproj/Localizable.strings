@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "연결하기 전에 이 구간을 해당 영상 또는 오디오 구간과 맞추세요.";
 "Open a video to change gap closing." = "빈 구간 닫기를 변경하려면 영상을 여세요.";
 "Wait for the current recording or processing to finish before editing the timeline." = "타임라인을 편집하기 전에 현재 녹음 또는 처리가 끝날 때까지 기다리세요.";
+
+/* Face beauty */
+"Beauty Filter" = "뷰티 필터";
+"Intensity" = "강도";
+"Beauty intensity" = "뷰티 필터 강도";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "얼굴의 보이는 특징을 추적하면서 피부와 잔주름을 부드럽게 합니다. 추적이 끊기면 효과가 서서히 사라집니다.";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "피치 메이크업";
+"Customize makeup" = "메이크업 조절";
+"Eyelashes" = "속눈썹";
+"Eyebrows" = "눈썹";
+"Peach blush" = "피치 블러셔";
+"Overlined lips" = "오버립";
+"Eyeshadow" = "아이섀도";
+"Under-eye fullness · 애굣살" = "애굣살";
+"Nose & chin contour" = "코·턱 쉐딩";
+"Shorter face" = "얼굴 길이 줄이기";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "얼굴 움직임을 따라가는 부드러운 피치 메이크업입니다. 옆으로 돌리면 얼굴 길이 보정이 줄어듭니다.";
+
+"Skin & fine lines" = "피부·잔주름 보정";
+
+"Face definition" = "얼굴 윤곽";
+
+"Under-eye shadow" = "언더 아이 섀도";

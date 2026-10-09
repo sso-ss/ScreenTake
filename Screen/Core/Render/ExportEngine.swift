@@ -38,6 +38,8 @@ final class ExportEngine: ObservableObject {
         var pipShape: PiPShape = .circle
         var cameraLayout = CameraLayoutSettings()
         var cameraLayoutChanges: [CameraLayoutChange] = []
+        var faceBeautyAmount: Double = 0
+        var faceMakeup: FaceMakeupSettings = .init()
 
         /// Mouse data for cursor overlay on fill frames
         var mouseDataURL: URL?
@@ -315,6 +317,7 @@ final class ExportEngine: ObservableObject {
             // Track the current webcam frame so we can hold it across multiple video frames
             // (webcam is ~30fps, screen is 60fps — we must sync by timestamp, not 1:1)
             var currentWebcamImage: CIImage?
+            var currentWebcamSampleTime: Double?
             var pendingWebcamSample: CMSampleBuffer?
             var webcamExhausted = false
 
@@ -476,6 +479,7 @@ final class ExportEngine: ObservableObject {
                         }
                         guard CMTimeCompare(CMSampleBufferGetPresentationTimeStamp(sample), pts) <= 0 else { break }
                         if let buffer = CMSampleBufferGetImageBuffer(sample) {
+                            currentWebcamSampleTime = CMSampleBufferGetPresentationTimeStamp(sample).seconds
                             let upright = CIImage(cvPixelBuffer: buffer).transformed(by: webcamTransform)
                             currentWebcamImage = upright.transformed(by: CGAffineTransform(
                                 translationX: -upright.extent.minX, y: -upright.extent.minY))
@@ -486,7 +490,9 @@ final class ExportEngine: ObservableObject {
 
                 if let timing = configuration.videoOverlayTiming, let overlayFrames {
                     let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
-                    currentWebcamImage = timing.sampleTime(at: outputTime.seconds).flatMap { overlayFrames.image(at: $0) }
+                    let sample = timing.sampleTime(at: outputTime.seconds).flatMap { overlayFrames.frame(at: $0) }
+                    currentWebcamImage = sample?.image
+                    currentWebcamSampleTime = sample?.time.seconds
                 } else if webcamReaderOutput != nil, pts >= webcamDuration {
                     currentWebcamImage = nil
                 }
@@ -556,7 +562,8 @@ final class ExportEngine: ObservableObject {
                         onto: frameImage,
                         settings: cameraLayout,
                         faceFocus: faceTrack?.focus(at: cameraTime),
-                        transition: cameraTransition
+                        transition: cameraTransition,
+                        beautyAmount: configuration.faceBeautyAmount, beautyTime: currentWebcamSampleTime ?? cameraTime, makeup: configuration.faceMakeup
                     )
                 }
 
@@ -849,10 +856,14 @@ enum ExportError: LocalizedError {
 }
 
 final class OverlayVideoFrames {
+    struct Frame {
+        let image: CIImage
+        let time: CMTime
+    }
     private let generator: AVAssetImageGenerator
     private let lock = NSLock()
     private var cachedTime = -Double.infinity
-    private var cachedImage: CIImage?
+    private var cachedFrame: Frame?
     private let preciseTiming: Bool
 
     init(url: URL, maximumSize: CGSize = .zero, preciseTiming: Bool = false) {
@@ -864,16 +875,22 @@ final class OverlayVideoFrames {
         generator.requestedTimeToleranceAfter = preciseTiming ? .zero : CMTime(value: 1, timescale: 30)
     }
 
-    func image(at time: CMTime) -> CIImage? {
+    func image(at time: CMTime) -> CIImage? { frame(at: time)?.image }
+
+    func frame(at time: CMTime) -> Frame? {
         lock.lock()
         defer { lock.unlock() }
+        guard time.isNumeric else { return nil }
         // Tracked framing must use the same source frame when playing forward,
         // seeking backward, and exporting; nearby-frame reuse depends on history.
-        if preciseTiming ? time.seconds == cachedTime : abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedImage }
-        if let image = try? generator.copyCGImage(at: time, actualTime: nil) {
-            cachedImage = CIImage(cgImage: image)
+        if preciseTiming ? time.seconds == cachedTime : abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedFrame }
+        var actualTime = CMTime.invalid
+        if let image = try? generator.copyCGImage(at: time, actualTime: &actualTime), actualTime.isNumeric {
+            // Separate requests can resolve to one camera sample. Preserve both
+            // its actual timestamp and CIImage identity for the beauty cache.
+            if cachedFrame?.time != actualTime { cachedFrame = Frame(image: CIImage(cgImage: image), time: actualTime) }
             cachedTime = time.seconds
         }
-        return cachedTime == time.seconds ? cachedImage : nil
+        return cachedTime == time.seconds ? cachedFrame : nil
     }
 }

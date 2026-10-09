@@ -57,6 +57,10 @@ extension VideoEditSettings {
         try number(desktopCornerRadius, 0...0.5, "corner radius")
         try number(originalAudioVolume, 0...1, "original audio volume")
         try number(voiceOverVolume, 0...1, "voiceover volume")
+        if let faceBeautyAmount { try number(faceBeautyAmount, 0...1, "beauty intensity") }
+        if let faceMakeup {
+            for value in faceMakeup.values { try number(value, 0...1, "makeup intensity") }
+        }
         let rect = crop.rect
         guard [rect.minX, rect.minY, rect.width, rect.height].allSatisfy({ $0.isFinite }),
               rect.minX >= 0, rect.minY >= 0, rect.width > 0, rect.height > 0,

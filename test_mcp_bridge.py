@@ -261,9 +261,9 @@ def integration(path, source, destination):
     undone = client.call('undo', **rev(edited))['project']
     assert undone['settings']['ratio'] == 'original'
     edited = client.call('redo', **rev(undone))['project']
-    saved = client.call('save_project', **rev(edited), path=destination + '/Portable.screenize')
+    saved = client.call('save_project', **rev(edited), path=destination + '/Portable.screentake')
     assert saved['ok'] and not saved['project']['hasUnsavedWork'], saved
-    edited = client.call('open_project', **rev(saved['project']), path=destination + '/Portable.screenize')['project']
+    edited = client.call('open_project', **rev(saved['project']), path=destination + '/Portable.screentake')['project']
     assert edited['settings']['ratio'] == 'square'
 
     def finish(job):

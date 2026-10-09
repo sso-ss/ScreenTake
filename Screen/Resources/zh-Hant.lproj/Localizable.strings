@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "連結前請將此片段與對應的影片或音訊片段對齊。";
 "Open a video to change gap closing." = "開啟影片以更改間隙設定。";
 "Wait for the current recording or processing to finish before editing the timeline." = "請等待目前錄製或處理完成後再編輯時間軸。";
+
+/* Face beauty */
+"Beauty Filter" = "美顏濾鏡";
+"Intensity" = "強度";
+"Beauty intensity" = "美顏強度";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "追蹤可見的臉部特徵，同時柔化肌膚和細紋。追蹤中斷時，效果會逐漸消失。";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "蜜桃妝容";
+"Customize makeup" = "自訂妝容";
+"Eyelashes" = "睫毛";
+"Eyebrows" = "眉妝";
+"Peach blush" = "蜜桃腮紅";
+"Overlined lips" = "外擴唇妝";
+"Eyeshadow" = "眼影";
+"Under-eye fullness · 애굣살" = "臥蠶 · 애굣살";
+"Nose & chin contour" = "鼻部與下巴修容";
+"Shorter face" = "縮短臉型";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "柔和的蜜桃妝容隨臉部移動。轉向側面時，縮短臉型的效果會減弱。";
+
+"Skin & fine lines" = "皮膚與細紋";
+
+"Face definition" = "臉部輪廓";
+
+"Under-eye shadow" = "下眼影";

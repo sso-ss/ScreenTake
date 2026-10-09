@@ -46,7 +46,7 @@ data needed for click zoom, cursor rendering, webcam composition, trim, and narr
 
 ## Portable projects
 
-File → Save Project… (Shift-Command-S) writes a `.screenize` package. File → Open
+File → Save Project… (Shift-Command-S) writes a `.screentake` package. File → Open
 Project… (Shift-Command-O) restores the draft into the same editor session. Version 2
 stores the complete `VideoEditSettings`, including exact reordered timeline times,
 camera sections and take timing, crop, zooms, voiceovers, volumes, and resolution.
@@ -76,7 +76,7 @@ Supported operations:
 | `get_capabilities` | Lists commands and revision/job requirements |
 | `get_project` | Full current settings, source/project references, durations, revision, busy and undo state |
 | `open_video`, `open_project` | Absolute local path; replacing existing work requires current project ID/revision and explicit `discardUnsaved` when needed |
-| `save_project` | Absolute `.screenize` path |
+| `save_project` | Absolute `.screentake` path |
 | `apply_edits` | Partial typed settings batch, committed as one undo operation |
 | `undo`, `redo` | Shared editor history |
 | `find_silences` | Job with suggested removals in retained source-time ranges |

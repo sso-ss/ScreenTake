@@ -4,6 +4,15 @@ import CoreGraphics
 
 /// Composites a shaped webcam PiP overlay onto a screen frame.
 final class WebcamCompositor {
+    private let beautyLock = NSLock()
+    private lazy var beauty = FaceBeautyFilter()
+    private lazy var beautyContext = CIContext(options: [.cacheIntermediates: false])
+    private var cachedSource: CIImage?
+    private var cachedBeautyTime: Double?
+    private var cachedBeautyAmount = 0.0
+    private var cachedMakeup = FaceMakeupSettings()
+    private var cachedBeautyImage: CIImage?
+    private(set) var filteredFrameCount = 0
 
     /// Padding from screen edge for the PiP circle.
     private static let edgePadding: CGFloat = 24
@@ -38,17 +47,58 @@ final class WebcamCompositor {
         )
     }
 
-    /// Composite a webcam frame onto a screen frame.
     func composite(webcamImage: CIImage, onto screenImage: CIImage,
+                   settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   faceFocus: FaceTrackingTrack.Focus? = nil,
+                   transition: CameraLayoutTransition? = nil,
+                   beautyAmount: Double = 0, beautyTime: Double = 0, makeup: FaceMakeupSettings = .init()) -> CIImage {
+        compositeFiltered(webcamImage: filteredFrame(webcamImage, at: beautyTime, amount: beautyAmount, makeup: makeup),
+                          onto: screenImage, settings: settings, faceFocus: faceFocus, transition: transition)
+    }
+
+    /// A camera sample can span several 60fps output frames. Cache its pixels,
+    /// not just its CI graph, so both detection and GPU effects run once. Layout
+    /// and transitions still evaluate for every output frame. Retaining the
+    /// source also prevents a reused object address from matching another frame.
+    private func filteredFrame(_ image: CIImage, at time: Double, amount: Double,
+                               makeup: FaceMakeupSettings) -> CIImage {
+        beautyLock.lock()
+        defer { beautyLock.unlock() }
+        let amount = FaceBeautyFilter.clamped(amount), makeup = makeup.clamped
+        if cachedSource === image, cachedBeautyTime == time,
+           cachedBeautyAmount == amount, cachedMakeup == makeup, let cachedBeautyImage {
+            return cachedBeautyImage
+        }
+        cachedSource = nil; cachedBeautyImage = nil
+        guard amount > 0 || makeup.amount > 0 else {
+            // Also clear temporal tracking when the user switches the filter off.
+            if cachedBeautyTime != nil { _ = beauty.render(image, at: time, amount: 0) }
+            cachedBeautyTime = nil
+            return image
+        }
+        let filtered = beauty.render(image, at: time, amount: amount, makeup: makeup)
+        // Half-float linear pixels preserve the filter's precision and colors.
+        guard let raster = beautyContext.createCGImage(filtered, from: image.extent, format: .RGBAh,
+                    colorSpace: CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!) else { return filtered }
+        let result = CIImage(cgImage: raster).transformed(by: CGAffineTransform(
+            translationX: image.extent.minX, y: image.extent.minY))
+        cachedSource = image; cachedBeautyTime = time; cachedBeautyAmount = amount
+        cachedMakeup = makeup; cachedBeautyImage = result
+        filteredFrameCount += 1
+        return result
+    }
+
+    /// Filter exactly once, before any crop, layout transition or shape mask.
+    private func compositeFiltered(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
                    faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil) -> CIImage {
         if let transition {
             if transition.progress <= 0 {
-                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.from, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.from, faceFocus: faceFocus)
             }
             if transition.progress >= 1 {
-                return composite(webcamImage: webcamImage, onto: screenImage, settings: transition.to, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.to, faceFocus: faceFocus)
             }
             return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, faceFocus: faceFocus)
         }

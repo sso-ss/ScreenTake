@@ -238,3 +238,29 @@
 "Align this section with its matching video or audio section before linking." = "Richte diesen Abschnitt vor dem Verknüpfen am zugehörigen Video oder Audio aus.";
 "Open a video to change gap closing." = "Öffne ein Video, um das Schließen von Lücken zu ändern.";
 "Wait for the current recording or processing to finish before editing the timeline." = "Warte, bis die Aufnahme oder Verarbeitung abgeschlossen ist, bevor du die Zeitleiste bearbeitest.";
+
+/* Face beauty */
+"Beauty Filter" = "Beauty-Filter";
+"Intensity" = "Intensität";
+"Beauty intensity" = "Beauty-Intensität";
+"Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost." = "Glättet Haut und feine Linien und verfolgt dabei sichtbare Gesichtszüge. Wird ausgeblendet, wenn die Erkennung verloren geht.";
+
+// Camera makeup
+"Natural" = "Natural";
+"Peach Makeup" = "Pfirsich-Make-up";
+"Customize makeup" = "Make-up anpassen";
+"Eyelashes" = "Wimpern";
+"Eyebrows" = "Augenbrauen";
+"Peach blush" = "Pfirsichrouge";
+"Overlined lips" = "Überzeichnete Lippen";
+"Eyeshadow" = "Lidschatten";
+"Under-eye fullness · 애굣살" = "Fülle unter den Augen · 애굣살";
+"Nose & chin contour" = "Nasen- und Kinnkontur";
+"Shorter face" = "Kürzeres Gesicht";
+"Soft peach makeup that follows your face. Face shortening eases off as you turn sideways." = "Sanftes Pfirsich-Make-up folgt deinem Gesicht. Die Gesichtsverkürzung nimmt beim seitlichen Drehen ab.";
+
+"Skin & fine lines" = "Haut und feine Linien";
+
+"Face definition" = "Gesichtskonturen";
+
+"Under-eye shadow" = "Lidschatten unter den Augen";

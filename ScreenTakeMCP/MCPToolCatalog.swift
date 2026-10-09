@@ -62,6 +62,12 @@ enum MCPToolCatalog {
         "webcamEnabled": boolean, "webcamShape": choices("circle", "roundedSquare"),
         "webcamPosition": choices("topLeft", "topCenter", "topRight", "middleLeft", "center", "middleRight", "bottomLeft", "bottomCenter", "bottomRight"),
         "webcamSize": choices("small", "medium", "large"), "videoOverlayURL": fileURL, "cameraLayout": camera,
+        "faceBeautyAmount": number(0, 1),
+        "faceMakeup": object([
+            "amount": number(0, 1), "lashes": number(0, 1), "brows": number(0, 1), "blush": number(0, 1),
+            "lips": number(0, 1), "eyeshadow": number(0, 1), "underEyeShadow": number(0, 1), "aegyo": number(0, 1),
+            "contour": number(0, 1), "shortening": number(0, 1), "skin": number(0, 1), "definition": number(0, 1)
+        ], required: ["amount", "lashes", "brows", "blush", "lips", "eyeshadow", "aegyo", "contour", "shortening"]),
         "cameraLayoutChanges": array(object(["start": time, "settings": camera], required: ["start", "settings"])),
         "videoOverlayTiming": object(["start": time, "duration": number(0, extra: ["exclusiveMinimum": 0]), "sourceStart": time], required: ["start", "duration", "sourceStart"]),
         "voiceOvers": array(object([
@@ -82,8 +88,8 @@ enum MCPToolCatalog {
             ("get_capabilities", "List the native editor commands and revision/job requirements.", [:], [], true, false),
             ("get_project", "Read the project open in the native editor, complete settings, revision, busy state, and undo availability. Read this before editing.", [:], [], true, false),
             ("open_video", "Open local video in the native editor. When replacing a video, supply its projectID and expectedRevision; discardUnsaved=true explicitly permits replacement of unsaved work.", merge(merge(path, revision), ["discardUnsaved": boolean]), ["path"], false, true),
-            ("open_project", "Open a portable .screenize project in the native editor. Replacing work has the same revision and discard requirements as open_video.", merge(merge(path, revision), ["discardUnsaved": boolean]), ["path"], false, true),
-            ("save_project", "Atomically save the current editable project with embedded media to a .screenize package.", merge(path, revision), ["path", "projectID", "expectedRevision"], false, true),
+            ("open_project", "Open a portable .screentake project in the native editor. Replacing work has the same revision and discard requirements as open_video.", merge(merge(path, revision), ["discardUnsaved": boolean]), ["path"], false, true),
+            ("save_project", "Atomically save the current editable project with embedded media to a .screentake package.", merge(path, revision), ["path", "projectID", "expectedRevision"], false, true),
             ("apply_edits", "Apply validated settings to the same draft displayed by the UI. Uses one shared undo operation. Stale revisions are rejected.", merge(revision, ["edits": edits]), ["projectID", "expectedRevision", "edits"], false, false),
             ("find_silences", "Start an analysis job suggesting removals in retained source time. Suggestions do not change the timeline; review and apply them with apply_edits.", merge(revision, ["silence": object(["thresholdDB": number(-80, 0), "minimumPause": number(0, extra: ["exclusiveMinimum": 0]), "padding": time], required: ["thresholdDB", "minimumPause", "padding"])]), ["projectID", "expectedRevision"], false, false),
             ("render_preview", "Start a preview job at 1–12 edited-video timestamps. Poll get_job, then call get_preview_frame to see a PNG.", merge(revision, ["times": array(time, extra: ["minItems": 1, "maxItems": 12])]), ["projectID", "expectedRevision"], false, false),

@@ -75,7 +75,7 @@ struct BrowserCropChecks {
         await session.setBrowserToolbarHidden(true)
         precondition(BrowserContentDetector.agree(session.draft.crop.normalized, previousManual.normalized.intersection(edge), tolerance: 0.000001))
         await session.waitForPreview()
-        let project = directory.appendingPathComponent("browser.screenize")
+        let project = directory.appendingPathComponent("browser.screentake")
         try await session.saveProject(to: project)
         let reopened = EditorSession()
         try await reopened.openProject(project)

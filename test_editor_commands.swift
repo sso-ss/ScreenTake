@@ -33,7 +33,7 @@ struct EditorCommandChecks {
             $0.voiceOverVolume = 0.6
             $0.zoomSegments = [.init(start: 0.3, end: 0.9, zoom: 2, centerX: 0.4, centerY: 0.5)]
         }
-        let first = directory.appendingPathComponent("Demo.screenize")
+        let first = directory.appendingPathComponent("Demo.screentake")
         try await session.saveProject(to: first)
         await session.waitForPreview()
         precondition(!session.hasUnsavedWork && session.projectURL == first)
@@ -61,7 +61,7 @@ struct EditorCommandChecks {
         reopened.undo()
         precondition(reopened.draft.videoOverlayURL != nil && FileManager.default.fileExists(atPath: reopened.draft.videoOverlayURL!.path))
         precondition(reopened.hasUnsavedWork)
-        let second = directory.appendingPathComponent("Portable.screenize")
+        let second = directory.appendingPathComponent("Portable.screentake")
         try await reopened.saveProject(to: second)
         let portable = EditorSession()
         try FileManager.default.removeItem(at: first)
@@ -80,8 +80,28 @@ struct EditorCommandChecks {
         precondition(FileManager.default.fileExists(atPath: portable.draft.phoneVideoURL!.path))
         print("PASS: full project serialization, exact reordered timeline, portable media, same preview/export, save replacement, and undo media retention")
 
+        // Previously created packages remain readable, but new saves use the
+        // ScreenTake name and preserve the old package during conversion.
+        let legacy = directory.appendingPathComponent("Previous.screenize")
+        try FileManager.default.copyItem(at: second, to: legacy)
+        let legacyManifest = try Data(contentsOf: legacy.appendingPathComponent("project.json"))
+        let migrated = EditorSession()
+        try await migrated.openProject(legacy)
+        precondition(migrated.projectID == portable.projectID)
+        let migratedURL = directory.appendingPathComponent("Migrated.screentake")
+        try await migrated.saveProject(to: migratedURL)
+        let migratedProject = try await EditorProjectStore.load(from: migratedURL)
+        precondition(tryData(migratedProject.source) == original)
+        precondition(tryData(legacy.appendingPathComponent("project.json")) == legacyManifest)
+        do {
+            try await migrated.saveProject(to: directory.appendingPathComponent("New.screenize"))
+            preconditionFailure("A new project used the previous branding")
+        } catch EditorProjectStore.ProjectError.invalidDestination { }
+        migrated.close()
+        print("PASS: previous packages open and migrate to .screentake without changing original media or manifests")
+
         // Malformed, future-version, and missing-media packages cannot replace work.
-        let bad = directory.appendingPathComponent("Bad.screenize")
+        let bad = directory.appendingPathComponent("Bad.screentake")
         try FileManager.default.copyItem(at: second, to: bad)
         let badManifest = bad.appendingPathComponent("project.json")
         var invalid = try JSONDecoder().decode(EditorProject.self, from: Data(contentsOf: badManifest))

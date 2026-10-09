@@ -8,7 +8,7 @@ struct Timeline: Codable {
     init() {}
 }
 
-/// Screenize project file — contains recorded media and timeline editing data
+/// ScreenTake project file — contains recorded media and timeline editing data
 struct ScreenProject: Codable, Identifiable {
     let id: UUID
     var version: Int = 1
@@ -47,7 +47,10 @@ struct ScreenProject: Codable, Identifiable {
 
     // MARK: - Constants
 
-    static let packageExtension = "screenize"
+    static let packageExtension = "screentake"
+    // Read packages created before the naming correction; all new saves use
+    // ScreenTake's extension, including Save As from one of these packages.
+    static let readablePackageExtensions = [packageExtension, "screenize"]
 
     // MARK: - File Operations
 

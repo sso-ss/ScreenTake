@@ -35,7 +35,14 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
 
     /// Latest pixel buffer for live preview. Updated on every captured frame.
     /// Read from the main thread (PiP overlay); written from the capture queue.
-    private(set) var latestPixelBuffer: CVPixelBuffer?
+    private var previewBuffer: CVPixelBuffer?
+    var latestPixelBuffer: CVPixelBuffer? { lock.withLock { previewBuffer } }
+    var previewFrame: (buffer: CVPixelBuffer, time: Double)? {
+        lock.withLock {
+            guard let previewBuffer, let lastPreviewPTS else { return nil }
+            return (previewBuffer, lastPreviewPTS.seconds)
+        }
+    }
 
     /// Actual camera frame dimensions (set after session starts).
     private var captureWidth: Int = 640
@@ -254,9 +261,9 @@ extension WebcamRecorder: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         // Always publish the latest frame for live preview, regardless of recording state
         if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-            latestPixelBuffer = pixelBuffer
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
             lock.withLock {
+                previewBuffer = pixelBuffer
                 if let previous = lastPreviewPTS, timestamp > previous,
                    CMTimeSubtract(timestamp, previous).seconds < 0.2 {
                     consecutivePreviewFrames += 1
@@ -349,7 +356,7 @@ final class VideoOverlayRecorder: ObservableObject {
     @Published private(set) var session: AVCaptureSession?
     @Published private(set) var rotationAngle: CGFloat = 0
     @Published var error: String?
-    private var camera: WebcamRecorder?
+    private(set) var camera: WebcamRecorder?
     private var player: AVPlayer?
     private var task: Task<Void, Never>?
     private var timer: Timer?
