@@ -2,6 +2,7 @@ import Foundation
 
 extension VideoEditSettings {
     func validate(duration: Double) throws {
+        _ = try trim.timeRange(duration: EditorAudio.time(duration))
         let timeline = try trim.timeline(duration: EditorAudio.time(duration))
         guard timeline.duration.seconds.isFinite, timeline.duration.seconds > 0,
               trim.end.map({ $0 <= duration + 0.001 }) ?? true,
@@ -13,6 +14,40 @@ extension VideoEditSettings {
         let ordered = trim.clipOrder.sorted { $0.start < $1.start }
         guard zip(ordered, ordered.dropFirst()).allSatisfy({ $0.end <= $1.start }) else {
             throw EditValidationError.invalid("Reordered clips cannot overlap in source time.")
+        }
+        if let clips = recordedAudioClips {
+            guard Set(clips.map(\.id)).count == clips.count,
+                  clips.allSatisfy({ [$0.start, $0.sourceStart, $0.duration].allSatisfy(\.isFinite)
+                    && $0.start >= 0 && $0.sourceStart >= 0 && $0.duration > 0
+                    && $0.sourceStart + $0.duration <= duration + 0.001 }) else {
+                throw EditValidationError.invalid("Invalid recorded audio timing.")
+            }
+            let ordered = clips.sorted { $0.start < $1.start }
+            guard zip(ordered, ordered.dropFirst()).allSatisfy({ $0.end <= $1.start + 0.000001 }) else {
+                throw EditValidationError.invalid("Recorded audio clips cannot overlap.")
+            }
+            guard clips.allSatisfy({ $0.end <= timeline.duration.seconds + 0.001 }) else {
+                throw EditValidationError.invalid("Recorded audio must lie inside the edited timeline.")
+            }
+            let video = trim.clips ?? []
+            let videoLinks = video.compactMap(\.linkID), audioLinks = clips.compactMap(\.linkID)
+            guard Set(videoLinks).count == videoLinks.count, Set(audioLinks).count == audioLinks.count else {
+                throw EditValidationError.invalid("Each link must join exactly one video and audio section.")
+            }
+            guard Set(video.map(\.id)).count == video.count else {
+                throw EditValidationError.invalid("Duplicate video clip identifiers.")
+            }
+            for clip in video where clip.linkID != nil {
+                let partners = clips.filter { $0.linkID == clip.linkID }
+                guard partners.count == 1, let partner = partners.first,
+                      abs(partner.start - clip.start) < 0.001, abs(partner.sourceStart - clip.sourceStart) < 0.001,
+                      abs(partner.duration - clip.duration) < 0.001 else {
+                    throw EditValidationError.invalid("Linked video and audio must have matching timing.")
+                }
+            }
+            guard clips.allSatisfy({ audio in audio.linkID == nil || video.contains(where: { $0.linkID == audio.linkID }) }) else {
+                throw EditValidationError.invalid("Recorded audio has a missing video link.")
+            }
         }
         func number(_ value: Double, _ range: ClosedRange<Double>, _ name: String) throws {
             guard value.isFinite, range.contains(value) else { throw EditValidationError.invalid("Invalid \(name).") }

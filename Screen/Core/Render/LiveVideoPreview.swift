@@ -23,7 +23,7 @@ enum LiveVideoPreview {
         guard let video = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else { throw ExportError.readerSetupFailed }
         try video.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: sourceTrack, at: .zero)
         video.preferredTransform = transform
-        if request.settings.audioEnabled, let audioURL = request.audio {
+        if request.settings.recordedAudioClips == nil, request.settings.audioEnabled, let audioURL = request.audio {
             let audioAsset = AVURLAsset(url: audioURL)
             for sourceAudio in try await audioAsset.loadTracks(withMediaType: .audio) {
                 let range = try await sourceAudio.load(.timeRange)
@@ -35,6 +35,10 @@ enum LiveVideoPreview {
             }
         }
         try timeline.apply(to: composition, sourceDuration: duration)
+        try await timeline.fillVideoGaps(in: composition)
+        if request.settings.audioEnabled, let audioURL = request.audio, let clips = request.settings.recordedAudioClips {
+            try await EditorAudio.insertRecordedAudio(into: composition, source: audioURL, clips: clips, duration: timeline.duration)
+        }
         let audioMix = try await EditorAudio.mix(into: composition, duration: timeline.duration,
                                                 originalVolume: request.settings.originalAudioVolume,
                                                 clips: request.settings.voiceOverEnabled ? request.settings.voiceOvers : [],
@@ -77,6 +81,10 @@ enum LiveVideoPreview {
                 let image = frame.sourceImage
                     .transformed(by: CGAffineTransform(translationX: -frame.sourceImage.extent.minX, y: -frame.sourceImage.extent.minY))
                 let sourceTime = timeline.sourceTime(at: frame.compositionTime)
+                guard sourceTime.isNumeric else {
+                    frame.finish(with: CIImage(color: .black).cropped(to: CGRect(origin: .zero, size: renderer.outputSize)), context: context)
+                    return
+                }
                 let webcamTime: CMTime?
                 if let timing = request.settings.videoOverlayTiming {
                     webcamTime = timing.sampleTime(at: frame.compositionTime.seconds)

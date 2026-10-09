@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import CoreImage
 
 struct VideoCut: Equatable, Identifiable, Codable {
     var id = UUID()
@@ -8,39 +9,152 @@ struct VideoCut: Equatable, Identifiable, Codable {
     var end: Double
 }
 
+struct MediaTimelineClip: Equatable, Identifiable, Codable {
+    var id = UUID()
+    var start: Double
+    var sourceStart: Double
+    var duration: Double
+    var linkID: UUID?
+    var end: Double { start + duration }
+    var sourceRange: CMTimeRange {
+        CMTimeRange(start: time(sourceStart), duration: time(duration))
+    }
+    private func time(_ seconds: Double) -> CMTime { CMTime(seconds: seconds, preferredTimescale: 60000) }
+}
+
 struct EditedTimeline {
     let ranges: [CMTimeRange]
+    var placements: [CMTime]? = nil
+    var length: CMTime? = nil
 
-    var duration: CMTime { ranges.reduce(.zero) { CMTimeAdd($0, $1.duration) } }
+    var outputStarts: [CMTime] {
+        if let placements { return placements }
+        var elapsed = CMTime.zero
+        return ranges.map { range in
+            defer { elapsed = CMTimeAdd(elapsed, range.duration) }
+            return elapsed
+        }
+    }
+    var duration: CMTime { length ?? ranges.reduce(.zero) { CMTimeAdd($0, $1.duration) } }
+    var hasGaps: Bool {
+        var boundary = CMTime.zero
+        for (range, start) in zip(ranges, outputStarts) {
+            if start > boundary { return true }
+            boundary = CMTimeAdd(start, range.duration)
+        }
+        return boundary < duration
+    }
+
+    var gaps: [CMTimeRange] {
+        var result: [CMTimeRange] = [], boundary = CMTime.zero
+        for (range, start) in zip(ranges, outputStarts) {
+            if start > boundary { result.append(CMTimeRange(start: boundary, end: start)) }
+            boundary = CMTimeAdd(start, range.duration)
+        }
+        if boundary < duration { result.append(CMTimeRange(start: boundary, end: duration)) }
+        return result
+    }
+
+    /// Empty AVComposition segments can hold the preceding frame at the end.
+    /// Real black samples give playback, frame extraction and export the same gap pixels.
+    func fillVideoGaps(in composition: AVMutableComposition) async throws {
+        guard hasGaps, let track = composition.tracks(withMediaType: .video).first else { return }
+        let asset = try await BlackTimelineFrames.shared.asset(size: try await track.load(.naturalSize))
+        guard let black = try await asset.loadTracks(withMediaType: .video).first else { throw VideoTrimError.exportFailed }
+        let blackDuration = try await asset.load(.duration)
+        for gap in gaps {
+            track.removeTimeRange(gap)
+            let length = CMTimeMinimum(gap.duration, blackDuration)
+            try track.insertTimeRange(CMTimeRange(start: .zero, duration: length), of: black, at: gap.start)
+            if length != gap.duration { track.scaleTimeRange(CMTimeRange(start: gap.start, duration: length), toDuration: gap.duration) }
+        }
+    }
 
     func outputTime(at source: CMTime) -> CMTime {
-        var elapsed = CMTime.zero
-        for range in ranges {
-            if source >= range.start && source < range.end { return CMTimeAdd(elapsed, CMTimeSubtract(source, range.start)) }
-            elapsed = CMTimeAdd(elapsed, range.duration)
+        for (range, start) in zip(ranges, outputStarts) {
+            if source >= range.start && source < range.end { return CMTimeAdd(start, CMTimeSubtract(source, range.start)) }
         }
         if let next = ranges.filter({ $0.start > source }).min(by: { $0.start < $1.start }) {
             return outputTime(at: next.start)
         }
-        return elapsed
+        return duration
     }
 
+    /// Gaps have no source frame. Returning invalid prevents stale cursor/camera imagery.
     func sourceTime(at output: CMTime) -> CMTime {
-        var remaining = CMTimeMaximum(.zero, output)
-        for range in ranges {
-            if remaining < range.duration { return CMTimeAdd(range.start, remaining) }
-            remaining = CMTimeSubtract(remaining, range.duration)
+        let output = CMTimeMaximum(.zero, output)
+        for (range, start) in zip(ranges, outputStarts) {
+            if output >= start && output < CMTimeAdd(start, range.duration) {
+                return CMTimeAdd(range.start, CMTimeSubtract(output, start))
+            }
         }
-        return ranges.last?.end ?? .zero
+        return output >= duration ? (ranges.last?.end ?? .zero) : .invalid
     }
 
     func apply(to composition: AVMutableComposition, sourceDuration: CMTime) throws {
         guard let original = composition.copy() as? AVComposition else { throw VideoTrimError.exportFailed }
         composition.removeTimeRange(CMTimeRange(start: .zero, duration: sourceDuration))
-        var elapsed = CMTime.zero
-        for range in ranges {
-            try composition.insertTimeRange(range, of: original, at: elapsed)
-            elapsed = CMTimeAdd(elapsed, range.duration)
+        for track in original.tracks {
+            guard let destination = composition.tracks.first(where: { $0.trackID == track.trackID }) else { continue }
+            var boundary = CMTime.zero
+            for (range, start) in zip(ranges, outputStarts) {
+                let available = CMTimeRangeGetIntersection(range, otherRange: track.timeRange)
+                guard available.duration > .zero else { continue }
+                let position = CMTimeAdd(start, CMTimeSubtract(available.start, range.start))
+                if position > boundary {
+                    destination.insertEmptyTimeRange(CMTimeRange(start: boundary, end: position))
+                }
+                try destination.insertTimeRange(available, of: track, at: position)
+                boundary = CMTimeAdd(position, available.duration)
+            }
+            if boundary < duration {
+                destination.insertEmptyTimeRange(CMTimeRange(start: boundary, end: duration))
+            }
+        }
+    }
+}
+
+private actor BlackTimelineFrames {
+    static let shared = BlackTimelineFrames()
+    private var assets: [String: AVURLAsset] = [:]
+    func asset(size: CGSize) async throws -> AVURLAsset {
+        let width = max(2, Int(ceil(size.width / 2)) * 2), height = max(2, Int(ceil(size.height / 2)) * 2)
+        let key = "\(width)x\(height)"
+        if let asset = assets[key] { return asset }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ScreenTake-black-\(UUID().uuidString).mov")
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height
+        ])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+        writer.add(input)
+        guard writer.startWriting() else { throw writer.error ?? VideoTrimError.exportFailed }
+        writer.startSession(atSourceTime: .zero)
+        do {
+            let context = CIContext()
+            for index in 0..<2 {
+                while !input.isReadyForMoreMediaData {
+                    try Task.checkCancellation()
+                    guard writer.status == .writing else { throw writer.error ?? VideoTrimError.exportFailed }
+                    await Task.yield()
+                }
+                var pixel: CVPixelBuffer?
+                guard CVPixelBufferCreate(nil, width, height, kCVPixelFormatType_32BGRA, nil, &pixel) == kCVReturnSuccess,
+                      let pixel else { throw VideoTrimError.exportFailed }
+                context.render(CIImage(color: .black), to: pixel)
+                guard adaptor.append(pixel, withPresentationTime: CMTime(value: Int64(index), timescale: 2)) else {
+                    throw writer.error ?? VideoTrimError.exportFailed
+                }
+            }
+            input.markAsFinished()
+            writer.endSession(atSourceTime: CMTime(seconds: 1, preferredTimescale: 60000))
+            await writer.finishWriting()
+            guard writer.status == .completed else { throw writer.error ?? VideoTrimError.exportFailed }
+            let asset = AVURLAsset(url: url)
+            assets[key] = asset
+            return asset
+        } catch {
+            writer.cancelWriting(); try? FileManager.default.removeItem(at: url); throw error
         }
     }
 }
@@ -51,8 +165,11 @@ struct VideoTrim: Equatable, Codable {
     var cuts: [VideoCut] = []
     var splits: [Double] = []
     private(set) var clipOrder: [CMTimeRange] = []
+    /// Explicit placements allow video sections to leave gaps independently of audio.
+    var clips: [MediaTimelineClip]?
+    var timelineLength: Double?
 
-    private enum CodingKeys: String, CodingKey { case start, end, cuts, splits, clipOrder }
+    private enum CodingKeys: String, CodingKey { case start, end, cuts, splits, clipOrder, clips, timelineLength }
     private struct SavedRange: Codable {
         let startValue: Int64
         let startScale: Int32
@@ -81,11 +198,15 @@ struct VideoTrim: Equatable, Codable {
         end = try values.decodeIfPresent(Double.self, forKey: .end)
         cuts = try values.decodeIfPresent([VideoCut].self, forKey: .cuts) ?? []
         splits = try values.decodeIfPresent([Double].self, forKey: .splits) ?? []
+        clips = try values.decodeIfPresent([MediaTimelineClip].self, forKey: .clips)
+        timelineLength = try values.decodeIfPresent(Double.self, forKey: .timelineLength)
         clipOrder = try (values.decodeIfPresent([SavedRange].self, forKey: .clipOrder) ?? []).map { try $0.range() }
     }
 
     func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encodeIfPresent(clips, forKey: .clips)
+        try values.encodeIfPresent(timelineLength, forKey: .timelineLength)
         try values.encode(start, forKey: .start)
         try values.encodeIfPresent(end, forKey: .end)
         try values.encode(cuts, forKey: .cuts)
@@ -132,6 +253,22 @@ struct VideoTrim: Equatable, Codable {
     }
 
     func timeline(duration: CMTime) throws -> EditedTimeline {
+        if let clips {
+            if let timelineLength, !timelineLength.isFinite || timelineLength < 0 { throw VideoTrimError.invalidRange }
+            let ordered = clips.sorted { $0.start < $1.start }
+            guard !ordered.isEmpty else { throw VideoTrimError.emptySelection }
+            guard ordered.allSatisfy({ [$0.start, $0.sourceStart, $0.duration].allSatisfy(\.isFinite)
+                && $0.start >= 0 && $0.sourceStart >= 0 && $0.duration > 0
+                && $0.sourceStart + $0.duration <= duration.seconds + 0.001 }),
+                zip(ordered, ordered.dropFirst()).allSatisfy({ $0.end <= $1.start + 0.000001 }) else {
+                throw VideoTrimError.invalidRange
+            }
+            let length = max(ordered.map(\.end).max() ?? 0, timelineLength ?? 0)
+            guard length.isFinite else { throw VideoTrimError.invalidRange }
+            return EditedTimeline(ranges: ordered.map(\.sourceRange),
+                placements: ordered.map { CMTime(seconds: $0.start, preferredTimescale: 60000) },
+                length: CMTime(seconds: length, preferredTimescale: 60000))
+        }
         let selection = try timeRange(duration: duration)
         var boundary = selection.start
         var ranges: [CMTimeRange] = []
@@ -173,7 +310,7 @@ struct VideoTrim: Equatable, Codable {
         let asset = AVURLAsset(url: source)
         let duration = try await asset.load(.duration)
         let timeline = try timeline(duration: duration)
-        guard timeline.ranges.count != 1 || timeline.ranges[0] != CMTimeRange(start: .zero, duration: duration) else { return source }
+        guard timeline.hasGaps || timeline.ranges.count != 1 || timeline.ranges[0] != CMTimeRange(start: .zero, duration: duration) else { return source }
         let composition = AVMutableComposition()
         for sourceTrack in try await asset.load(.tracks) where sourceTrack.mediaType == .video || sourceTrack.mediaType == .audio {
             guard let track = composition.addMutableTrack(withMediaType: sourceTrack.mediaType, preferredTrackID: kCMPersistentTrackID_Invalid) else {
@@ -185,7 +322,8 @@ struct VideoTrim: Equatable, Codable {
             if sourceTrack.mediaType == .video { track.preferredTransform = try await sourceTrack.load(.preferredTransform) }
         }
         try timeline.apply(to: composition, sourceDuration: duration)
-        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+        try await timeline.fillVideoGaps(in: composition)
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: timeline.hasGaps ? AVAssetExportPresetHighestQuality : AVAssetExportPresetPassthrough) else {
             throw VideoTrimError.exportFailed
         }
         let output = source.deletingLastPathComponent()
@@ -193,6 +331,14 @@ struct VideoTrim: Equatable, Codable {
         exporter.outputURL = output
         exporter.outputFileType = .mov
         exporter.timeRange = CMTimeRange(start: .zero, duration: timeline.duration)
+        if timeline.hasGaps {
+            let context = CIContext()
+            exporter.videoComposition = AVMutableVideoComposition(asset: composition) { request in
+                let image = timeline.sourceTime(at: request.compositionTime).isNumeric
+                    ? request.sourceImage : CIImage(color: .black).cropped(to: request.sourceImage.extent)
+                request.finish(with: image, context: context)
+            }
+        }
         await exporter.export()
         guard exporter.status == .completed else {
             try? FileManager.default.removeItem(at: output)

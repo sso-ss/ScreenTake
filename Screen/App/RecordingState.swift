@@ -381,7 +381,8 @@ final class RecordingState: ObservableObject {
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,
                                                     originalVolume: settings.originalAudioVolume,
                                                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [],
-                                                    voiceOverVolume: settings.voiceOverVolume)
+                                                    voiceOverVolume: settings.voiceOverVolume,
+                                                    recordedSource: untrimmedURL, recordedClips: settings.recordedAudioClips)
             if settings.audioEnabled || lastUntrimmedRecordingURL == nil {
                 lastUntrimmedRecordingURL = untrimmedURL
             }

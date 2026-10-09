@@ -46,6 +46,7 @@ final class EditorSession: ObservableObject {
     @Published var selectedZoomID: UUID?
     @Published var isVideoOverlaySelected = false
     @Published var selectedSegment: CMTimeRange?
+    @Published var selectedRecordedAudioID: UUID?
     @Published var automaticZooms: [ZoomSegment] = []
     @Published var zoomPadding: CGFloat = 0
 
@@ -285,6 +286,23 @@ final class EditorSession: ObservableObject {
         guard videoURL != nil else { throw SessionError.noVideo }
         var candidate = draft
         change(&candidate)
+        if draft.trim.clips != nil, candidate.trim.clips == draft.trim.clips,
+           candidate.trim != draft.trim {
+            // Existing source-based commands and silence cleanup still honor independent audio.
+            _ = try candidate.trim.timeRange(duration: EditorAudio.time(sourceDuration))
+            let cuts = candidate.trim.cuts.filter { !draft.trim.cuts.contains($0) }
+                + (candidate.trim.start > draft.trim.start ? [VideoCut(start: 0, end: candidate.trim.start)] : [])
+                + ((candidate.trim.end ?? sourceDuration) < (draft.trim.end ?? sourceDuration)
+                    ? [VideoCut(start: candidate.trim.end ?? sourceDuration, end: sourceDuration)] : [])
+            if !cuts.isEmpty {
+                var timeline = mediaTimeline
+                guard timeline.cutSources(cuts, closeGaps: candidate.closesTimelineGaps) else { throw VideoTrimError.emptySelection }
+                candidate.trim = VideoTrim()
+                candidate.trim.clips = timeline.video
+                candidate.trim.timelineLength = timeline.duration
+                candidate.recordedAudioClips = timeline.audio
+            }
+        }
         try candidate.validate(duration: sourceDuration)
         draft = candidate
     }
@@ -307,6 +325,28 @@ final class EditorSession: ObservableObject {
             groupStart = nil
             if start != draft { remember(start) }
         }
+    }
+
+    var mediaTimeline: LinkedMediaTimeline {
+        LinkedMediaTimeline(trim: draft.trim, audioClips: draft.recordedAudioClips,
+                            sourceDuration: sourceDuration, hasAudio: hasEditableAudio)
+    }
+
+    /// One assignment keeps the paired tracks, preview and Undo in a single transaction.
+    @discardableResult
+    func editMediaTimeline(_ edit: (inout LinkedMediaTimeline) -> Bool) -> Bool {
+        guard !isBusy else { return false }
+        var timeline = mediaTimeline
+        guard edit(&timeline) else { return false }
+        var settings = draft
+        settings.trim = VideoTrim()
+        settings.trim.clips = timeline.video
+        settings.trim.timelineLength = timeline.duration
+        settings.recordedAudioClips = timeline.audio
+        guard (try? settings.validate(duration: sourceDuration)) != nil else { return false }
+        player?.pause()
+        draft = settings
+        return true
     }
 
     func undo() {
@@ -341,6 +381,7 @@ final class EditorSession: ObservableObject {
 
     private func clearSelection() {
         selectedVoiceOverID = nil
+        selectedRecordedAudioID = nil
         selectedZoomID = nil
         selectedSegment = nil
         isVideoOverlaySelected = false
@@ -397,7 +438,7 @@ final class EditorSession: ObservableObject {
             player.replaceCurrentItem(with: item)
             renderedPreviewTimeline = timeline
             player.isMuted = false
-            let mappedTime = timeline.outputTime(at: sourceTime)
+            let mappedTime = sourceTime.isNumeric ? timeline.outputTime(at: sourceTime) : time
             await player.seek(to: mappedTime.isNumeric ? CMTimeMinimum(mappedTime, itemDuration) : .zero,
                               toleranceBefore: .zero, toleranceAfter: .zero)
             try Task.checkCancellation()
@@ -456,7 +497,8 @@ final class EditorSession: ObservableObject {
                 let trimmed = try await settings.trim.export(source: rendered)
                 result = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
                     originalVolume: settings.originalAudioVolume,
-                    clips: settings.voiceOverEnabled ? settings.voiceOvers : [], voiceOverVolume: settings.voiceOverVolume)
+                    clips: settings.voiceOverEnabled ? settings.voiceOvers : [], voiceOverVolume: settings.voiceOverVolume,
+                    recordedSource: audioURL, recordedClips: settings.recordedAudioClips)
             }
             try Task.checkCancellation()
             videoURL = result

@@ -235,7 +235,7 @@ struct AudioWaveformStrip: View {
             waveform = nil
             failed = false
             // The decoder runs off the UI thread and is cancelled when the strip disappears.
-            let worker = Task.detached(priority: .utility) { try await AudioWaveform.load(url) }
+            let worker = Task.detached(priority: .utility) { try await RecordedWaveformCache.shared.load(url) }
             do {
                 let result = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
                 try Task.checkCancellation()
@@ -505,5 +505,69 @@ struct VideoOverlayFilmstrip: View {
         } catch {
             if !Task.isCancelled { thumbnailError = true }
         }
+    }
+}
+
+struct RecordedAudioTimelineClip: View {
+    let url: URL
+    let clip: MediaTimelineClip
+    let selected: Bool
+    let linked: Bool
+    let muted: Bool
+    let scale: Double
+    let select: () -> Void
+    let seek: (Double) -> Void
+    let move: (Double) -> Void
+    let trim: (Bool, Double) -> Void
+    let delete: () -> Void
+    let canDelete: Bool
+    let toggleLink: () -> Void
+    let canLink: Bool
+    @State private var dragOffset: Double = 0
+
+    var body: some View {
+        AudioWaveformStrip(url: url, title: "Recorded audio", color: .teal, muted: muted,
+                           duration: clip.duration, sourceStart: clip.sourceStart)
+            .frame(width: max(2, scale * clip.duration), height: 44)
+            .overlay(alignment: .topTrailing) {
+                if linked {
+                    Image(systemName: "link").font(.system(size: 9, weight: .semibold))
+                        .padding(4).foregroundStyle(.teal)
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay(RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(selected ? DesignColors.accent : Color.teal.opacity(0.6), lineWidth: selected ? 3 : 1))
+            .overlay(alignment: .leading) { if selected { handle(beginning: true) } }
+            .overlay(alignment: .trailing) { if selected { handle(beginning: false) } }
+            .offset(x: dragOffset)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { value in select(); dragOffset = abs(value.translation.width) > 6 ? value.translation.width : 0 }
+                .onEnded { value in
+                    if abs(value.translation.width) > 6 { move(value.translation.width / scale) }
+                    else { seek(clip.start + value.location.x / scale) }
+                    dragOffset = 0
+                })
+            .contextMenu {
+                Button(linked ? "Unlink" : "Link") { toggleLink() }.disabled(!canLink)
+                Button("Delete Recorded Audio", action: delete).disabled(!canDelete)
+            }
+            .accessibilityElement(children: .ignore)
+            .localizedAccessibilityLabel("Recorded audio section")
+            .localizedAccessibilityValue(linked ? "Linked" : "Unlinked")
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
+            .accessibilityAction { select() }
+            .accessibilityAction(named: "Delete Recorded Audio", delete)
+    }
+    private func handle(beginning: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 2).fill(DesignColors.accent)
+            .frame(width: 5, height: 26)
+            .frame(width: 12, height: 44).contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 1)
+                .onChanged { _ in select() }
+                .onEnded { trim(beginning, $0.translation.width / scale) })
+            .localizedAccessibilityLabel(beginning ? "Trim recorded audio beginning" : "Trim recorded audio end")
+            .accessibilityAdjustableAction { direction in trim(beginning, direction == .increment ? 1.0 / 30 : -1.0 / 30) }
     }
 }

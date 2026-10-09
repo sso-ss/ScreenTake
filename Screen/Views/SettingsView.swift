@@ -1814,6 +1814,9 @@ struct SettingsView: View {
                                   isVideoOverlaySelected: $session.isVideoOverlaySelected,
                                   session: session)
                     .disabled(editsBusy)
+                    .onChange(of: session.selectedRecordedAudioID) { id in
+                        if id != nil { selectedPanel = .audio }
+                    }
                     .onChange(of: session.selectedVoiceOverID) { id in
                         if id != nil { selectedPanel = .audio }
                     }
@@ -2367,6 +2370,10 @@ final class SilenceReview: ObservableObject {
         guard !selectedCuts.isEmpty else { return nil }
         var result = trim
         result.cuts += selectedCuts
+        if trim.clips != nil {
+            var timeline = LinkedMediaTimeline(trim: trim, audioClips: [], sourceDuration: duration, hasAudio: false)
+            guard timeline.cutSources(selectedCuts, closeGaps: true) else { return nil }
+        }
         return (try? result.timeline(duration: CMTime(seconds: duration, preferredTimescale: 60000))) == nil ? nil : result
     }
 
@@ -2478,6 +2485,64 @@ struct VideoTrimControls: View {
             else { localSelectedSegment = newValue }
         }
     }
+    private var mediaTimeline: LinkedMediaTimeline? { session?.mediaTimeline }
+    private var selectedAudioID: UUID? {
+        get { session?.selectedRecordedAudioID }
+        nonmutating set { session?.selectedRecordedAudioID = newValue }
+    }
+    private var selectedMedia: (clip: MediaTimelineClip, track: LinkedMediaTimeline.Track)? {
+        guard let mediaTimeline else { return nil }
+        if let selectedAudioID, let clip = mediaTimeline.clip(selectedAudioID, on: .audio) { return (clip, .audio) }
+        if let selectedSegment, let clip = mediaTimeline.video.first(where: { $0.sourceRange == selectedSegment }) { return (clip, .screen) }
+        return nil
+    }
+    private var selectionLinked: Bool {
+        guard let selectedMedia, let mediaTimeline else { return mediaTimeline?.audio.contains { $0.linkID != nil } ?? (audio != nil) }
+        return mediaTimeline.partner(of: selectedMedia.clip, on: selectedMedia.track) != nil
+    }
+    private var timelineBusyReason: String? {
+        session?.isBusy == true ? "Wait for the current recording or processing to finish before editing the timeline." : nil
+    }
+    private var linkDisabledReason: String? {
+        if let timelineBusyReason { return timelineBusyReason }
+        guard audio != nil else { return "This video has no recorded audio to link." }
+        guard let selectedMedia, let mediaTimeline else { return "Select a screen or recorded audio section to link or unlink." }
+        if mediaTimeline.partner(of: selectedMedia.clip, on: selectedMedia.track) != nil { return nil }
+        return mediaTimeline.linkCandidate(for: selectedMedia.clip, on: selectedMedia.track) == nil
+            ? "Align this section with its matching video or audio section before linking." : nil
+    }
+    private func toggleMediaLink() {
+        guard let selectedMedia else { return }
+        session?.editMediaTimeline { $0.toggleLink(selectedMedia.clip.id, on: selectedMedia.track) }
+        if selectedMedia.track == .audio {
+            if let state = session?.mediaTimeline, let clip = state.clip(selectedMedia.clip.id, on: .audio) {
+                selectedSegment = state.partner(of: clip, on: .audio)?.sourceRange
+            }
+        }
+    }
+    private func selectAudio(_ clip: MediaTimelineClip) {
+        player.pause()
+        selectedAudioID = clip.id
+        selectedSegment = mediaTimeline?.partner(of: clip, on: .audio)?.sourceRange
+        selectedVoiceOverID = nil; selectedZoomID = nil; focusedZoomID = nil
+        isVideoOverlaySelected = false; filmstripFocused = true
+    }
+    private func canDeleteMedia(_ clip: MediaTimelineClip, on track: LinkedMediaTimeline.Track) -> Bool {
+        guard var mediaTimeline else { return false }
+        return mediaTimeline.delete(clip.id, on: track, closeGaps: session?.draft.closesTimelineGaps ?? true)
+    }
+    private func deleteSelectedMedia() {
+        guard let selectedMedia else { return }
+        let close = session?.draft.closesTimelineGaps ?? true
+        if session?.editMediaTimeline({ $0.delete(selectedMedia.clip.id, on: selectedMedia.track, closeGaps: close) }) == true {
+            selectedAudioID = nil; selectedSegment = nil
+        }
+    }
+    private func trimMedia(_ id: UUID, on track: LinkedMediaTimeline.Track, beginning: Bool, delta: Double) {
+        let closeGaps = session?.draft.closesTimelineGaps ?? true
+        session?.editMediaTimeline { $0.trim(id, on: track, beginning: beginning, by: delta,
+                                           sourceDuration: duration, closeGaps: closeGaps) }
+    }
     private var canUndoEdit: Bool { session?.canUndo ?? !history.isEmpty }
     private var canRedoEdit: Bool { session?.canRedo ?? !redoHistory.isEmpty }
     private var canUndoZoom: Bool { session?.canUndo ?? !zoomHistory.isEmpty }
@@ -2519,7 +2584,7 @@ struct VideoTrimControls: View {
         timeline?.sourceTime(at: CMTime(seconds: playback.seconds, preferredTimescale: 60000)).seconds ?? 0
     }
     private var segments: [CMTimeRange] { (try? selection.segments(duration: mediaDuration)) ?? [] }
-    private var editedDuration: Double { segments.reduce(0) { $0 + $1.duration.seconds } }
+    private var editedDuration: Double { (try? selection.timeline(duration: mediaDuration).duration.seconds) ?? 0 }
     private var visibleZooms: [ZoomSegment] { draggingZooms ?? zoomSegments ?? automaticZooms }
     private var selectedZoom: ZoomSegment? { visibleZooms.first { $0.id == selectedZoomID } }
 
@@ -2556,10 +2621,16 @@ struct VideoTrimControls: View {
     }
 
     private func segmentOffset(_ index: Int) -> Double {
-        segments.prefix(index).reduce(0) { $0 + $1.duration.seconds }
+        guard segments.indices.contains(index) else { return editedDuration }
+        return (try? selection.timeline(duration: mediaDuration).outputTime(at: segments[index].start).seconds) ?? 0
     }
 
     private func moveSegment(from: Int, to: Int) {
+        if let session {
+            session.editMediaTimeline { $0.reorderVideo(from: from, to: to) }
+            selectedSegment = nil
+            return
+        }
         var candidate = trim
         if candidate.moveSegment(from: from, to: to, duration: mediaDuration) { commit(candidate) }
     }
@@ -2591,6 +2662,7 @@ struct VideoTrimControls: View {
     }
 
     private func selectZoom(_ id: UUID) {
+        selectedAudioID = nil
         isVideoOverlaySelected = false
         selectedVoiceOverID = nil
         selectedSegment = nil
@@ -2656,6 +2728,12 @@ struct VideoTrimControls: View {
     }
     private var canSplit: Bool {
         if isVideoOverlaySelected { return cameraSplit != nil }
+        if var mediaTimeline {
+            let track: LinkedMediaTimeline.Track = selectedAudioID == nil ? .screen : .audio
+            let clip = selectedMedia?.clip ?? mediaTimeline.video.first { playback.seconds >= $0.start && playback.seconds < $0.end }
+            guard let clip, selectedVoiceOverID == nil, selectedZoomID == nil else { return false }
+            return mediaTimeline.split(clip.id, on: track, at: playback.seconds)
+        }
         guard selectedVoiceOverID == nil, selectedZoomID == nil else { return false }
         var candidate = trim
         return candidate.split(at: sourceSeconds, duration: mediaDuration)
@@ -2669,7 +2747,7 @@ struct VideoTrimControls: View {
         }.first
     }
 
-    private var splitLabel: String { isVideoOverlaySelected ? "Split Camera" : "Split Screen" }
+    private var splitLabel: String { isVideoOverlaySelected ? "Split Camera" : selectedAudioID != nil ? "Split Audio" : "Split Screen" }
 
     private func splitSelectedTrack() {
         guard canSplit else { return }
@@ -2683,6 +2761,18 @@ struct VideoTrimControls: View {
             }
             cameraLayoutChanges.append(split)
             cameraLayoutChanges.sort { $0.start < $1.start }
+        } else if let session {
+            let state = session.mediaTimeline
+            let track: LinkedMediaTimeline.Track = selectedAudioID == nil ? .screen : .audio
+            if let clip = selectedMedia?.clip ?? state.video.first(where: { playback.seconds >= $0.start && playback.seconds < $0.end }) {
+                session.beginUndoGroup()
+                defer { session.endUndoGroup() }
+                if session.editMediaTimeline({ $0.split(clip.id, on: track, at: playback.seconds) }),
+                   track == .screen, let split = cameraSplit {
+                    cameraLayoutChanges.append(split)
+                    cameraLayoutChanges.sort { $0.start < $1.start }
+                }
+            }
         } else {
             var candidate = trim
             if candidate.split(at: sourceSeconds, duration: mediaDuration) {
@@ -2724,6 +2814,11 @@ struct VideoTrimControls: View {
 
     private func commit(_ value: VideoTrim, cameraSplit: CameraLayoutChange? = nil) {
         guard value != trim else { return }
+        if let session {
+            try? session.updateEdits { $0.trim = value }
+            selectedSegment = nil
+            return
+        }
         player.pause()
         session?.beginUndoGroup()
         defer { session?.endUndoGroup() }
@@ -2760,6 +2855,27 @@ struct VideoTrimControls: View {
         .buttonStyle(.plain)
         .modifier(TimelineTooltip(text: label))
         .localizedAccessibilityLabel(label)
+    }
+
+    private func timelineToggle(_ symbol: String, label: String, isOn: Bool,
+                                disabledReason: String?, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(isOn ? DesignColors.accent : DesignColors.secondaryLabel)
+                .background(isOn ? DesignColors.accent.opacity(0.15) : .clear,
+                            in: RoundedRectangle(cornerRadius: 5))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .localizedAccessibilityLabel(label)
+        .localizedAccessibilityValue(isOn ? "On" : "Off")
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+        .accessibilityIdentifier(identifier)
+        .accessibilityHint(Text(LocalizedStringKey(disabledReason ?? label)))
+        .disabled(disabledReason != nil)
+        .modifier(TimelineTooltip(text: disabledReason ?? label))
     }
 
     private func adjusted(_ value: Double, isStart: Bool, from original: VideoTrim) -> VideoTrim {
@@ -2811,7 +2927,9 @@ struct VideoTrimControls: View {
         .focusable()
         .focused($filmstripFocused)
         .onDeleteCommand {
-            if isVideoOverlaySelected {
+            if selectedMedia != nil {
+                deleteSelectedMedia()
+            } else if isVideoOverlaySelected {
                 removeVideoOverlay()
             } else if let id = selectedVoiceOverID {
                 player.pause()
@@ -2869,7 +2987,13 @@ struct VideoTrimControls: View {
             redoHistory = redoHistory.compactMap(\.withoutCamera)
         }
         .onChange(of: selectedVoiceOverID) { id in
-            if id != nil { isVideoOverlaySelected = false }
+            if id != nil { isVideoOverlaySelected = false; selectedAudioID = nil; selectedSegment = nil }
+        }
+        .onChange(of: selectedZoomID) { id in
+            if id != nil { selectedAudioID = nil; selectedSegment = nil }
+        }
+        .onChange(of: isVideoOverlaySelected) { selected in
+            if selected { selectedAudioID = nil; selectedSegment = nil }
         }
         .task(id: videoOverlayURL) {
             cameraDuration = 0
@@ -2964,6 +3088,15 @@ struct VideoTrimControls: View {
                     }
                 }.disabled(!canRedoEdit)
                     .modifier(TimelineTooltip(text: !canRedoEdit ? "No timeline edits to redo" : "Redo the last timeline edit"))
+                Divider().frame(height: 16).padding(.horizontal, 6)
+                timelineToggle("link", label: selectionLinked ? "Unlink" : "Link", isOn: selectionLinked,
+                               disabledReason: linkDisabledReason, identifier: "linkRecordedAudio") { toggleMediaLink() }
+                timelineToggle("arrow.left.to.line", label: "Close gaps", isOn: session?.draft.closesTimelineGaps ?? true,
+                               disabledReason: timelineBusyReason ?? (session == nil ? "Open a video to change gap closing." : nil),
+                               identifier: "closeTimelineGaps") {
+                    guard let session else { return }
+                    session.draft.closeTimelineGaps = !session.draft.closesTimelineGaps
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             playbackControls
@@ -3085,6 +3218,7 @@ struct VideoTrimControls: View {
     private var timelineHeight: Double { audioLaneTop + audioLaneHeight }
 
     private func selectVideoOverlay() {
+        selectedAudioID = nil
         player.pause()
         selectedSegment = nil
         selectedVoiceOverID = nil
@@ -3118,7 +3252,22 @@ struct VideoTrimControls: View {
 
     @ViewBuilder
     private func audioLanes(width: Double, total: Double) -> some View {
-        if let audio {
+        if let audio, let mediaTimeline {
+            ForEach(mediaTimeline.audio) { clip in
+                let linked = mediaTimeline.partner(of: clip, on: .audio) != nil
+                let highlighted = selectedAudioID == clip.id || (linked && selectedSegment == clip.sourceRange)
+                RecordedAudioTimelineClip(url: audio, clip: clip, selected: highlighted, linked: linked,
+                    muted: originalMuted, scale: width / total,
+                    select: { selectAudio(clip) }, seek: seekOutput,
+                    move: { delta in session?.editMediaTimeline { $0.move(clip.id, on: .audio, by: delta) } },
+                    trim: { beginning, delta in trimMedia(clip.id, on: .audio, beginning: beginning, delta: delta) },
+                    delete: { selectAudio(clip); deleteSelectedMedia() },
+                    canDelete: canDeleteMedia(clip, on: .audio),
+                    toggleLink: { selectAudio(clip); toggleMediaLink() },
+                    canLink: linked || mediaTimeline.linkCandidate(for: clip, on: .audio) != nil)
+                    .offset(x: 12 + width * clip.start / total, y: audioLaneTop)
+            }
+        } else if let audio {
             AudioWaveformStrip(url: audio, title: "Original audio", color: .teal, muted: originalMuted,
                                duration: total, timeline: timeline)
                 .frame(width: width, height: 44)
@@ -3131,7 +3280,7 @@ struct VideoTrimControls: View {
                 VoiceOverTimelineClip(clip: $clip, selected: $selectedVoiceOverID,
                                       total: total, scale: width / total, muted: voiceOverMuted,
                                       number: (voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1,
-                                      pause: { player.pause(); selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false })
+                                      pause: { player.pause(); selectedAudioID = nil; selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false })
                     .offset(x: 12 + width * clip.start / total, y: audioLaneTop + (audio == nil ? 0 : 50))
             }
         }
@@ -3196,8 +3345,12 @@ struct VideoTrimControls: View {
                 }
                 }
             }
-            trimHandle(isStart: true, width: width).offset(x: 0, y: zoomEnabled && mouse != nil ? 48 : 25)
-            trimHandle(isStart: false, width: width).offset(x: width + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
+            if session == nil || selectedSegment == nil {
+                trimHandle(isStart: true, width: width)
+                    .offset(x: width * (mediaTimeline?.video.first?.start ?? 0) / total, y: zoomEnabled && mouse != nil ? 48 : 25)
+                trimHandle(isStart: false, width: width)
+                    .offset(x: width * (mediaTimeline?.video.last?.end ?? total) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
+            }
             if let movingSegment, let moveDestination {
                 let boundary = segmentOffset(moveDestination + (moveDestination > movingSegment ? 1 : 0))
                 Rectangle().fill(DesignColors.cameraTrack)
@@ -3375,6 +3528,7 @@ struct VideoTrimControls: View {
     private func clipStrip(index: Int, width: Double, total: Double) -> some View {
         let segment = segments[index]
         let clipWidth = max(1, width * segment.duration.seconds / total)
+        let mediaClip = mediaTimeline?.video.first { $0.sourceRange == segment }
         return HStack(spacing: 0) {
             ForEach(thumbnails.indices, id: \.self) { thumbnail in
                 Image(decorative: thumbnails[thumbnail], scale: 1)
@@ -3390,10 +3544,25 @@ struct VideoTrimControls: View {
         .overlay(RoundedRectangle(cornerRadius: 3)
             .strokeBorder(selectedSegment == segment ? DesignColors.cameraTrack : DesignColors.accent,
                           lineWidth: selectedSegment == segment ? 3 : 1.5))
+        .overlay(alignment: .topTrailing) {
+            if let mediaClip, mediaTimeline?.partner(of: mediaClip, on: .screen) != nil {
+                Image(systemName: "link").font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white).padding(4)
+                    .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 3))
+                    .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .leading) {
+            if selectedSegment == segment, let mediaClip { screenClipHandle(mediaClip, beginning: true, scale: width / total) }
+        }
+        .overlay(alignment: .trailing) {
+            if selectedSegment == segment, let mediaClip { screenClipHandle(mediaClip, beginning: false, scale: width / total) }
+        }
         .opacity(movingSegment == index ? 0.5 : 1)
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
             .onChanged { gesture in
+                selectedAudioID = nil
                 selectedSegment = segment
                 isVideoOverlaySelected = false
                 selectedVoiceOverID = nil
@@ -3408,7 +3577,9 @@ struct VideoTrimControls: View {
                 }
             }
             .onEnded { gesture in
-                if let movingSegment, let moveDestination {
+                if let session, !session.draft.closesTimelineGaps, let mediaClip, abs(gesture.translation.width) > 6 {
+                    session.editMediaTimeline { $0.move(mediaClip.id, on: .screen, by: gesture.translation.width / width * total) }
+                } else if let movingSegment, let moveDestination {
                     moveSegment(from: movingSegment, to: moveDestination)
                 } else {
                     seekOutput((gesture.location.x - 12) / width * total)
@@ -3417,6 +3588,16 @@ struct VideoTrimControls: View {
                 moveDestination = nil
             })
         .contextMenu {
+            if let mediaClip, let mediaTimeline {
+                let linked = mediaTimeline.partner(of: mediaClip, on: .screen) != nil
+                Button(linked ? "Unlink" : "Link") {
+                    selectedAudioID = nil; selectedSegment = segment; toggleMediaLink()
+                }.disabled(!linked && mediaTimeline.linkCandidate(for: mediaClip, on: .screen) == nil)
+                Button("Delete Screen Section") {
+                    selectedAudioID = nil; selectedSegment = segment; deleteSelectedMedia()
+                }.disabled(!canDeleteMedia(mediaClip, on: .screen))
+                Divider()
+            }
             Button("Move Earlier") { moveSegment(from: index, to: index - 1) }.disabled(index == 0)
                 .hoverHelp(index == 0 ? "This is already the first video section." : "Move this section earlier.")
             Button("Move Later") { moveSegment(from: index, to: index + 1) }.disabled(index == segments.count - 1)
@@ -3425,7 +3606,20 @@ struct VideoTrimControls: View {
         .localizedAccessibilityLabel("Clip \(index + 1), \(timestamp(segment.duration.seconds))")
         .accessibilityAction(named: "Move Earlier") { moveSegment(from: index, to: index - 1) }
         .accessibilityAction(named: "Move Later") { moveSegment(from: index, to: index + 1) }
-        .hoverHelp("Click to select; drag to reorder")
+        .hoverHelp(session?.draft.closesTimelineGaps == false ? "Click to select; drag to move" : "Click to select; drag to reorder")
+    }
+
+    private func screenClipHandle(_ clip: MediaTimelineClip, beginning: Bool, scale: Double) -> some View {
+        RoundedRectangle(cornerRadius: 2).fill(DesignColors.accent)
+            .frame(width: 5, height: 26)
+            .frame(width: 12, height: 42).contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 1)
+                .onChanged { _ in player.pause(); filmstripFocused = true }
+                .onEnded { trimMedia(clip.id, on: .screen, beginning: beginning, delta: $0.translation.width / scale) })
+            .localizedAccessibilityLabel(beginning ? "Trim screen section beginning" : "Trim screen section end")
+            .accessibilityAdjustableAction { direction in
+                trimMedia(clip.id, on: .screen, beginning: beginning, delta: direction == .increment ? 1.0 / 30 : -1.0 / 30)
+            }
     }
 
     private func trimHandle(isStart: Bool, width: Double) -> some View {
@@ -3439,19 +3633,25 @@ struct VideoTrimControls: View {
             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
                 .onChanged { gesture in
                     player.pause()
+                    if session != nil { return }
                     let originalSegments = (try? trim.segments(duration: mediaDuration)) ?? []
                     let originalDuration = originalSegments.reduce(0) { $0 + $1.duration.seconds }
                     let delta = gesture.translation.width / width * originalDuration
                     dragging = adjustedEdge(delta: delta, isStart: isStart, from: trim)
                 }
-                .onEnded { _ in
-                    if let dragging { commit(dragging) }
+                .onEnded { gesture in
+                    if let session, let clip = isStart ? session.mediaTimeline.video.first : session.mediaTimeline.video.last {
+                        trimMedia(clip.id, on: .screen, beginning: isStart, delta: gesture.translation.width / width * editedDuration)
+                    } else if let dragging { commit(dragging) }
                     dragging = nil
                 })
             .localizedAccessibilityLabel(isStart ? "Trim start" : "Trim end")
             .localizedAccessibilityValue(String(format: "%.2f seconds", isStart ? (segments.first?.start.seconds ?? 0) : (segments.last?.end.seconds ?? duration)))
             .accessibilityAdjustableAction { direction in
-                commit(adjustedEdge(delta: direction == .increment ? 0.1 : -0.1, isStart: isStart, from: trim))
+                let delta = direction == .increment ? 0.1 : -0.1
+                if let session, let clip = isStart ? session.mediaTimeline.video.first : session.mediaTimeline.video.last {
+                    trimMedia(clip.id, on: .screen, beginning: isStart, delta: delta)
+                } else { commit(adjustedEdge(delta: delta, isStart: isStart, from: trim)) }
             }
             .hoverHelp(isStart ? "Drag to trim the beginning" : "Drag to trim the end")
     }

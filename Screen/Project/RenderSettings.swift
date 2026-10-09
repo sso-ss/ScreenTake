@@ -38,6 +38,10 @@ struct VideoEditSettings: Equatable, Codable {
     var videoOverlayTiming: VideoOverlayTiming?
     var audioEnabled = true
     var originalAudioVolume: Double = 1
+    /// Nil migrates older projects to linked audio following the screen edits.
+    var recordedAudioClips: [MediaTimelineClip]?
+    var closeTimelineGaps: Bool?
+    var closesTimelineGaps: Bool { closeTimelineGaps ?? true }
     var voiceOverEnabled = true
     var voiceOverVolume: Double = 1
     var voiceOvers: [VoiceOverClip] = []
@@ -268,9 +272,8 @@ struct VideoOverlayTimelineRange: Equatable {
                   timing.start >= 0, timing.sourceStart >= 0, length > 0 else { return [] }
             return [Self(outputStart: timing.start, sourceStart: timing.sourceStart, duration: length)]
         }
-        var outputStart: Double = 0
-        return timeline.ranges.compactMap { range in
-            defer { outputStart += range.duration.seconds }
+        return zip(timeline.ranges, timeline.outputStarts).compactMap { range, placement in
+            let outputStart = placement.seconds
             let start = max(0, range.start.seconds)
             let end = min(sourceDuration, range.end.seconds)
             guard end > start else { return nil }
