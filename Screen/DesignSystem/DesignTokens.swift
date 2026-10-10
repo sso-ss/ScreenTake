@@ -3,6 +3,42 @@ import Foundation
 import SwiftUI
 
 enum AppBrand {
+    /// Outline of the three-panel mark, kept as a template for menu bar contrast.
+    static let menuBarIcon: NSImage = {
+        let image = NSImage(size: NSSize(width: 22, height: 18), flipped: false) { _ in
+            NSColor.black.setStroke()
+            let transform = AffineTransform(translationByX: -0.52, byY: 20.52)
+            var scaled = transform
+            scaled.scale(x: 0.18, y: -0.18)
+            let border = NSBezierPath(roundedRect: NSRect(x: 8, y: 25, width: 112, height: 78), xRadius: 18, yRadius: 18)
+            let panels = NSBezierPath()
+            panels.move(to: NSPoint(x: 22.11, y: 25))
+            panels.line(to: NSPoint(x: 55, y: 46.2))
+            panels.move(to: NSPoint(x: 50, y: 81))
+            panels.line(to: NSPoint(x: 50, y: 103))
+            panels.move(to: NSPoint(x: 120, y: 41.9))
+            panels.line(to: NSPoint(x: 79.2, y: 68.2))
+            let play = NSBezierPath()
+            play.move(to: NSPoint(x: 50, y: 49))
+            play.curve(to: NSPoint(x: 55, y: 46.2), controlPoint1: NSPoint(x: 50, y: 46.2), controlPoint2: NSPoint(x: 52.6, y: 44.7))
+            play.line(to: NSPoint(x: 79.2, y: 61.8))
+            play.curve(to: NSPoint(x: 79.2, y: 68.2), controlPoint1: NSPoint(x: 81.6, y: 63.3), controlPoint2: NSPoint(x: 81.6, y: 66.7))
+            play.line(to: NSPoint(x: 55, y: 83.8))
+            play.curve(to: NSPoint(x: 50, y: 81), controlPoint1: NSPoint(x: 52.6, y: 85.3), controlPoint2: NSPoint(x: 50, y: 83.8))
+            play.close()
+            for path in [border, panels, play] {
+                path.transform(using: scaled)
+                path.lineWidth = 1.2
+                path.lineJoinStyle = .round
+                path.lineCapStyle = .round
+                path.stroke()
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+
     /// Bypass Launch Services' cached icon, which can belong to an older installation.
     static var icon: NSImage? {
         guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else { return nil }

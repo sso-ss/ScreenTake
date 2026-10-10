@@ -1,8 +1,9 @@
 import AppKit
+import Combine
 import Foundation
 
-struct ScreenRelease: Decodable, Equatable {
-    struct Asset: Decodable, Equatable {
+struct ScreenRelease: Codable, Equatable {
+    struct Asset: Codable, Equatable {
         let name: String
     }
 
@@ -45,7 +46,7 @@ struct ScreenRelease: Decodable, Equatable {
 }
 
 @MainActor
-final class UpdateChecker {
+final class UpdateChecker: ObservableObject {
     static let interval: TimeInterval = 24 * 60 * 60
     static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/screen-recorder-mac/releases/latest")!
 
@@ -53,6 +54,8 @@ final class UpdateChecker {
     private let installedVersion: String
     private let fetch: () async throws -> ScreenRelease
     private let now: () -> Date
+    // Availability outlives a dismissed reminder, including across app launches.
+    @Published private(set) var availableRelease: ScreenRelease?
     private(set) var pendingRelease: ScreenRelease?
     private(set) var feedback: String?
     private(set) var isChecking = false
@@ -70,6 +73,13 @@ final class UpdateChecker {
         self.installedVersion = installedVersion
         self.now = now
         self.fetch = fetch
+        if let data = defaults.data(forKey: "updates.availableRelease"),
+           let release = try? JSONDecoder().decode(ScreenRelease.self, from: data),
+           release.isNewer(than: installedVersion) {
+            availableRelease = release
+        } else {
+            defaults.removeObject(forKey: "updates.availableRelease")
+        }
     }
 
     nonisolated static func fetchLatest() async throws -> ScreenRelease {
@@ -98,10 +108,17 @@ final class UpdateChecker {
         do {
             let release = try await fetch()
             if release.isNewer(than: installedVersion) {
+                availableRelease = release
+                defaults.set(try? JSONEncoder().encode(release), forKey: "updates.availableRelease")
                 pendingRelease = release
                 feedback = nil
-            } else if manual {
-                feedback = "No newer downloadable test build was found. You are running ScreenTake \(installedVersion)."
+            } else {
+                availableRelease = nil
+                pendingRelease = nil
+                defaults.removeObject(forKey: "updates.availableRelease")
+                if manual {
+                    feedback = "No newer downloadable test build was found. You are running ScreenTake \(installedVersion)."
+                }
             }
         } catch {
             if manual {
@@ -125,14 +142,22 @@ final class UpdateChecker {
     }
 
     func tick(manual: Bool = false) async {
+        // A background app can discover releases without bringing up a window.
         guard let appState, Self.canPresent(
-            active: NSApplication.shared.isActive,
+            active: true,
             recording: appState.isRecording || appState.isRecordingEditorMedia,
             processing: appState.recording.processingStage != nil || appState.isExportingVideo,
             selecting: appState.captureToolbarCoordinator != nil,
             setupComplete: defaults.bool(forKey: "hasCompletedPermissionSetup")
         ) else { return }
         await check(manual: manual)
+        presentIfPossible()
+    }
+
+    func showAvailableUpdate() {
+        guard let availableRelease else { return }
+        pendingRelease = availableRelease
+        feedback = nil
         presentIfPossible()
     }
 
