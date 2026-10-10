@@ -1,6 +1,8 @@
 # Recording latency validation
 
-Validated October 9, 2026 against the recording pipeline changes in `cbc8981`.
+Validated October 9, 2026 against the recording pipeline changes in `75fdbdd`
+(original local commit `cbc8981`, before switching public commit metadata to the
+GitHub no-reply email address).
 
 A 31.280-second live screen-and-camera recording became ready for editing
 **1.007 seconds after Stop**, while retaining native capture dimensions.
