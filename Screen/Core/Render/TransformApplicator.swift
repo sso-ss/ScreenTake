@@ -99,7 +99,8 @@ final class LiveEditFrameRenderer {
         canvas = settings.backgroundEnabled || settings.ratio != .original || settings.layout != .desktop
             ? CanvasCompositor(size: outputSize, sourceSize: cropRect.size, layout: settings.layout,
                                wallpaper: settings.wallpaper, phoneContentMode: settings.phoneMode,
-                               desktopCornerRadius: CGFloat(settings.desktopCornerRadius)) : nil
+                               desktopCornerRadius: CGFloat(settings.desktopCornerRadius),
+                               preserveSourcePixels: settings.exportResolution == .preserveSource) : nil
         webcam = settings.webcamEnabled ? WebcamCompositor(outputSize: outputSize, position: settings.webcamPosition,
                                    pipSize: settings.webcamSize, shape: settings.webcamShape) : nil
     }
@@ -173,13 +174,19 @@ struct CanvasGeometry {
     let desktop: CGRect?
     let phone: CGRect?
 
-    init(size: CGSize, layout: DeviceLayout, sourceSize: CGSize) {
+    init(size: CGSize, layout: DeviceLayout, sourceSize: CGSize, preserveSourcePixels: Bool = false) {
         let bounds = CGRect(origin: .zero, size: size)
         let margin = min(size.width, size.height) * 0.08
         let area = bounds.insetBy(dx: margin, dy: margin)
         switch layout {
         case .desktop:
-            desktop = Self.fit(sourceSize, in: area)
+            if preserveSourcePixels, sourceSize.width <= area.width, sourceSize.height <= area.height {
+                desktop = CGRect(x: ((size.width - sourceSize.width) / 2).rounded(),
+                                 y: ((size.height - sourceSize.height) / 2).rounded(),
+                                 width: sourceSize.width, height: sourceSize.height)
+            } else {
+                desktop = Self.fit(sourceSize, in: area)
+            }
             phone = nil
         case .iPhone, .iPhoneDuoClosed, .iPhoneDuoUnfolded:
             desktop = nil
@@ -230,12 +237,12 @@ final class CanvasCompositor {
     private let phoneContentMode: PhoneContentMode
     private let desktopCornerRadius: CGFloat
 
-    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025) {
+    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, preserveSourcePixels: Bool = false) {
         self.layout = layout
         self.phoneContentMode = phoneContentMode
         self.desktopCornerRadius = min(0.5, max(0, desktopCornerRadius))
         bounds = CGRect(origin: .zero, size: size)
-        geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize)
+        geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize, preserveSourcePixels: preserveSourcePixels)
         background = Self.makeBackground(size: size, wallpaper: wallpaper)
         chrome = Self.makeChrome(size: size, geometry: geometry, layout: layout, desktopCornerRadius: self.desktopCornerRadius)
     }

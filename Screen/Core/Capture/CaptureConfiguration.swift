@@ -47,7 +47,7 @@ struct CaptureConfiguration {
         config.pixelFormat = pixelFormat
         config.showsCursor = showsCursor
         config.capturesAudio = capturesAudio
-        config.scalesToFit = true
+        config.scalesToFit = sourceRect == nil
         if #available(macOS 14.0, *) {
             config.ignoreShadowsSingleWindow = !capturesShadow
         }
@@ -76,8 +76,9 @@ struct CaptureConfiguration {
             nativeScale = screen?.backingScaleFactor ?? 1
         }
         let scaleFactor = scaleFactor ?? nativeScale
-        let width = max(2, (Int(CGFloat(target.width) * scaleFactor) / 2) * 2)
-        let height = max(2, (Int(CGFloat(target.height) * scaleFactor) / 2) * 2)
+        let width = max(2, (Int(target.frame.width * scaleFactor) / 2) * 2)
+        let height = max(2, (Int(target.frame.height * scaleFactor) / 2) * 2)
+        let crop = target.isWindow ? Self.pixelAlignedCrop(size: target.frame.size, scaleFactor: scaleFactor) : nil
 
         return Self(
             width: width,
@@ -85,7 +86,36 @@ struct CaptureConfiguration {
             frameRate: frameRate,
             showsCursor: showsCursor,
             scaleFactor: scaleFactor,
-            capturesShadow: !target.isWindow
+            capturesShadow: !target.isWindow,
+            sourceRect: crop
         )
+    }
+
+    /// HEVC needs even dimensions. Sample the same native pixels instead of
+    /// shrinking an odd-sized window across the encoder surface.
+    static func pixelAlignedCrop(size: CGSize, scaleFactor: CGFloat) -> CGRect? {
+        guard scaleFactor > 0, size.width >= 2 / scaleFactor, size.height >= 2 / scaleFactor else { return nil }
+        let width = CGFloat(Int(size.width * scaleFactor) / 2 * 2)
+        let height = CGFloat(Int(size.height * scaleFactor) / 2 * 2)
+        guard width != size.width * scaleFactor || height != size.height * scaleFactor else { return nil }
+        return CGRect(x: 0, y: 0, width: width / scaleFactor, height: height / scaleFactor)
+    }
+
+    /// Cursor bounds use Cocoa's bottom-left origin; sourceRect uses top-left.
+    func mouseBounds(in bounds: CGRect) -> CGRect {
+        guard let sourceRect else { return bounds }
+        return CGRect(x: bounds.minX + sourceRect.minX, y: bounds.maxY - sourceRect.maxY,
+                      width: sourceRect.width, height: sourceRect.height)
+    }
+
+    func croppedBrowserRect(_ rect: CGRect, windowSize: CGSize) -> CGRect? {
+        guard let sourceRect else { return rect }
+        let points = CGRect(x: rect.minX * windowSize.width, y: rect.minY * windowSize.height,
+                            width: rect.width * windowSize.width, height: rect.height * windowSize.height)
+            .intersection(sourceRect)
+        guard !points.isNull, !points.isEmpty else { return nil }
+        return CGRect(x: (points.minX - sourceRect.minX) / sourceRect.width,
+                      y: (points.minY - sourceRect.minY) / sourceRect.height,
+                      width: points.width / sourceRect.width, height: points.height / sourceRect.height)
     }
 }

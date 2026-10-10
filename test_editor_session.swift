@@ -31,6 +31,8 @@ struct EditorSessionChecks {
         precondition(session.previewReady && session.hasEditableAudio && !session.isBusy)
         precondition(!session.hasEditChanges && !session.hasUnsavedWork && !session.canUndo)
         let player = session.player!
+        // Observation must begin before any timeline view exists.
+        try await checkPlayback(session)
 
         // One direct edit operation updates the same draft and preview used by the UI.
         try session.updateEdits {
@@ -42,6 +44,7 @@ struct EditorSessionChecks {
         precondition(session.hasEditChanges && session.hasUnsavedWork && session.canUndo)
         precondition(session.editedDuration == 2 && session.previewReady)
         precondition(session.player === player, "Editing must retain the player and playback identity")
+        try await checkPlayback(session)
         let edited = session.draft
         let preview = session.player!.currentItem!
         let previewDuration = try await preview.asset.load(.duration).seconds
@@ -94,6 +97,10 @@ struct EditorSessionChecks {
         window.contentView = NSHostingView(rootView: SettingsView(session: session).environmentObject(AppState.shared))
         try await Task.sleep(nanoseconds: 400_000_000)
         precondition(session.draft == edited && session.undoEdits.count == undoCount && session.selectedSegment == selected)
+        try await checkPlayback(session)
+        window.contentView = nil
+        try await Task.sleep(nanoseconds: 100_000_000)
+        try await checkPlayback(session)
         window.orderOut(nil)
         print("PASS: direct edits, shared native bindings, preview dimensions/timing, undo/redo, validation, and editor recreation")
 
@@ -132,8 +139,35 @@ struct EditorSessionChecks {
         precondition(session.player == nil && session.sourceURL == nil && !session.previewReady && !session.hasUnsavedWork)
         try await session.openVideo(source)
         precondition(session.draft.trim == VideoTrim() && !session.canUndo && session.previewReady)
+        // A discarded player's callbacks must not move the reopened project's ruler.
+        await player.seek(to: EditorAudio.time(1.5), toleranceBefore: .zero, toleranceAfter: .zero)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        precondition(session.playback.seconds < 0.1)
+        try await checkPlayback(session)
         session.close()
         print("PASS: rapid preview replacement, close cancellation, and clean session reopening")
+    }
+
+    @MainActor
+    static func checkPlayback(_ session: EditorSession) async throws {
+        let player = session.player!
+        await player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+        player.play()
+        let deadline = Date().addingTimeInterval(4)
+        while session.playback.seconds < 0.25 && Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        precondition(session.playback.seconds >= 0.25 && session.playback.isPlaying,
+                     "Timeline stopped observing playback: player=\(player.currentTime().seconds), ruler=\(session.playback.seconds)")
+        precondition(abs(session.playback.seconds - player.currentTime().seconds) < 0.1)
+        player.pause()
+        await player.seek(to: EditorAudio.time(0.6), toleranceBefore: .zero, toleranceAfter: .zero)
+        let seekDeadline = Date().addingTimeInterval(2)
+        while (abs(session.playback.seconds - 0.6) > 0.02 || session.playback.isPlaying) && Date() < seekDeadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        precondition(abs(session.playback.seconds - 0.6) < 0.02 && !session.playback.isPlaying,
+                     "Paused seek did not update timeline")
     }
 
     static func makeVideo(_ url: URL) async throws {

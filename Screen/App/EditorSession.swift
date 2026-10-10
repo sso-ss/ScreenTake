@@ -16,7 +16,15 @@ final class EditorSession: ObservableObject {
     @Published private(set) var sourceURL: URL?
     @Published private(set) var audioURL: URL?
     @Published private(set) var mouseURL: URL?
-    @Published private(set) var player: AVPlayer?
+    @Published private(set) var player: AVPlayer? {
+        didSet {
+            if let player { playback.attach(player) }
+            else { playback.detach() }
+        }
+    }
+    // Playback observation has the same lifetime as the player, including while
+    // SwiftUI recreates the timeline or replaces the live preview item.
+    let playback = TimelinePlayback()
     @Published private(set) var sourceDuration: Double = 0
     @Published private(set) var sourceVideoSize: CGSize?
     @Published private(set) var hasEditableAudio = false
@@ -156,11 +164,12 @@ final class EditorSession: ObservableObject {
         let size = try await track.load(.naturalSize)
         let transform = try await track.load(.preferredTransform)
         let audio = try await asset.loadTracks(withMediaType: .audio)
+        let recordingAudio = rawSource != nil ? try await recording?.preparePreviewAudio() : nil
         try Task.checkCancellation()
         guard loadID == requestID else { throw CancellationError() }
 
         var settings = project?.settings ?? (rawSource != nil
-            ? (recording?.lastAppliedEdits ?? VideoEditSettings())
+            ? (recording?.lastAppliedEdits ?? recording?.initialEdits ?? VideoEditSettings())
             : VideoEditSettings(backgroundEnabled: false, showCursor: false))
         if rawSource != nil, recording?.lastAppliedEdits == nil { settings.videoOverlayURL = recording?.lastWebcamVideoURL }
         if rawSource != nil, settings.phoneVideoURL == nil { settings.phoneVideoURL = appState?.capture.phoneVideoURL }
@@ -173,7 +182,7 @@ final class EditorSession: ObservableObject {
         sourceDuration = duration
         let bounds = CGRect(origin: .zero, size: size).applying(transform)
         sourceVideoSize = CGSize(width: abs(bounds.width), height: abs(bounds.height))
-        audioURL = project?.audio ?? (rawSource != nil ? (recording?.lastUntrimmedRecordingURL ?? url) : url)
+        audioURL = project?.audio ?? (rawSource != nil ? (recordingAudio ?? source) : url)
         mouseURL = project?.mouse ?? (rawSource != nil ? recording?.lastMouseDataURL : nil)
         hasEditableAudio = !audio.isEmpty || audioURL != source
         restoring = true
@@ -185,7 +194,7 @@ final class EditorSession: ObservableObject {
         projectName = project?.name ?? url.deletingPathExtension().lastPathComponent
         projectURL = package
         savedProjectRevision = package == nil ? nil : revision
-        requiresRender = project != nil
+        requiresRender = project != nil || (rawSource != nil && recording?.lastAppliedEdits == nil)
         videoWork.beginVideo(edits: settings, needsDownload: url == recording?.lastRecordingURL && url != recording?.lastSavedRecordingURL)
         clearSelection()
         automaticZooms = []
@@ -517,17 +526,18 @@ final class EditorSession: ObservableObject {
 
     func saveVideo(to destination: URL) async throws {
         guard !isBusy else { throw SessionError.busy }
-        guard let source = videoURL else { throw SessionError.noVideo }
-        guard !hasEditChanges else { throw SessionError.pendingChanges }
+        guard videoURL != nil else { throw SessionError.noVideo }
         let retained = [sourceURL, audioURL, mouseURL] + ([draft, appliedEdits] + undoEdits + redoEdits).flatMap {
             [$0.videoOverlayURL, $0.phoneVideoURL] + $0.voiceOvers.map { Optional($0.url) }
         }
         let resolvedDestination = destination.standardizedFileURL.resolvingSymlinksInPath()
         guard !retained.compactMap({ $0 }).contains(where: {
             $0.standardizedFileURL.resolvingSymlinksInPath() == resolvedDestination
-        }) || source.standardizedFileURL.resolvingSymlinksInPath() == resolvedDestination else {
+        }) || (videoURL != sourceURL && videoURL?.standardizedFileURL.resolvingSymlinksInPath() == resolvedDestination) else {
             throw SessionError.retainedMediaDestination
         }
+        if hasEditChanges { try await applyChanges() }
+        guard let source = videoURL else { throw SessionError.noVideo }
         isSaving = true
         saveError = nil
         defer { isSaving = false }

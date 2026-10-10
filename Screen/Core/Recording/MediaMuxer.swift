@@ -465,6 +465,46 @@ enum VideoTrimError: LocalizedError {
 /// so audio bytes are never decoded/re-encoded (no distortion).
 enum MediaMuxer {
 
+    /// Assemble synchronized sidecars for live preview and project persistence.
+    /// This exports audio tracks only and leaves all captured files untouched.
+    static func recordingAudio(videoURL: URL, systemAudioURL: URL?, micAudioURL: URL?,
+                               systemAudioStartOffset: CMTime = .zero,
+                               micAudioStartOffset: CMTime = .zero) async throws -> URL? {
+        guard systemAudioURL != nil || micAudioURL != nil else { return nil }
+        let duration = try await AVURLAsset(url: videoURL).load(.duration)
+        let composition = AVMutableComposition()
+        for (url, offset) in [(systemAudioURL, systemAudioStartOffset), (micAudioURL, micAudioStartOffset)] {
+            guard let url else { continue }
+            let asset = AVURLAsset(url: url)
+            let start = CMTimeMaximum(.zero, offset)
+            let length = CMTimeMinimum(CMTimeSubtract(duration, start), try await asset.load(.duration))
+            guard length > .zero else { continue }
+            for source in try await asset.loadTracks(withMediaType: .audio) {
+                guard let track = composition.addMutableTrack(withMediaType: .audio,
+                    preferredTrackID: kCMPersistentTrackID_Invalid) else { throw MuxerError.trackCreationFailed }
+                try track.insertTimeRange(CMTimeRange(start: .zero, duration: length), of: source, at: start)
+            }
+        }
+        guard !composition.tracks(withMediaType: .audio).isEmpty else { return nil }
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+            throw MuxerError.exportSessionFailed
+        }
+        let output = videoURL.deletingLastPathComponent().appendingPathComponent("recorded-audio-\(UUID().uuidString).mov")
+        exporter.outputURL = output
+        exporter.outputFileType = .mov
+        exporter.timeRange = CMTimeRange(start: .zero, duration: duration)
+        await exporter.export()
+        if Task.isCancelled {
+            try? FileManager.default.removeItem(at: output)
+            throw CancellationError()
+        }
+        guard exporter.status == .completed else {
+            try? FileManager.default.removeItem(at: output)
+            throw exporter.error ?? MuxerError.exportFailed
+        }
+        return output
+    }
+
     /// Combines a video .mov with optional system audio and microphone audio
     /// into a single output .mov with all tracks embedded.
     /// - Returns: URL of the muxed file (replaces the original video-only file).

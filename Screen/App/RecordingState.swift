@@ -17,6 +17,8 @@ final class RecordingState: ObservableObject {
     @Published private(set) var lastSourceRecordingURL: URL?
     private var lastRecordingUsedZoom = false
     @Published private(set) var lastAppliedEdits: VideoEditSettings?
+    private(set) var initialEdits = VideoEditSettings()
+    private var previewAudioURL: URL?
     private(set) var lastUntrimmedRecordingURL: URL?
     private var recordingUsesBackground = false
     @Published var lastMouseDataURL: URL?
@@ -120,6 +122,13 @@ final class RecordingState: ObservableObject {
         let result = await coordinator.stopRecording()
         stopDurationTimer()
 
+        acceptCompletedRecording(result)
+    }
+
+    /// Retain the source and sidecars for live editing; rendering happens on export.
+    func acceptCompletedRecording(_ result: RecordingResult) {
+        processingError = nil
+        processingProgress = nil
         lastRecordingURL = result.videoURL
         lastSourceRecordingURL = result.videoURL
         lastAppliedEdits = nil
@@ -131,6 +140,7 @@ final class RecordingState: ObservableObject {
         lastMicAudioStartOffset = result.micAudioStartOffset
         lastSystemAudioStartOffset = result.systemAudioStartOffset
         lastBrowserContentRect = result.browserContentRect
+        previewAudioURL = nil
 
         isRecording = false
         isPaused = false
@@ -138,23 +148,36 @@ final class RecordingState: ObservableObject {
 
         Log.recording.info("Recording stopped: video=\(result.videoURL?.lastPathComponent ?? "nil")")
 
-        // Signal to create project from recording
-        navigationState?.showEditor = true
-
         if let videoURL = result.videoURL {
             let mouseURL = result.mouseDataURL
             let hasManualZoom = mouseURL.map { hasManualZoomMarkers(mouseDataURL: $0) } ?? false
             let autoEnabled = captureSettings?.autoZoomEnabled == true
             let shouldApplyZoom = autoEnabled || hasManualZoom
             lastRecordingUsedZoom = shouldApplyZoom
-            Log.export.info("Post-recording export queued (auto=\(autoEnabled), manual=\(hasManualZoom))")
-            Task { [weak self] in
-                await self?.applyAutoZoom(videoURL: videoURL, mouseDataURL: mouseURL, generateZoom: shouldApplyZoom)
-            }
+            initialEdits = recordingEdits(for: videoURL, generateZoom: shouldApplyZoom)
+            processingStage = nil
+            Log.recording.info("Recording ready for live editing from original media")
         } else {
             processingStage = nil
             processingError = "The recording could not be saved."
         }
+        navigationState?.showEditor = true
+    }
+
+    /// One audio-only passthrough file gives preview, cleanup and saved projects
+    /// the same synchronized tracks without decoding or re-encoding the video.
+    func preparePreviewAudio() async throws -> URL? {
+        if let previewAudioURL { return previewAudioURL }
+        guard let videoURL = lastSourceRecordingURL else { return nil }
+        let audioURL = try await MediaMuxer.recordingAudio(
+            videoURL: videoURL, systemAudioURL: lastSystemAudioURL, micAudioURL: lastMicAudioURL,
+            systemAudioStartOffset: lastSystemAudioStartOffset, micAudioStartOffset: lastMicAudioStartOffset)
+        guard lastSourceRecordingURL == videoURL else {
+            if let audioURL { try? FileManager.default.removeItem(at: audioURL) }
+            throw CancellationError()
+        }
+        previewAudioURL = audioURL
+        return previewAudioURL
     }
 
     func pauseRecording() {
@@ -262,6 +285,31 @@ final class RecordingState: ObservableObject {
         await applyAutoZoom(videoURL: source, mouseDataURL: lastMouseDataURL, generateZoom: edits.zoomEnabled, edits: edits)
     }
 
+    private func recordingEdits(for videoURL: URL, generateZoom: Bool) -> VideoEditSettings {
+        VideoEditSettings(
+            ratio: captureSettings?.canvasRatio ?? .original,
+            layout: captureSettings?.deviceLayout ?? .desktop,
+            wallpaper: captureSettings?.selectedWallpaper ?? .sonoma,
+            desktopCornerRadius: captureSettings?.desktopCornerRadius ?? 0.025,
+            backgroundEnabled: recordingUsesBackground,
+            crop: captureSettings?.phoneCrop(for: videoURL) ?? PhoneCrop(),
+            phoneMode: captureSettings?.phoneContentMode ?? .fit,
+            phoneVideoURL: captureSettings?.phoneVideoURL,
+            showCursor: captureSettings?.showCursor ?? true,
+            cursorShape: captureSettings?.cursorShape ?? .arrow,
+            cursorScale: captureSettings?.cursorScale ?? 1,
+            zoomEnabled: generateZoom,
+            webcamEnabled: lastWebcamVideoURL != nil,
+            webcamShape: captureSettings?.webcamPiPShape ?? .circle,
+            webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
+            webcamSize: captureSettings?.webcamPiPSize ?? .medium,
+            faceBeautyAmount: captureSettings?.faceBeautyAmount,
+            faceMakeup: captureSettings?.faceMakeup,
+            videoOverlayURL: lastWebcamVideoURL,
+            exportResolution: captureSettings?.exportResolution ?? .preserveSource,
+            recordedBrowserContentRect: lastBrowserContentRect)
+    }
+
     func applyAutoZoom(videoURL: URL, mouseDataURL: URL?, generateZoom: Bool, edits: VideoEditSettings? = nil) async {
         Log.export.info("Auto-zoom: starting post-recording export")
         processingError = nil
@@ -273,28 +321,7 @@ final class RecordingState: ObservableObject {
         }
 
         do {
-            let settings = edits ?? VideoEditSettings(
-                ratio: captureSettings?.canvasRatio ?? .original,
-                layout: captureSettings?.deviceLayout ?? .desktop,
-                wallpaper: captureSettings?.selectedWallpaper ?? .sonoma,
-                desktopCornerRadius: captureSettings?.desktopCornerRadius ?? 0.025,
-                backgroundEnabled: recordingUsesBackground,
-                crop: captureSettings?.phoneCrop(for: videoURL) ?? PhoneCrop(),
-                phoneMode: captureSettings?.phoneContentMode ?? .fit,
-                phoneVideoURL: captureSettings?.phoneVideoURL,
-                showCursor: captureSettings?.showCursor ?? true,
-                cursorShape: captureSettings?.cursorShape ?? .arrow,
-                cursorScale: captureSettings?.cursorScale ?? 1,
-                zoomEnabled: generateZoom,
-                webcamEnabled: lastWebcamVideoURL != nil,
-                webcamShape: captureSettings?.webcamPiPShape ?? .circle,
-                webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
-                webcamSize: captureSettings?.webcamPiPSize ?? .medium,
-                faceBeautyAmount: captureSettings?.faceBeautyAmount,
-                faceMakeup: captureSettings?.faceMakeup,
-                videoOverlayURL: lastWebcamVideoURL,
-                exportResolution: captureSettings?.exportResolution ?? .preserveSource,
-                recordedBrowserContentRect: lastBrowserContentRect)
+            let settings = edits ?? recordingEdits(for: videoURL, generateZoom: generateZoom)
             var keyframes: [CameraKeyframe] = []
             if generateZoom, let mouseDataURL {
                 keyframes = try await ClickZoomGenerator.generate(

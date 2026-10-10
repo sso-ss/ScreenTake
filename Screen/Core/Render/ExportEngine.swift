@@ -59,6 +59,15 @@ final class ExportEngine: ObservableObject {
         var exportResolution: ExportResolution = .preserveSource
 
         var usesCanvas: Bool { forceCanvas || canvasRatio != .original || deviceLayout != .desktop }
+
+        /// Only suppress cursor cadence when a continuous, fixed full-screen
+        /// camera covers the entire recording. Mixed layouts and moved/trimmed
+        /// overlays retain 60 fps for visible cursor and transition motion.
+        func cameraCoversRecording(duration: CMTime, webcamRange: CMTimeRange) -> Bool {
+            webcamVideoURL != nil && videoOverlayTiming == nil && cameraLayout.layout == .fullScreen
+                && cameraLayoutChanges.isEmpty && webcamRange.isValid
+                && webcamRange.start <= .zero && webcamRange.end >= duration
+        }
     }
 
     // MARK: - Export
@@ -136,7 +145,10 @@ final class ExportEngine: ObservableObject {
         let bitRate = configuration.bitRate ?? VideoEncodingQuality.bitRate(
             size: outputSize, frameRate: max(60, Double(sourceFrameRate)))
         let canvas = configuration.usesCanvas
-            ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout, wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode, desktopCornerRadius: CGFloat(configuration.desktopCornerRadius)) : nil
+            ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout,
+                               wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode,
+                               desktopCornerRadius: CGFloat(configuration.desktopCornerRadius),
+                               preserveSourcePixels: configuration.outputSize == nil && configuration.exportResolution == .preserveSource) : nil
         var phoneReader: TimedVideoReader?
         if configuration.deviceLayout == .duo {
             guard let phoneURL = configuration.phoneVideoURL else { throw ExportError.missingPhoneVideo }
@@ -272,6 +284,7 @@ final class ExportEngine: ObservableObject {
         var compositor: WebcamCompositor?
         var overlayFrames: OverlayVideoFrames?
         var webcamDuration: CMTime = .zero
+        var webcamRange: CMTimeRange = .invalid
         var webcamTransform = CGAffineTransform.identity
         let overlayTimeline = try configuration.videoOverlayTrim?.timeline(duration: duration)
 
@@ -284,6 +297,7 @@ final class ExportEngine: ObservableObject {
                 compositor = WebcamCompositor(outputSize: outputSize, position: configuration.pipPosition,
                                                pipSize: configuration.pipSize, shape: configuration.pipShape)
             } else if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
+                webcamRange = (try? await webcamTrack.load(.timeRange)) ?? .invalid
                 webcamTransform = (try? await webcamTrack.load(.preferredTransform)) ?? .identity
                 let wReader = try AVAssetReader(asset: webcamAsset)
                 let wOutput = AVAssetReaderTrackOutput(track: webcamTrack, outputSettings: readerSettings)
@@ -326,6 +340,7 @@ final class ExportEngine: ObservableObject {
             var lastAppendedPTS: CMTime = CMTime(value: -1, timescale: 600)
             var lastSourceImage: CIImage?
             let hasCursorAnimation = cursorCGImage != nil && !mousePositions.isEmpty
+                && !(hasCameraFrames && configuration.cameraCoversRecording(duration: duration, webcamRange: webcamRange))
             let fillFrameInterval: TimeInterval = hasCursorAnimation ? 1.0 / 60.0 : 1.0 / 30.0
             var nextCursorFrameIndex: Int64 = 0
 

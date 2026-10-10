@@ -495,7 +495,7 @@ struct SettingsView: View {
     private var downloadDisabledReason: String? {
         if videoURL == nil { return "Record or open a video first." }
         if let reason = editBusyReason { return reason }
-        if hasEditChanges { return "Apply your pending changes before downloading the video." }
+        if !hasValidTimeline { return "Keep at least one valid video section before downloading." }
         return nil
     }
     private var hasEditChanges: Bool { session.hasEditChanges }
@@ -839,7 +839,7 @@ struct SettingsView: View {
             }
             .buttonStyle(CompactActionButtonStyle(prominent: true, size: .medium))
             .keyboardShortcut("s", modifiers: .command)
-            .disabled(videoURL == nil || hasEditChanges || editsBusy)
+            .disabled(videoURL == nil || !hasValidTimeline || editsBusy)
             .hoverHelp(downloadDisabledReason ?? "Save the finished video to a file.")
             .accessibilityIdentifier("downloadVideo")
         }
@@ -2536,6 +2536,7 @@ struct VideoTrimControls: View {
          isVideoOverlaySelected: Binding<Bool> = .constant(false),
          silence: SilenceReview? = nil, session: EditorSession? = nil) {
         self.session = session
+        _playback = StateObject(wrappedValue: session?.playback ?? TimelinePlayback())
         _videoOverlayURL = videoOverlayURL
         _videoOverlayTiming = videoOverlayTiming
         _videoOverlayEnabled = videoOverlayEnabled
@@ -2563,7 +2564,7 @@ struct VideoTrimControls: View {
     }
     @StateObject var silence = SilenceReview()
     @State private var dragging: VideoTrim?
-    @StateObject private var playback = TimelinePlayback()
+    @StateObject private var playback: TimelinePlayback
     @State private var thumbnails: [CGImage] = []
     @State private var zoom: Double = 1
     @State private var localSelectedSegment: CMTimeRange?
@@ -3063,9 +3064,14 @@ struct VideoTrimControls: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
-        .onAppear { playback.attach(player) }
-        .onDisappear { playback.detach(); silence.clear() }
-        .onChange(of: ObjectIdentifier(player)) { _ in playback.attach(player) }
+        .onAppear { if session == nil { playback.attach(player) } }
+        .onDisappear {
+            if session == nil { playback.detach() }
+            silence.clear()
+        }
+        .onChange(of: ObjectIdentifier(player)) { _ in
+            if session == nil { playback.attach(player) }
+        }
         .onChange(of: trim) { _ in
             if let selectedSegment, !segments.contains(selectedSegment) { self.selectedSegment = nil }
             hoveredZoomGapID = nil

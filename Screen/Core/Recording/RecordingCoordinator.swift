@@ -106,6 +106,7 @@ final class RecordingCoordinator: ObservableObject {
         var captureConfig = CaptureConfiguration.forTarget(target, frameRate: frameRate, showsCursor: false)
         captureConfig.capturesAudio = isSystemAudioEnabled
         self.captureConfiguration = captureConfig
+        self.captureBounds = captureConfig.mouseBounds(in: captureBounds)
 
         // Ensure microphone and camera permissions are granted before starting
         // devices. This prevents the system permission dialog from appearing
@@ -300,7 +301,11 @@ final class RecordingCoordinator: ObservableObject {
            let refreshed = try? await ScreenCaptureManager.refreshedTarget(target),
            let final = await BrowserContentDetector.recordedBounds(for: refreshed),
            BrowserContentDetector.agree(initial, final) {
-            stableBrowserRect = initial
+            if let captureConfiguration {
+                stableBrowserRect = captureConfiguration.croppedBrowserRect(initial, windowSize: target.frame.size)
+            } else {
+                stableBrowserRect = initial
+            }
         }
 
         return RecordingResult(
