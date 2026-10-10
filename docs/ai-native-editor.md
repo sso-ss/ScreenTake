@@ -220,21 +220,21 @@ The MCP adapter does not add transcription or an embedded language model.
 
 ## Verification
 
-Run `python3 tools/run_swift_checks.py test_editor_session.swift`. The check exercises
+Run `python3 tools/run_swift_checks.py Tests/test_editor_session.swift`. The check exercises
 real video and audio through direct session calls, preview and export pixels, duration,
 canvas dimensions, native editor recreation, undo/redo, validation, atomic downloads,
 source preservation, and superseded-preview cancellation. macOS media encoding and
 native window access require execution outside a restricted sandbox.
 
 Existing regression checks can use the same runner, for example
-`python3 tools/run_swift_checks.py --render-only test_video_trim.swift test_live_edit_preview.swift`.
+`python3 tools/run_swift_checks.py --render-only Tests/test_video_trim.swift Tests/test_live_edit_preview.swift`.
 The optional screenshot checks in the preview suite require macOS screen capture
 access; `--render-only` runs its actual frame, effect, and timing assertions without
 those screenshots. The session suite still checks native editor recreation.
 Build and launch the application with `./Launch ScreenTake.command` and the required
 Developer ID signing identity.
 
-Run `python3 tools/run_swift_checks.py test_editor_commands.swift` for project and
+Run `python3 tools/run_swift_checks.py Tests/test_editor_commands.swift` for project and
 protocol checks. It verifies portable save/reopen after original media is deleted,
 matching preview pixels and exported audio/duration, exact timeline persistence,
 media retained for undo, failed save preservation, invalid projects, JSON commands,
@@ -242,14 +242,14 @@ revision checks, retry idempotence, jobs, rendering, silence suggestions, separa
 master audio without duplication, portable Duo media, load/close races, and active
 export cancellation that preserves an existing destination.
 
-Run `python3 test_mcp_bridge.py` against the bundled Debug helper for offline
+Run `python3 Tests/test_mcp_bridge.py` against the bundled Debug helper for offline
 protocol/schema and hostile-socket checks (or pass `--bridge /path/to/screentake-mcp`).
 The suite runs the helper with an empty executable search path and verifies all
 supported protocol versions, boolean/numeric distinctions, nested validation,
 malformed and oversized framing, private socket permissions, symlink rejection,
 partial/oversized responses, and clean client disconnects. Python is only a development
 test driver, never a runtime requirement for the app or MCP helper. Run
-`python3 tools/run_swift_checks.py test_editor_mcp.swift` for real stdio/socket/editor
+`python3 tools/run_swift_checks.py Tests/test_editor_mcp.swift` for real stdio/socket/editor
 integration, reconnects and retries, revision conflicts, resources, undo/redo,
 portable projects, PNG pixels and dimensions, exported duration, malformed requests,
 shutdown/restart, socket ownership, stale recovery, and file/symlink preservation.

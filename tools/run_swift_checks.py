@@ -10,10 +10,19 @@ import tempfile
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("checks", nargs="*", default=["test_editor_session.swift"])
+    parser.add_argument("checks", nargs="*", default=["test_editor_session.swift"],
+                        help="Check filenames or Tests/test_*.swift paths")
     parser.add_argument("--render-only", action="store_true", help="Skip optional screenshot checks in tests that support this flag")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    tests = root / "Tests"
+    checks = []
+    for name in args.checks:
+        requested = Path(name)
+        check = (tests / requested if len(requested.parts) == 1 else root / requested).resolve()
+        if check.parent != tests or not check.name.startswith("test_") or check.suffix != ".swift" or not check.is_file():
+            parser.error(f"Expected a test_*.swift file in Tests/: {name}")
+        checks.append(check)
     with tempfile.TemporaryDirectory(prefix="screentake-checks-") as temporary:
         build = Path(temporary)
         app = build / "TestApp.swift"
@@ -24,7 +33,7 @@ def main():
                         "-o", str(exception_object)], check=True, cwd=root)
         sources = sorted(str(p) for p in (root / "Screen").rglob("*.swift") if p.name != "ScreenApp.swift")
         environment = dict(os.environ)
-        if "test_editor_mcp.swift" in args.checks:
+        if any(check.name == "test_editor_mcp.swift" for check in checks):
             helper = build / "screentake-mcp"
             subprocess.run(["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
                             "-target", f"{platform.machine()}-apple-macosx13.0",
@@ -32,10 +41,7 @@ def main():
                             *sorted(str(p) for p in (root / "ScreenTakeMCP").glob("*.swift")),
                             "-o", str(helper)], check=True, cwd=root)
             environment["SCREENTAKE_MCP_EXECUTABLE"] = str(helper)
-        for name in args.checks:
-            check = root / name
-            if check.parent != root or not check.name.startswith("test_") or check.suffix != ".swift" or not check.is_file():
-                parser.error(f"Expected a test_*.swift file in the project root: {name}")
+        for check in checks:
             executable = build / check.stem
             command = ["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
                        "-target", f"{platform.machine()}-apple-macosx13.0",

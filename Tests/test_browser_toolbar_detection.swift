@@ -1,4 +1,4 @@
-// swiftc -parse-as-library Screen/Models/CaptureTarget.swift Screen/Core/Capture/BrowserContentDetector.swift test_browser_toolbar_detection.swift -o /tmp/browser-toolbar-checks
+// swiftc -parse-as-library Screen/Models/CaptureTarget.swift Screen/Core/Capture/BrowserContentDetector.swift Tests/test_browser_toolbar_detection.swift -o /tmp/browser-toolbar-checks
 import AppKit
 import AVFoundation
 

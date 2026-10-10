@@ -29,7 +29,7 @@ struct EditorMCPChecks {
         } catch { }
         let test = Process()
         test.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        test.arguments = ["test_mcp_bridge.py", "--socket", path, "--source", source.path, "--destination", directory.path]
+        test.arguments = ["Tests/test_mcp_bridge.py", "--socket", path, "--source", source.path, "--destination", directory.path]
         if let bridge = ProcessInfo.processInfo.environment["SCREENTAKE_MCP_EXECUTABLE"] {
             test.arguments! += ["--bridge", bridge]
         }

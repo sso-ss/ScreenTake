@@ -100,3 +100,14 @@ This repository contains the native app sources, editable promo projects, public
 ## Build from source
 
 On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
+
+## Development checks
+
+Standalone Swift checks and their Python MCP companion live in [Tests/](Tests). Run checks from the repository root:
+
+```sh
+python3 tools/run_swift_checks.py Tests/test_editor_session.swift
+python3 tools/run_swift_checks.py --render-only Tests/test_video_trim.swift
+```
+
+The runner also accepts a bare filename such as `test_editor_session.swift`. See [Tests/README.md](Tests/README.md) for details.

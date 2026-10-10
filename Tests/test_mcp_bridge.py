@@ -12,7 +12,7 @@ import tempfile
 import threading
 import uuid
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 MAX_REQUEST = 1024 * 1024
 PROJECT_URI = 'screentake://editor/project'
 BRIDGE = ROOT / '.build/DerivedData/Build/Products/Debug/ScreenTake.app/Contents/Helpers/screentake-mcp'
