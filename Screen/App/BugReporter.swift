@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 enum BugReporter {
-    static let issueEndpoint = URL(string: "https://github.com/sso-ss/screen-recorder-mac/issues/new")!
+    static let issueEndpoint = URL(string: "https://github.com/sso-ss/ScreenTake/issues/new")!
 
     static func issueURL(
         appVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown",
@@ -23,7 +23,7 @@ enum BugReporter {
             Describe what you expected to happen.
 
             ## Diagnostics
-            - Screen version: \(appVersion) (\(buildVersion))
+            - ScreenTake version: \(appVersion) (\(buildVersion))
             - macOS: \(operatingSystem)
             """)
         ]

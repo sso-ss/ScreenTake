@@ -3,9 +3,9 @@ import Foundation
 
 @main
 struct UpdateCheckerTest {
-    static func release(_ version: String, host: String = "github.com", prerelease: Bool = false, draft: Bool = false, asset: Bool = true, assetPrefix: String = "Screen-share-") -> ScreenRelease {
-        ScreenRelease(tag_name: "v\(version)", html_url: URL(string: "https://\(host)/sso-ss/screen-recorder-mac/releases/tag/v\(version)")!, body: "Update notes", draft: draft, prerelease: prerelease,
-                      assets: asset ? [.init(name: "\(assetPrefix)\(version)-build4.zip")] : [])
+    static func release(_ version: String, host: String = "github.com", prerelease: Bool = false, draft: Bool = false, asset: Bool = true, assetPrefix: String = "ScreenTake-") -> ScreenRelease {
+        ScreenRelease(tag_name: "v\(version)", html_url: URL(string: "https://\(host)/sso-ss/ScreenTake/releases/tag/v\(version)")!, body: "Update notes", draft: draft, prerelease: prerelease,
+                      assets: asset ? [.init(name: "\(assetPrefix)\(version)-build4.dmg")] : [])
     }
 
     @MainActor
@@ -21,7 +21,7 @@ struct UpdateCheckerTest {
             return latest
         })
         precondition(release("0.1.10").isNewer(than: "0.1.9"))
-        precondition(release("0.1.6", assetPrefix: "ScreenTake-share-").isNewer(than: "0.1.5"))
+        precondition(!release("0.1.6", assetPrefix: "ScreenTake-share-").isNewer(than: "0.1.5"))
         precondition(!release("0.1.2").isNewer(than: "0.1.2"))
         precondition(!release("0.1.1").isNewer(than: "0.1.2"))
         precondition(!release("0.1.2.0").isNewer(than: "0.1.2"))

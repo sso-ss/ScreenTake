@@ -34,10 +34,9 @@ struct ScreenRelease: Codable, Equatable {
         guard !draft, !prerelease,
               html_url.scheme == "https", html_url.host == "github.com",
               html_url.user == nil, html_url.password == nil, html_url.port == nil,
-              html_url.path == "/sso-ss/screen-recorder-mac/releases/tag/\(tag_name)",
+              html_url.path == "/sso-ss/ScreenTake/releases/tag/\(tag_name)",
               assets.contains(where: { asset in
-                  ["Screen-share-", "ScreenTake-share-"].contains(where: { asset.name.hasPrefix("\($0)\(version)-build") })
-                      && asset.name.hasSuffix(".zip")
+                  asset.name.hasPrefix("ScreenTake-\(version)-build") && asset.name.hasSuffix(".dmg")
               }),
               let available = Self.components(version),
               let current = Self.components(installed) else { return false }
@@ -48,7 +47,7 @@ struct ScreenRelease: Codable, Equatable {
 @MainActor
 final class UpdateChecker: ObservableObject {
     static let interval: TimeInterval = 24 * 60 * 60
-    static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/screen-recorder-mac/releases/latest")!
+    static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/ScreenTake/releases/latest")!
 
     private let defaults: UserDefaults
     private let installedVersion: String
@@ -87,7 +86,7 @@ final class UpdateChecker: ObservableObject {
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("Screen-Update-Checker", forHTTPHeaderField: "User-Agent")
+        request.setValue("ScreenTake-Update-Checker", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
             throw URLError(.badServerResponse)
@@ -167,6 +166,7 @@ final class UpdateChecker: ObservableObject {
 
     static func makeUpdateAlert(release: ScreenRelease, installedVersion: String) -> NSAlert {
         let alert = NSAlert()
+        if let icon = AppBrand.icon { alert.icon = icon }
         alert.messageText = "ScreenTake \(release.version) is available"
         alert.informativeText = "Installed: \(installedVersion)"
         let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 180))
@@ -204,6 +204,7 @@ final class UpdateChecker: ObservableObject {
         let release = pendingRelease
         let alert = release.map { Self.makeUpdateAlert(release: $0, installedVersion: installedVersion) } ?? NSAlert()
         if release == nil {
+            if let icon = AppBrand.icon { alert.icon = icon }
             alert.messageText = "Check for Updates"
             alert.informativeText = feedback ?? ""
             alert.addButton(withTitle: "OK")

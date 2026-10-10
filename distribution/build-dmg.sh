@@ -101,6 +101,7 @@ hdiutil convert -quiet "$read_write_image" -format UDZO -imagekey zlib-level=9 \
   -o "$output_path"
 
 if [[ "$signing_authority" == "Developer ID Application:"* ]]; then
+  codesign --force --timestamp --sign "$signing_authority" "$output_path"
   xcrun notarytool submit "$output_path" --keychain-profile "$notary_profile" --wait
   xcrun stapler staple "$output_path"
   xcrun stapler validate "$output_path"

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="lower-panel" x1="113" y1="35" x2="67" y2="111" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B3A0FF"/>
+      <stop offset=".48" stop-color="#815DE0"/>
+      <stop offset="1" stop-color="#4C2B9C"/>
+    </linearGradient>
+    <linearGradient id="left-panel" x1="12" y1="32" x2="57" y2="99" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A997FF"/>
+      <stop offset=".46" stop-color="#8463EA"/>
+      <stop offset="1" stop-color="#5C38BF"/>
+    </linearGradient>
+    <linearGradient id="top-panel" x1="47" y1="23" x2="85" y2="71" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D0CFFF"/>
+      <stop offset=".45" stop-color="#A89BF8"/>
+      <stop offset="1" stop-color="#7D64D8"/>
+    </linearGradient>
+    <linearGradient id="play" x1="48" y1="45" x2="78" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#ECE5FF"/>
+    </linearGradient>
+    <filter id="overlap" x="-30%" y="-30%" width="170%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="1.1" dy="2"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.16 0 0 0 0 0.07 0 0 0 0 0.32 0 0 0 .24 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="screen-shape"><rect x="8" y="25" width="112" height="78" rx="18"/></clipPath>
+  </defs>
+  <g clip-path="url(#screen-shape)">
+    <rect x="8" y="25" width="112" height="78" rx="18" fill="url(#lower-panel)"/>
+    <path d="M8 25H22.112820513L55 46.2C52.6 44.7 50 46.2 50 49V104H8V25Z" fill="url(#left-panel)" filter="url(#overlap)"/>
+    <path d="M22.112820513 25H120V41.899173554L79.2 68.2C81.6 66.7 81.6 63.3 79.2 61.8L55 46.2L22.112820513 25Z" fill="url(#top-panel)" filter="url(#overlap)"/>
+    <path d="M50 49C50 46.2 52.6 44.7 55 46.2L79.2 61.8C81.6 63.3 81.6 66.7 79.2 68.2L55 83.8C52.6 85.3 50 83.8 50 81V49Z" fill="url(#play)"/>
+  </g>
+</svg>

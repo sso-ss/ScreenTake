@@ -1,5 +1,51 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ScreenTake 0.1.10 — Release notes</title><link rel="icon" href="assets/mark.svg"><link rel="stylesheet" href="styles.css?v=37"></head>
-<body><main class="container section release-notes"><a href="index.html">← Back to ScreenTake</a><p class="eyebrow">BETA · BUILD 12</p><h1>ScreenTake 0.1.10</h1><p>Record your screen, then add your voice.</p><h2>What’s new</h2><ul><li>Record narration while watching your screen recording.</li><li>Move and trim each narration take on its own audio strip.</li><li>See original audio and voiceover waveforms, with separate volume and mute controls.</li><li>Playback controls stay centered beneath the video, with editing tools on the left and time and zoom on the right.</li></ul><a class="button primary" href="downloads/ScreenTake-0.1.10-build12-local.dmg" download>Download 0.1.10 for Apple Silicon</a><h2>Install</h2><p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it.</p><h2>Test build</h2><p>This locally signed build is not notarized by Apple. Make a short test recording and check your export before sharing. Smart zoom and recording reliability are still being refined.</p><p>Cursor and zoom re-editing rely on capture data retained in the current app session. Imported or reopened finished videos do not restore that data.</p><p><a href="https://github.com/sso-ss/ScreenTake/issues">Report an issue</a></p></main></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScreenTake 0.1.14 — Release notes</title>
+  <link rel="icon" href="assets/mark.svg?v=2">
+  <link rel="stylesheet" href="styles.css?v=38">
+</head>
+<body>
+  <main class="container section release-notes">
+    <a href="index.html">← Back to ScreenTake</a>
+    <p class="eyebrow">BETA · BUILD 16</p>
+    <h1>ScreenTake 0.1.14</h1>
+    <p>Sharper screen detail, quicker editing after Stop, and a timeline that stays in sync.</p>
+
+    <h2>What’s new</h2>
+    <ul>
+      <li>Open the editor sooner after stopping. Effects render when you apply changes or download your finished video.</li>
+      <li>Keep native screen detail, including odd-sized window captures, with original-size content placed at 1×.</li>
+      <li>Keep the timeline ruler, playhead, and timestamp synchronized during playback and seeking.</li>
+      <li>Save editable projects, edit recorded audio clips separately, and crop browser content.</li>
+      <li>Choose an app language and optionally connect AI clients to the local editor.</li>
+      <li>Apply optional face-tracked camera beauty and makeup filters, with faster live previews.</li>
+      <li>Find ScreenTake in the menu bar and see an update badge until the available release is installed.</li>
+      <li>Keep the three-panel purple app icon introduced in 0.1.13.</li>
+    </ul>
+
+    <h2>Included from 0.1.12</h2>
+    <ul>
+      <li>Choose Overlay or Full Screen for each camera section, with zoom and framing controls for full-screen footage.</li>
+      <li>Optionally follow one face. The camera crops gently to keep the face in view and keeps your framing when no face is detected.</li>
+      <li>Use the main Split button for camera sections. Splitting a screen recording also splits its camera presentation.</li>
+      <li>Add smooth transitions between camera sections, with adjustable duration and motion. Turn them off for a direct cut.</li>
+      <li>Preview your camera directly in the recording canvas. Enabling the camera turns on the microphone; you can turn it off or use the microphone on its own.</li>
+      <li>Select a microphone above Record Voiceover, sharing the saved selection with the recording controls.</li>
+      <li>Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.</li>
+    </ul>
+
+    <a class="button primary" href="downloads/ScreenTake-0.1.14-build16.dmg" download>Download 0.1.14 for Apple Silicon</a>
+
+    <h2>Install</h2>
+    <p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it. Update reminders open a download page; installation remains manual.</p>
+
+    <h2>Beta notes</h2>
+    <p>The app and installer are signed with a Developer ID certificate, and Apple has notarized the installer. Make a short test recording and check your export before sharing. Smart zoom and device reliability are still being refined.</p>
+    <p>Face tracking follows one face. Long clips may take a moment to prepare, and tracking depends on a visible face. Saved .screentake projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.</p>
+    <p><a href="https://github.com/sso-ss/ScreenTake/issues">Report an issue</a></p>
+  </main>
+</body>
 </html>

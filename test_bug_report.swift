@@ -15,9 +15,9 @@ struct BugReporterTest {
 
         precondition(components?.scheme == "https")
         precondition(components?.host == "github.com")
-        precondition(components?.path == "/sso-ss/screen-recorder-mac/issues/new")
+        precondition(components?.path == "/sso-ss/ScreenTake/issues/new")
         precondition(query["title"] == "[Bug] ")
-        precondition(query["body"]?.contains("Screen version: 0.1.3 (4)") == true)
+        precondition(query["body"]?.contains("ScreenTake version: 0.1.3 (4)") == true)
         precondition(query["body"]?.contains("macOS 15.6.1 (Build 24G90)") == true)
         print("PASS: bug report URL, template, and diagnostics")
     }

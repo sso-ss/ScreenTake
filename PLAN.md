@@ -1,4 +1,4 @@
-# Screenize Clone — Implementation Plan
+# ScreenTake — Implementation Plan
 
 > **Goal:** Build a macOS screen recording app with auto-zoom, cursor effects, timeline editing, and polished video export — a Screen Studio alternative.
 
@@ -9,15 +9,15 @@
 After analyzing `/Users/sso/Desktop/Claude/Double/mockup-tool`, here's the assessment:
 
 ### ❌ Not Reusable (Different Tech Stack)
-The mockup-tool is a **web-based HTML/CSS/JS** screenshot mockup tool. The Screenize clone is a **native macOS Swift/SwiftUI app**. The core code (screen capture, video recording, timeline editing, Metal rendering) cannot be reused — they're entirely different technologies.
+The mockup-tool is a **web-based HTML/CSS/JS** screenshot mockup tool. The ScreenTake app is a **native macOS Swift/SwiftUI app**. The core code (screen capture, video recording, timeline editing, Metal rendering) cannot be reused — they're entirely different technologies.
 
 ### ⚠️ Design Concepts Worth Porting (Visual Reference Only)
 
-| mockup-tool Feature | Screenize Use | How to Port |
+| mockup-tool Feature | ScreenTake Use | How to Port |
 |---|---|---|
 | **macOS window chrome** (`.browser-window`, `.titlebar`, `.traffic-lights`) | Window-mode background styling in exported videos | Replicate the visual design in `WindowModeRenderer.swift` using CoreImage — rounded corners, shadow, title bar gradient (`#3a3a3c → #2c2c2e`), traffic light colors (`#ff5f57`, `#febc2e`, `#28c840`) |
 | **Wallpaper gradients** (8 presets: Sonoma, Aurora, Sunset, Ocean, Blossom, Nebula, Moss, Dusk) | Background presets for the `BackgroundStyle` model | Copy the exact CSS gradient values as `BackgroundStyle.preset` cases — each is a combination of 3-4 radial gradients + a linear gradient base |
-| **Terminal themes** (Dark, Pro, Homebrew, Ocean, Dracula, Solarized) | N/A for Screenize (no terminal rendering) | Not applicable |
+| **Terminal themes** (Dark, Pro, Homebrew, Ocean, Dracula, Solarized) | N/A for ScreenTake (no terminal rendering) | Not applicable |
 | **Color palette** (`#1c1c1e`, `#2c2c2e`, `#3a3a3c`, `#48484a`, `#636366`, `#98989d`, `#e5e5ea`) | DesignSystem colors — these are native macOS dark mode system grays | Use directly in `DesignColors.swift` |
 | **Control panel styling** (glassmorphic sidebar, section cards, swatches) | Inspector panel visual style | SwiftUI equivalent: `.background(.ultraThinMaterial)`, grouped sections |
 
@@ -124,8 +124,8 @@ Screen/
 │   │       └── DragEventHandler.swift
 │   │
 │   ├── Project/                    # Phase 2
-│   │   ├── ScreenizeProject.swift  # Main project model (Codable)
-│   │   ├── PackageManager.swift    # .screenize bundle CRUD
+│   │   ├── ScreenProject.swift  # Main project model (Codable)
+│   │   ├── PackageManager.swift    # .screentake bundle CRUD
 │   │   ├── ProjectManager.swift    # Save/load/recent projects
 │   │   ├── ProjectCreator.swift    # Factory from recording or video
 │   │   ├── MediaAsset.swift        # Video + mouse data paths
@@ -257,7 +257,7 @@ Screen/
 
 ### Task 1.5: Screen Capture Core
 - `CaptureConfiguration.swift` — width, height, frameRate, pixelFormat, showsCursor, capturesAudio, scaleFactor
-- `ScreenCaptureManager.swift` — `SCStream` setup, content filter excluding Screenize windows, delegate for frames
+- `ScreenCaptureManager.swift` — `SCStream` setup, content filter excluding ScreenTake windows, delegate for frames
 - `CaptureTarget.swift` — `.display(SCDisplay)`, `.window(SCWindow)`, `.region(CGRect, SCDisplay)`
 - `CaptureMode.swift` — `.entireScreen`, `.window`
 
@@ -292,17 +292,17 @@ Screen/
 
 ## Phase 2: Project System (Week 2–3)
 
-**Goal:** Package recordings into `.screenize` bundles with JSON project files.
+**Goal:** Package recordings into `.screentake` bundles with JSON project files.
 
 ### Task 2.1: Data Models
-- `ScreenizeProject.swift` — Codable struct (id, version, name, dates, media, captureMeta, timeline, renderSettings)
+- `ScreenProject.swift` — Codable struct (id, version, name, dates, media, captureMeta, timeline, renderSettings)
 - `MediaAsset.swift` — relative paths for video + mouse data + audio, resolved URLs via `resolveURLs(from:)`
 - `CaptureMeta.swift` — displayID, boundsPt, scaleFactor
 - `RenderSettings.swift` — codec, quality, resolution, background, corners, shadow, padding, audio volumes
 - `InteropBlock.swift` — event stream file locations within package
 
 ### Task 2.2: Package Manager
-- `PackageManager.swift` — CRUD for `.screenize` package directories
+- `PackageManager.swift` — CRUD for `.screentake` package directories
   - `createPackage(name:, directory:, videoURL:)` → copies video + mouse data into `recording/` subfolder
   - `save(project:, to:)` → write `project.json`
   - `load(from:)` → read `project.json` + resolve media URLs
@@ -318,12 +318,12 @@ Screen/
 
 ### Task 2.4: File Opening Flow
 - `ContentView.swift` — route between welcome, editor, and permission wizard
-- Support opening `.screenize` packages and raw video files
+- Support opening `.screentake` packages and raw video files
 - `AppDelegate` → `NSNotificationCenter` for file open events
 - Register UTType in Info.plist
 
 ### Phase 2 Deliverable
-✅ Recording stops → creates `.screenize` package with project.json  
+✅ Recording stops → creates `.screentake` package with project.json
 ✅ Recent projects list on welcome screen  
 ✅ Open existing projects and video files  
 ✅ Project files round-trip (save → load → save)  
@@ -347,7 +347,7 @@ Screen/
 
 ### Task 3.2: Editor ViewModel
 - `EditorViewModel.swift`:
-  - Owns `ScreenizeProject`, `PreviewEngine`, `ExportEngine`
+  - Owns `ScreenProject`, `PreviewEngine`, `ExportEngine`
   - Playback control (play, pause, seek, loop)
   - Undo/redo via snapshot stack
   - Auto-save with debounce
@@ -553,7 +553,7 @@ Screen/
 | Phase 5: Render + Export | 2 weeks | Week 9 |
 | Phase 6: Polish | 2 weeks | Week 11 |
 
-**Total: ~11 weeks** for feature parity with Screenize v0.4.0
+**Total: ~11 weeks** for the planned feature set
 
 ---
 
