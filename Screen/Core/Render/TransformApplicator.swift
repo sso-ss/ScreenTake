@@ -77,18 +77,20 @@ final class LiveEditFrameRenderer {
     private let positions: [MouseDataRecorder.MousePosition]
     private let padding: CGFloat
     private let cursor: CGImage?
+    private let faceTrack: FaceTrackingTrack?
 
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
-         mouse: MouseDataRecorder.MouseRecording? = nil) {
+         mouse: MouseDataRecorder.MouseRecording? = nil, faceTrack: FaceTrackingTrack? = nil) {
         self.settings = settings
-        cropRect = settings.layout.isPhone ? settings.crop.pixelRect(in: sourceSize) : CGRect(origin: .zero, size: sourceSize)
+        self.faceTrack = faceTrack
+        cropRect = settings.crop.pixelRect(in: sourceSize)
         normalizedCrop = CGRect(x: cropRect.minX / sourceSize.width,
                                 y: 1 - cropRect.maxY / sourceSize.height,
                                 width: cropRect.width / sourceSize.width, height: cropRect.height / sourceSize.height)
-        let dimensions = settings.ratio.size(source: sourceSize)
+        let dimensions = settings.outputSize(source: sourceSize)
         let scale = min(1, 2560 / max(dimensions.width, dimensions.height))
-        outputSize = CGSize(width: max(2, floor(dimensions.width * scale / 2) * 2),
-                            height: max(2, floor(dimensions.height * scale / 2) * 2))
+        outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
+                            height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
         let rawPositions = mouse?.positions ?? []
         positions = settings.smoothCursor ? MouseDataRecorder.smoothedPositions(rawPositions, sigma: settings.smoothCursorSigma) : rawPositions
@@ -98,12 +100,14 @@ final class LiveEditFrameRenderer {
         canvas = settings.backgroundEnabled || settings.ratio != .original || settings.layout != .desktop
             ? CanvasCompositor(size: outputSize, sourceSize: cropRect.size, layout: settings.layout,
                                wallpaper: settings.wallpaper, phoneContentMode: settings.phoneMode,
-                               desktopCornerRadius: CGFloat(settings.desktopCornerRadius)) : nil
+                               desktopCornerRadius: CGFloat(settings.desktopCornerRadius),
+                               preserveSourcePixels: settings.exportResolution == .preserveSource) : nil
         webcam = settings.webcamEnabled ? WebcamCompositor(outputSize: outputSize, position: settings.webcamPosition,
                                    pipSize: settings.webcamSize, shape: settings.webcamShape) : nil
     }
 
-    func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil) -> CIImage {
+    func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
+                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -137,8 +141,16 @@ final class LiveEditFrameRenderer {
                 }
             }
         }
-        if let canvas { image = canvas.composite(primary: image, camera: transform, primaryOverlay: cursorLayer) }
-        if let webcam, let webcamImage { image = webcam.composite(webcamImage: webcamImage, onto: image) }
+        if let canvas { image = canvas.composite(primary: image, phone: phoneImage, camera: transform, primaryOverlay: cursorLayer) }
+        if let webcam, let webcamImage {
+            let layout = CameraLayoutChange.settings(at: webcamTime ?? time, initial: settings.cameraLayout,
+                                                     changes: settings.cameraLayoutChanges)
+            let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
+                                                           changes: settings.cameraLayoutChanges)
+            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
+                                     faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
+                                     beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
+        }
         return image.cropped(to: CGRect(origin: .zero, size: outputSize))
     }
 
@@ -163,13 +175,19 @@ struct CanvasGeometry {
     let desktop: CGRect?
     let phone: CGRect?
 
-    init(size: CGSize, layout: DeviceLayout, sourceSize: CGSize) {
+    init(size: CGSize, layout: DeviceLayout, sourceSize: CGSize, preserveSourcePixels: Bool = false) {
         let bounds = CGRect(origin: .zero, size: size)
         let margin = min(size.width, size.height) * 0.08
         let area = bounds.insetBy(dx: margin, dy: margin)
         switch layout {
         case .desktop:
-            desktop = Self.fit(sourceSize, in: area)
+            if preserveSourcePixels, sourceSize.width <= area.width, sourceSize.height <= area.height {
+                desktop = CGRect(x: ((size.width - sourceSize.width) / 2).rounded(),
+                                 y: ((size.height - sourceSize.height) / 2).rounded(),
+                                 width: sourceSize.width, height: sourceSize.height)
+            } else {
+                desktop = Self.fit(sourceSize, in: area)
+            }
             phone = nil
         case .iPhone, .iPhoneDuoClosed, .iPhoneDuoUnfolded:
             desktop = nil
@@ -220,12 +238,12 @@ final class CanvasCompositor {
     private let phoneContentMode: PhoneContentMode
     private let desktopCornerRadius: CGFloat
 
-    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025) {
+    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, preserveSourcePixels: Bool = false) {
         self.layout = layout
         self.phoneContentMode = phoneContentMode
         self.desktopCornerRadius = min(0.5, max(0, desktopCornerRadius))
         bounds = CGRect(origin: .zero, size: size)
-        geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize)
+        geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize, preserveSourcePixels: preserveSourcePixels)
         background = Self.makeBackground(size: size, wallpaper: wallpaper)
         chrome = Self.makeChrome(size: size, geometry: geometry, layout: layout, desktopCornerRadius: self.desktopCornerRadius)
     }

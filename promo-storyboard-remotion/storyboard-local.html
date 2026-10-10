@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScreenTake Promo Storyboard</title>
+<style>
+  :root {
+    --bg: #fefdfd; --card: #ffffff; --ink: #211936; --muted: #594b6b; --subtle: #7a6c8c;
+    --line: #e6dff1; --lavender: #f3eefd; --accent: #6c5ce7; --accent-ink: #5034bf;
+    --rule: #d9cdeb; --warn: #b45309; --warn-bg: #fdf3e4;
+    --raycast: #e0566a; --linear: #5e6ad2; --studio: #1aa89a; --rive: #d98a1c; --own: #6c5ce7;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #1c1c1e; --card: #252527; --ink: #ececf1; --muted: #a9a6b3; --subtle: #8e8a99;
+      --line: #36343c; --lavender: #2a2640; --accent: #8e80f2; --accent-ink: #b3a9f7;
+      --rule: #3f3b4d; --warn: #f0b458; --warn-bg: #33291a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1c1c1e; --card: #252527; --ink: #ececf1; --muted: #a9a6b3; --subtle: #8e8a99;
+    --line: #36343c; --lavender: #2a2640; --accent: #8e80f2; --accent-ink: #b3a9f7;
+    --rule: #3f3b4d; --warn: #f0b458; --warn-bg: #33291a;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 72px; }
+  main { max-width: 980px; margin: 0 auto; display: grid; gap: 56px; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 24px; }
+  h3 { font-size: 18px; }
+  p { margin: 0; }
+  .eyebrow { font: 600 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); }
+  .lede { color: var(--muted); max-width: 64ch; font-size: 17px; }
+  header { display: grid; gap: 16px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); background: var(--card); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  section { display: grid; gap: 20px; }
+  .section-head { display: grid; gap: 6px; }
+  .section-head p { color: var(--muted); max-width: 64ch; }
+
+  /* Timeline strip, drawn like the editor's timeline */
+  .timeline { background: #1e1e20; border-radius: 12px; padding: 16px 16px 14px; color: #d9d7e0; display: grid; gap: 8px; overflow-x: auto; }
+  .ruler, .track { display: grid; grid-template-columns: 3fr 4fr 6fr 8fr 5fr 5fr 7fr 5fr 5fr; gap: 3px; min-width: 620px; }
+  .ruler span { font: 11px/1 var(--mono); color: #8d8a97; font-variant-numeric: tabular-nums; }
+  .track a { display: block; height: 58px; border-radius: 6px; padding: 7px 8px; color: #fff; text-decoration: none; font-size: 12px; font-weight: 600; line-height: 1.25; position: relative; overflow: hidden; outline-offset: 2px; }
+  .track a small { display: block; font: 500 10px/1.2 var(--mono); opacity: 0.8; margin-top: 3px; }
+  .track a:hover, .track a:focus-visible { filter: brightness(1.12); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+
+  /* Wallpaper stand-ins */
+  .wp-midnight { background: radial-gradient(120% 90% at 10% 55%, #7390cc 0%, #2d3b5c 38%, transparent 70%), radial-gradient(90% 80% at 60% 110%, #2fc6cf 0%, transparent 65%), #14171d; }
+  .wp-lagoon { background: radial-gradient(90% 90% at 0% 80%, #b6ecb4 0%, #4fb393 35%, transparent 70%), radial-gradient(90% 70% at 60% 115%, #44e0c0 0%, transparent 65%), #151a1b; }
+  .wp-prism { background: radial-gradient(70% 60% at 10% 40%, #e79c93 0%, transparent 62%), radial-gradient(90% 70% at 60% 115%, #22e8d9 0%, #1b6f86 45%, transparent 75%), #141519; }
+  .wp-ember { background: radial-gradient(80% 80% at 5% 90%, #f7c894 0%, transparent 55%), radial-gradient(80% 70% at 25% 45%, #d96b7b 0%, transparent 62%), radial-gradient(90% 70% at 70% 115%, #ee8a98 0%, transparent 65%), #1b1417; }
+  .wp-cards { background: #0d0d0f; }
+  .wp-editor { background: #2c2c2e; }
+  .wp-cycle { background: linear-gradient(90deg, #e79c93 0 25%, #44e0c0 25% 50%, #d96b7b 50% 75%, #7390cc 75% 100%); }
+
+  /* Beats */
+  .beats { display: grid; gap: 14px; }
+  .beat { display: grid; grid-template-columns: 150px 1fr; gap: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; scroll-margin-top: 16px; }
+  .beat:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--lavender); }
+  .frame { display: grid; gap: 10px; align-content: start; }
+  .thumb { aspect-ratio: 16 / 9; max-width: 100%; border-radius: 8px; position: relative; overflow: hidden; }
+  .thumb b { position: absolute; left: 8px; bottom: 6px; font: 600 11px/1 var(--mono); color: #fff; opacity: 0.85; }
+  .tc { font: 600 14px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .tc span { display: block; font-weight: 400; font-size: 12px; color: var(--subtle); margin-top: 3px; }
+  .body { display: grid; gap: 12px; min-width: 0; }
+  .body h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .num { font: 600 12px/1 var(--mono); color: var(--accent-ink); background: var(--lavender); border-radius: 6px; padding: 5px 7px; }
+  .row { display: grid; grid-template-columns: 78px 1fr; gap: 12px; }
+  .row dt { font: 600 11px/1.9 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtle); }
+  .row dd { margin: 0; color: var(--ink); max-width: 68ch; }
+  dl { margin: 0; display: grid; gap: 8px; }
+  .caption { font-weight: 650; color: var(--ink); }
+  .caption em { font-style: normal; color: var(--accent); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  ol.steps { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+
+  /* Rules + decisions */
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .rule { border-top: 2px solid var(--rule); padding-top: 12px; display: grid; gap: 4px; }
+  .rule strong { font-size: 15px; }
+  .rule p { color: var(--muted); font-size: 15px; }
+  .decisions { display: grid; gap: 12px; }
+  .decision { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .open { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); background: var(--warn-bg); padding: 6px 8px; border-radius: 6px; }
+  .decision p { color: var(--muted); }
+  .decision .rec { color: var(--ink); margin-top: 6px; }
+  .decision .rec b { color: var(--accent-ink); }
+  .done { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); background: var(--lavender); padding: 6px 8px; border-radius: 6px; }
+  .bubble { position: absolute; right: 8%; bottom: 10%; width: 38%; aspect-ratio: 1; border-radius: 50%; background: url(assets/presenter-thumb.jpg) 44% 36% / 170% no-repeat; box-shadow: 0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,.35); }
+  .sound { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .sound-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .sound th, .sound td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .sound tr:last-child td { border-bottom: 0; }
+  .sound th { font: 600 11px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtle); }
+  .sound td:first-child { font: 600 13px/1.5 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent-ink); }
+  .sound td:nth-child(3) { color: var(--muted); }
+  .look { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .look div { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+  .look strong { font: 600 11px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); }
+  .look p { font-size: 15px; }
+  .stack { display: grid; gap: 6px; background: #121214; border-radius: 12px; padding: 16px; perspective: 900px; overflow: hidden; }
+  .stack div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; color: #eceaf2; font-size: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(108,92,231,.14); transform-origin: center; }
+  .stack div span { font: 600 12px/1.5 var(--mono); color: #b3a9f7; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .depth { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+  .zlist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .zlist li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; font-size: 15px; }
+  .zlist b { font: 600 12px/1.9 var(--mono); color: var(--accent-ink); }
+  @media (max-width: 640px) { .depth { grid-template-columns: 1fr; } }
+  footer { color: var(--subtle); font-size: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media (max-width: 640px) {
+    .beat { grid-template-columns: 1fr; gap: 14px; }
+    .frame { grid-template-columns: 120px 1fr; align-items: center; }
+    .row { grid-template-columns: 1fr; gap: 0; }
+    .decision { grid-template-columns: 1fr; gap: 10px; }
+    .decision .open { justify-self: start; }
+  }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <div class="eyebrow">Text storyboard · draft 4</div>
+    <h1>ScreenTake promo: <span>a video that edits itself</span></h1>
+    <p class="lede">A 48-second film for ScreenTake, the Mac screen recorder and editor. It borrows techniques from four reference promos (Raycast, Linear, Screen Studio and Rive). The film shows ScreenTake's features by using them on itself: the camera zooms on clicks, the cursor changes style, and near the end the film's own frame changes shape.</p>
+    <div class="meta">
+      <span class="chip">≈ 48 s</span>
+      <span class="chip">16:9 master · 1920 × 1080</span>
+      <span class="chip">+ 9:16 cut, ≈ 20 s</span>
+      <span class="chip">UI redrawn in code</span>
+      <span class="chip">Music + UI sound, 150 BPM</span>
+      <span class="chip">Copy from the ScreenTake website</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="t-look">
+    <div class="section-head">
+      <h2 id="t-look">Look</h2>
+      <p>A dark, cinematic product film built from ScreenTake's own world: its dark UI, its purple and its wallpapers.</p>
+    </div>
+    <div class="look">
+      <div><strong>Ground</strong><p>Near-black, lit by the Midnight, Lagoon, Prism and Ember glows with fine grain. The app UI sits in its real dark greys, #1c1c1e and #2c2c2e.</p></div>
+      <div><strong>Hero</strong><p>The product itself: the window, the cursor, the zoom. The presenter only appears inside the webcam bubble.</p></div>
+      <div><strong>Colour</strong><p>One accent, ScreenTake purple #6C5CE7. The four wallpapers bring all the other colour.</p></div>
+      <div><strong>Type</strong><p>SF Pro, as on the ScreenTake site: large, bold, tightly tracked headlines. The Rive-style cards use small uppercase labels in mono.</p></div>
+      <div><strong>Camera</strong><p>Always moving, with an extreme close-up open, depth of field, a tilted perspective, and motion blur on fast pull-outs and zooms.</p></div>
+      <div><strong>Motion</strong><p>Fast and sharp: quick expo snaps, hard cuts on the 150 BPM beat, and overshoot only on the cursor and bubble.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-depth">
+    <div class="section-head">
+      <h2 id="t-depth">Depth (z-space)</h2>
+      <p>Every shot is built as layers at real depths inside one 3D space, not as flat layers. When the camera moves, near layers move faster than far ones (parallax), focus blur depends on distance from the focus plane, and shadows grow with the gap between layers. The camera travels through the space (dolly), not by scaling the picture.</p>
+    </div>
+    <div class="depth">
+      <div class="stack" aria-label="Layer stack, nearest first">
+        <div style="transform: translateZ(60px) scale(.94)">Captions and HUD labels<span>z +300</span></div>
+        <div style="transform: translateZ(45px) scale(.95)">Webcam bubble<span>z +240</span></div>
+        <div style="transform: translateZ(30px) scale(.96)">Cursor and click ring<span>z +180</span></div>
+        <div style="transform: translateZ(15px) scale(.97)">Overlay panels, lifted clips<span>z +100</span></div>
+        <div>App window and timeline (focus plane)<span>z 0</span></div>
+        <div style="transform: translateZ(-30px) scale(1.02); opacity:.8">Blurred copies for depth of field<span>z −300</span></div>
+        <div style="transform: translateZ(-60px) scale(1.05); opacity:.65">Wallpaper glow and grain<span>z −900</span></div>
+      </div>
+      <ol class="zlist">
+        <li><b>01</b><span>A real dolly back from the Record button: the toolbar edges slide past the lens faster than the wallpaper behind.</span></li>
+        <li><b>02</b><span>Title letters fly in from z +600 and sharpen as they reach the focus plane. The window drops back to z −400 and blurs.</span></li>
+        <li><b>03</b><span>The overlay panel slides in at z +100, so it casts a real shadow across the toolbar.</span></li>
+        <li><b>04</b><span>Smart zoom is a camera dolly toward the click point. The cursor sits above the page and shifts against it (parallax) while the camera follows.</span></li>
+        <li><b>05</b><span>The camera flies through the title cards, set as planes one behind another, so each hard cut lands on the next plane.</span></li>
+        <li><b>06</b><span>The bubble lifts toward the camera on each corner hop, its shadow spreads, and it settles back.</span></li>
+        <li><b>07</b><span>On the tilted timeline, a dragged clip lifts to z +100 and drops into the closed gap. The detected pauses rise off the track before removal.</span></li>
+        <li><b>08</b><span>Each new wallpaper arrives from far behind. On each ratio change the canvas turns slightly on its vertical axis and back.</span></li>
+        <li><b>09</b><span>The swapping words come forward from depth. The wordmark focus pull is a real change of focus distance.</span></li>
+      </ol>
+    </div>
+    <p class="lede">Limits: turns stay small (≤ 18°, except the timeline tilt), captions are always sharp while they're on screen, and the camera never moves so fast that UI text becomes unreadable.</p>
+  </section>
+
+  <section aria-labelledby="t-timeline">
+    <div class="section-head">
+      <h2 id="t-timeline">Timeline</h2>
+      <p>Each block's width matches its length on screen. Select a block to jump to that beat.</p>
+    </div>
+    <div class="timeline">
+      <div class="ruler">
+        <span>00:00</span><span>00:03</span><span>00:07</span><span>00:13</span><span>00:21</span><span>00:26</span><span>00:31</span><span>00:38</span><span>00:43</span>
+      </div>
+      <div class="track">
+        <a href="#b1" class="wp-midnight">Open<small>Raycast</small></a>
+        <a href="#b2" class="wp-midnight">Title<small>ScreenTake</small></a>
+        <a href="#b3" class="wp-lagoon">Record<small>Screen Studio</small></a>
+        <a href="#b4" class="wp-prism">Smart zoom<small>Screen Studio + Linear</small></a>
+        <a href="#b5" class="wp-cards">Cursor<small>Rive</small></a>
+        <a href="#b6" class="wp-ember">Camera + sound<small>Rive</small></a>
+        <a href="#b7" class="wp-editor">Edit<small>Linear</small></a>
+        <a href="#b8" class="wp-cycle">Framing<small>ScreenTake</small></a>
+        <a href="#b9" class="wp-midnight">End card<small>Raycast + Linear</small></a>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--raycast)"></i>Raycast: macro open, snap pull-out, word swap</span>
+      <span><i class="dot" style="background:var(--linear)"></i>Linear: one continuous take, tilted sheet, focus pull</span>
+      <span><i class="dot" style="background:var(--studio)"></i>Screen Studio: caption → panel rhythm, zoom, cursor</span>
+      <span><i class="dot" style="background:var(--rive)"></i>Rive: uppercase cards, fast cuts, overshoot</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-beats">
+    <div class="section-head">
+      <h2 id="t-beats">Beats</h2>
+      <p>Captions are ScreenTake's own website copy wherever possible. The swatches stand in for ScreenTake's wallpapers.</p>
+    </div>
+    <div class="beats">
+
+      <article class="beat" id="b1">
+        <div class="frame"><div class="thumb wp-midnight"><b>Midnight</b></div><div class="tc">00:00–00:03<span>3 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">01</span>Cold open</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>Black fades to a Midnight glow. An extreme close-up of the purple “● Record” button drifts slowly while its dot pulses. A click, then a quick 0.35 s pull back reveals the ScreenTake window, followed by a short 3-2-1 countdown.</dd></div>
+            <div class="row"><dt>Text</dt><dd>None.</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--raycast)"></i>Macro close-up, then snap pull-out</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b2">
+        <div class="frame"><div class="thumb wp-midnight"><b>Midnight</b></div><div class="tc">00:03–00:07<span>4 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">02</span>Title</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>The app window blurs behind the title.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Your screen.” then “<em>A better take.</em>”, springing in letter by letter.</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--own)"></i>ScreenTake's hero line</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b3">
+        <div class="frame"><div class="thumb wp-lagoon"><b>Lagoon</b></div><div class="tc">00:07–00:13<span>6 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">03</span>Record</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>The caption holds for about 1 s, then hard-cuts to the floating capture toolbar on Lagoon. The pointer glides to Record. A second panel slides over it in 0.25 s, with chips for “60 FPS”, “Mic” and “System audio”.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Start with a good take.”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--studio)"></i>Caption → panel → overlay</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b4">
+        <div class="frame"><div class="thumb wp-prism"><b>Prism</b></div><div class="tc">00:13–00:21<span>8 s · main feature</span></div></div>
+        <div class="body">
+          <h3><span class="num">04</span>Smart zoom</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>A sample project page sits inside the canvas (“Your next big idea”, as on the website). The cursor clicks “Let's take a look”. The camera zooms in just before the click, a highlight ring pops, and the camera follows as the cursor moves. A small readout slides the zoom strength from 1.25× to 3×.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Give every click its <em>close-up.</em>”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--studio)"></i>Zoom ahead of the click</span><span class="chip"><i class="dot" style="background:var(--linear)"></i>The camera never cuts</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b5">
+        <div class="frame"><div class="thumb wp-cards"><b>Title cards</b></div><div class="tc">00:21–00:26<span>5 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">05</span>Cursor and clicks</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>Fast 1–2 s hard cuts between bold uppercase cards with small corner labels and short demos. The cursor morphs from Arrow to Hand to Circle and springs between 50% and 300% size. Six clicks fire the six highlight colours in turn.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“A CURSOR WITH PRESENCE.” then “MAKE EVERY CLICK CLEAR.”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--rive)"></i>Card → demo, hard cuts, overshoot</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b6">
+        <div class="frame"><div class="thumb wp-ember"><i class="bubble" role="img" aria-label="Presenter in the webcam bubble"></i><b>Ember</b></div><div class="tc">00:26–00:31<span>5 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">06</span>Camera and sound</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>The presenter photo (a woman in a navy blazer, mid-gesture) springs in as the webcam bubble, cropped tight on her face. The bubble changes from a circle to a rounded square, then hops from one corner to another, mirroring as it goes. The photo gets a slow push and a slight breathing scale so it reads as live. Mic and system audio waveforms pulse along the bottom. The bubble stays in the corner through beat 08.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Put yourself in the picture.” then “<em>Sound included.</em>”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--rive)"></i>Anticipation and settle on each move</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b7">
+        <div class="frame"><div class="thumb wp-editor"><b>Editor</b></div><div class="tc">00:31–00:38<span>7 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">07</span>Edit</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>One continuous take with no cuts. The editor's timeline tilts back into perspective and the camera drifts along it:
+              <ol class="steps"><li>Split a clip.</li><li>Drag a clip to a new place; the gap closes.</li><li>Detected pauses light up orange, and “Remove 2” is clicked.</li><li>Undo.</li></ol>
+              The camera then rises to the preview.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Trim, split, reorder.” then “Review detected pauses.”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--linear)"></i>Tilted sheet, one take</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b8">
+        <div class="frame"><div class="thumb wp-cycle"><b>All four</b></div><div class="tc">00:38–00:43<span>5 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">08</span>Framing</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>On the beat, the film itself reshapes from 16:9 to 1:1 to 9:16. The background cycles through Prism, Lagoon, Ember and Midnight. The Desktop frame swaps to the iPhone frame.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Frame your video. <em>Make it yours.</em>”</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--own)"></i>The film changes its own frame</span></div>
+        </div>
+      </article>
+
+      <article class="beat" id="b9">
+        <div class="frame"><div class="thumb wp-midnight"><b>Midnight</b></div><div class="tc">00:43–00:48<span>5 s</span></div></div>
+        <div class="body">
+          <h3><span class="num">09</span>End card</h3>
+          <dl>
+            <div class="row"><dt>Picture</dt><dd>“SCREENTAKE FOR” is fixed on the left, and the word on the right changes every 0.4 s: RECORDING / ZOOM / CURSORS / CAMERA / AUDIO / EDITING / YOUR NEXT DEMO. The words close up, and the “ScreenTake” wordmark comes into focus. A “Download Mac beta” button follows.</dd></div>
+            <div class="row"><dt>Text</dt><dd class="caption">“Go ahead. <em>Make a better take.</em>”</dd></div>
+            <div class="row"><dt>Small print</dt><dd>Experimental beta · Apple Silicon · macOS 13+</dd></div>
+          </dl>
+          <div class="tags"><span class="chip"><i class="dot" style="background:var(--raycast)"></i>Word swap, 0.4 s cadence</span><span class="chip"><i class="dot" style="background:var(--linear)"></i>Focus pull on the wordmark</span></div>
+        </div>
+      </article>
+
+    </div>
+    <p class="lede">The 9:16 social cut (about 20 s) reuses beats 01, 04, 05, 08 and 09.</p>
+  </section>
+
+  <section aria-labelledby="t-rules">
+    <div class="section-head">
+      <h2 id="t-rules">Accuracy rules</h2>
+      <p>The film only shows what the current beta does.</p>
+    </div>
+    <div class="rules">
+      <div class="rule"><strong>Redraw only real UI</strong><p>The UI is rebuilt in code from the real screenshots and the app's design tokens. Use only real controls, labels and values, with no invented buttons.</p></div>
+      <div class="rule"><strong>The presenter is a still photo</strong><p>No lip-sync and no voiceover, so the bubble shouldn't appear to speak. All movement comes from the bubble, not the face.</p></div>
+      <div class="rule"><strong>Pauses are reviewed</strong><p>Always show “2 pauses” → Remove. Never show pauses being cut automatically.</p></div>
+      <div class="rule"><strong>Smart zoom is experimental</strong><p>Say so in the small print on the end card.</p></div>
+      <div class="rule"><strong>No re-editing imported videos</strong><p>Zoom and cursor re-editing need the original recording from the same session.</p></div>
+      <div class="rule"><strong>No hidden or unreleased features</strong><p>Leave out the Duo layouts (hidden in the app) and the iPhone editor (a local prototype).</p></div>
+      <div class="rule"><strong>The iPhone frame is framing only</strong><p>The app can't capture directly from an iPhone.</p></div>
+      <div class="rule"><strong>Beta status</strong><p>Don't imply the app is notarized, on the App Store or runs on Intel Macs.</p></div>
+      <div class="rule"><strong>No version number</strong><p>The download page says 0.1.9 but the website says 0.1.8, so leave it off the end card.</p></div>
+      <div class="rule"><strong>Its own look</strong><p>Screen Studio is in the same category, so use ScreenTake's purple, dark UI and wallpapers, not Screen Studio's backdrop.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-sound">
+    <div class="section-head">
+      <h2 id="t-sound">Sound</h2>
+      <p>The music is locked to 150 BPM, so one beat is 0.4 s and a bar is 1.6 s. That matches the Raycast word swap and Linear's 0.4 s edge rhythm, so cuts, swaps and draws all land on the beat.</p>
+    </div>
+    <div class="sound-wrap">
+      <table class="sound">
+        <thead><tr><th>Time</th><th>Music</th><th>UI sound</th></tr></thead>
+        <tbody>
+          <tr><td>00:00</td><td>Low filtered pad; no drums</td><td>Soft hum under the macro shot, a crisp click on Record, a whoosh on the pull-out and 3 countdown ticks</td></tr>
+          <tr><td>00:03</td><td>Filter opens and the kick comes in</td><td>A light tick per letter of “A better take.”</td></tr>
+          <tr><td>00:07</td><td>Full groove</td><td>Hard cut on the downbeat; an air swipe on the 0.25 s panel slide; small pops as the chips land</td></tr>
+          <tr><td>00:13</td><td>Groove holds; a riser into the zoom</td><td>Click, then a zoom whoosh; a ring “pip”; a rising tone as the strength goes from 1.25× to 3×</td></tr>
+          <tr><td>00:21</td><td>Stabs on every cut</td><td>A cursor morph pop and six click tones climbing a scale, one per highlight colour</td></tr>
+          <tr><td>00:26</td><td>Drums drop to hats only</td><td>A soft spring on the bubble; a thunk at each corner; the waveform sounds duck under the music</td></tr>
+          <tr><td>00:31</td><td>Half-time feel for the continuous take</td><td>A snip on split, a slide on reorder, a gap-close snap; a double tick on “Remove 2”; a reverse swish on Undo</td></tr>
+          <tr><td>00:38</td><td>Build; a hit on every aspect change</td><td>A thunk on each reframe and a colour shimmer on each wallpaper swap</td></tr>
+          <tr><td>00:43</td><td>A tick every 0.4 s, then everything stops</td><td>A tick per word swap; silence as the words close; one resolving chord on the wordmark; a soft click on the button</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">I'll synthesize the UI sounds and a placeholder music bed in code, so the timing is locked from the first render. The music bed can be swapped for a licensed track at 150 BPM without changing the cut.</p>
+  </section>
+
+  <section aria-labelledby="t-decisions">
+    <div class="section-head">
+      <h2 id="t-decisions">Decisions</h2>
+      <p>All four are settled. The plan is ready for production.</p>
+    </div>
+    <div class="decisions">
+      <div class="decision"><span class="done">Decided</span><div><h3>UI redrawn in code</h3><p>A real recording can't be animated: the zoom, cursor morphs, tilted timeline and reframing all need live layers. Every screen is rebuilt from ScreenTake's screenshots and design tokens (#6C5CE7, #1c1c1e, #2c2c2e, the track colours).</p></div></div>
+      <div class="decision"><span class="done">Decided</span><div><h3>Webcam: the supplied presenter photo</h3><p>A 1024 × 1024 still, cropped tight on the face for the circle and rounded-square bubble. The tight crop keeps the wall poster and mug text out of frame, so mirroring won't show backwards lettering.</p></div></div>
+      <div class="decision"><span class="done">Decided</span><div><h3>Sound on</h3><p>Music plus UI sounds, following the sound map above.</p></div></div>
+      <div class="decision"><span class="done">Decided</span><div><h3>≈ 48 s at 16:9, plus a ≈ 20 s 9:16 cut</h3><p>1920 × 1080 master. The vertical cut reuses beats 01, 04, 05, 08 and 09.</p></div></div>
+    </div>
+  </section>
+
+  <footer>Based on the ScreenTake app, its website copy, its release notes and a study of four reference promos (Raycast, Linear, Screen Studio and Rive), saved in reference-study/ANALYSIS.md.</footer>
+</main>
+</body>
+</html>

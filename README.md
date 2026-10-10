@@ -4,13 +4,21 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.13 (build 15)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.14 (build 16)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.13-build15.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.14-build16.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.13
+## New in 0.1.14
 
-- A new three-panel purple screen and play logo, with matching app, Dock, and website icons.
+- Open the editor sooner after stopping a recording. Video effects render when you apply changes or download your finished video.
+- Retain native screen detail, including odd-sized window captures, and avoid scaling original-size content at 1×.
+- Keep the timeline ruler and playhead synchronized with playback, seeking, and timestamps.
+- Save editable projects, work with separate recorded audio clips, and use browser-content cropping.
+- Choose an app language independently of recording settings.
+- Connect AI clients to the local editor to inspect, edit, save, and export an open project.
+- Use optional camera beauty and makeup filters with face tracking and faster live previews.
+- Find ScreenTake in the menu bar and see an update badge until the available update is installed.
+- Keep the three-panel purple logo and the camera, audio, and framing controls from earlier releases.
 
 ## Camera and audio improvements from 0.1.12
 
@@ -49,7 +57,7 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop corners, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose built-in wallpapers, including Prism, Lagoon, Ember, and Midnight. Toggle the background for an original-size desktop canvas. |
-| Preview and export | Preview your edits, apply changes, and save a MOV file. Playback controls stay centered beneath the video. Recordings and editable source files stay on your Mac. |
+| Preview and export | Preview edits immediately after recording; render effects when applying changes or exporting a MOV. Save a .screentake project to retain source media and edits. Recordings and editable source files stay on your Mac. |
 
 Select your microphone above **Record Voiceover** in the Audio panel. The selection is shared with the recording controls. **Default** follows your Mac’s default input. Preview sound is muted while recording. Takes keep their timeline positions when video clips change, so check narration alignment after rearranging your video.
 
@@ -60,6 +68,8 @@ Select your microphone above **Record Voiceover** in the Audio panel. The select
 3. Open the DMG and drag **ScreenTake.app** into **Applications**.
 4. Open ScreenTake and allow Screen Recording, Microphone, and Camera access when needed.
 5. Make a short test recording and check the exported video and audio before sharing.
+
+Use **File → Save Project…** to retain source media, capture data, and edits in a `.screentake` project. Use the download control to export a finished MOV.
 
 This build is signed with a Developer ID certificate and notarized by Apple. If macOS blocks the first launch, confirm you downloaded the current DMG and report the exact message. Do not disable macOS security protections.
 
@@ -77,30 +87,27 @@ The recording shortcuts work across apps. Plain Z and Space also toggle zoom and
 ## Current limitations and updates
 
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
-- Cursor and zoom re-editing need capture data retained in the current app session. Imported finished videos and recordings reopened after quitting do not restore that data.
-- Editable source media uses local disk space. Saving a finished MOV does not preserve all capture data for later editing.
+- Saved `.screentake` projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.
+- Editable source media uses local disk space. Save a `.screentake` project to continue editing later; a finished MOV does not preserve the complete editable project.
 - ScreenTake checks this repository for new releases about once a day while the app is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page; installation is manual. Version 0.1.10 can update to 0.1.11 through the previous repository, then use the current ScreenTake release page for later updates.
 
 ## Feedback
 
 [Report an issue](https://github.com/sso-ss/ScreenTake/issues) with your Mac model, macOS version, ScreenTake version, and steps to reproduce the problem. Remove private information from screenshots and recordings before sharing them.
 
-## Build from source (macOS)
+This repository contains the native app sources, editable promo projects, public website, and release installers. The screenshots show the native Mac app; website animations are demonstrations.
 
-The native Mac app source is in [`Screen/`](Screen/), with the Xcode project in [`Screen.xcodeproj/`](Screen.xcodeproj/). You need a Mac running macOS 13 or later and Xcode 15 or later.
+## Build from source
 
-Open `Screen.xcodeproj`, select the **Screen** scheme, and press **Run**. Or build from Terminal:
+On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
+
+## Development checks
+
+Standalone Swift checks and their Python MCP companion live in [Tests/](Tests). Run checks from the repository root:
 
 ```sh
-xcodebuild -project Screen.xcodeproj -scheme Screen -configuration Debug CODE_SIGNING_ALLOWED=NO build
+python3 tools/run_swift_checks.py Tests/test_editor_session.swift
+python3 tools/run_swift_checks.py --render-only Tests/test_video_trim.swift
 ```
 
-The app asks macOS for Screen Recording, Microphone, and Camera permissions when those features are used. To regenerate the Xcode project from [`project.yml`](project.yml), install [XcodeGen](https://github.com/yonaskolb/XcodeGen) and run `xcodegen generate`.
-
-The downloadable release above is the Mac app.
-
-## Open source
-
-ScreenTake is released under the [MIT License](LICENSE). Contributions and feedback are welcome.
-
-The screenshots show the native Mac app; website animations are demonstrations.
+The runner also accepts a bare filename such as `test_editor_session.swift`. See [Tests/README.md](Tests/README.md) for details.

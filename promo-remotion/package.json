@@ -1,0 +1,25 @@
+{
+  "name": "screentake-promo-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ScreenTake promotional film, built as an editable Remotion project",
+  "scripts": {
+    "setup": "python3 scripts/prepare-assets.py",
+    "audio": "python3 scripts/audio.py",
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "stills": "node scripts/render.mjs stills",
+    "render": "node scripts/render.mjs film",
+    "render:preview": "node scripts/render.mjs preview"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.8",
+    "typescript": "5.8.3"
+  }
+}

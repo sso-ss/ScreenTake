@@ -1,0 +1,383 @@
+{
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "bpm": 150,
+  "scenes": [
+    {
+      "id": "s01",
+      "name": "open",
+      "start": 0.0,
+      "dur": 3.2
+    },
+    {
+      "id": "s02",
+      "name": "title",
+      "start": 3.2,
+      "dur": 4.0
+    },
+    {
+      "id": "s03",
+      "name": "record",
+      "start": 7.2,
+      "dur": 5.6
+    },
+    {
+      "id": "s04",
+      "name": "zoom",
+      "start": 12.8,
+      "dur": 7.2
+    },
+    {
+      "id": "s05",
+      "name": "cursor",
+      "start": 20.0,
+      "dur": 4.8
+    },
+    {
+      "id": "s06",
+      "name": "camera",
+      "start": 24.8,
+      "dur": 5.6
+    },
+    {
+      "id": "s07",
+      "name": "edit",
+      "start": 30.4,
+      "dur": 7.2
+    },
+    {
+      "id": "s08",
+      "name": "framing",
+      "start": 37.6,
+      "dur": 4.8
+    },
+    {
+      "id": "s09",
+      "name": "end",
+      "start": 42.4,
+      "dur": 5.6
+    }
+  ],
+  "vertical": [
+    "s01",
+    "s04",
+    "s05",
+    "s08",
+    "s09"
+  ],
+  "cues": {
+    "s01": {
+      "hum": [
+        0.0,
+        "hum"
+      ],
+      "click": [
+        1.6,
+        "click"
+      ],
+      "pull": [
+        1.62,
+        "whoosh"
+      ],
+      "c3": [
+        2.0,
+        "tick"
+      ],
+      "c2": [
+        2.4,
+        "tick"
+      ],
+      "c1": [
+        2.8,
+        "tick"
+      ]
+    },
+    "s02": {
+      "line1": [
+        0.1,
+        "shimmer"
+      ],
+      "line2": [
+        1.2,
+        "stab"
+      ],
+      "through": [
+        3.4,
+        "whoosh"
+      ]
+    },
+    "s03": {
+      "caption": [
+        0.0
+      ],
+      "cut": [
+        1.2,
+        "snap"
+      ],
+      "record": [
+        2.6,
+        "click"
+      ],
+      "panel": [
+        2.8,
+        "slide"
+      ],
+      "t1": [
+        3.1,
+        "pip"
+      ],
+      "t2": [
+        3.4,
+        "pip"
+      ],
+      "t3": [
+        3.7,
+        "pip"
+      ],
+      "push": [
+        4.6,
+        "whoosh"
+      ]
+    },
+    "s04": {
+      "zoomIn": [
+        1.3,
+        "rise"
+      ],
+      "click1": [
+        2.0,
+        "click"
+      ],
+      "follow": [
+        2.8,
+        "whoosh"
+      ],
+      "click2": [
+        3.6,
+        "click"
+      ],
+      "hud": [
+        1.0,
+        "pip"
+      ],
+      "pullBack": [
+        4.8,
+        "swish-rev"
+      ],
+      "caption": [
+        5.2,
+        "stab"
+      ]
+    },
+    "s05": {
+      "card1": [
+        0.0,
+        "stab"
+      ],
+      "cut1": [
+        0.8,
+        "snap"
+      ],
+      "hand": [
+        1.1,
+        "spring"
+      ],
+      "circle": [
+        1.5,
+        "spring"
+      ],
+      "big": [
+        1.9,
+        "spring"
+      ],
+      "small": [
+        2.3,
+        "spring"
+      ],
+      "card2": [
+        2.6,
+        "stab"
+      ],
+      "cut2": [
+        3.2,
+        "snap"
+      ],
+      "k0": [
+        3.4,
+        "tone:0"
+      ],
+      "k1": [
+        3.6,
+        "tone:1"
+      ],
+      "k2": [
+        3.8,
+        "tone:2"
+      ],
+      "k3": [
+        4.0,
+        "tone:3"
+      ],
+      "k4": [
+        4.2,
+        "tone:4"
+      ],
+      "k5": [
+        4.4,
+        "tone:5"
+      ]
+    },
+    "s06": {
+      "bubble": [
+        0.2,
+        "pop"
+      ],
+      "shape": [
+        1.2,
+        "spring"
+      ],
+      "hop1": [
+        1.8,
+        "thunk"
+      ],
+      "hop2": [
+        2.4,
+        "thunk"
+      ],
+      "hop3": [
+        3.0,
+        "thunk"
+      ],
+      "sound": [
+        3.6,
+        "shimmer"
+      ]
+    },
+    "s07": {
+      "split": [
+        0.8,
+        "snip"
+      ],
+      "lift": [
+        1.4,
+        "pop"
+      ],
+      "drop": [
+        2.4,
+        "thunk"
+      ],
+      "undo": [
+        5.6,
+        "swish-rev"
+      ],
+      "silence": [
+        3.4,
+        "click"
+      ],
+      "detect": [
+        3.8,
+        "pip"
+      ],
+      "remove": [
+        4.8,
+        "click"
+      ],
+      "close": [
+        4.9,
+        "slide"
+      ],
+      "rise": [
+        6.0,
+        "whoosh"
+      ]
+    },
+    "s08": {
+      "r1": [
+        0.8,
+        "snap"
+      ],
+      "r2": [
+        1.6,
+        "snap"
+      ],
+      "r3": [
+        2.4,
+        "snap"
+      ],
+      "r4": [
+        3.2,
+        "snap"
+      ]
+    },
+    "s09": {
+      "w0": [
+        0.0,
+        "tick"
+      ],
+      "w1": [
+        0.4,
+        "tick"
+      ],
+      "w2": [
+        0.8,
+        "tick"
+      ],
+      "w3": [
+        1.2,
+        "tick"
+      ],
+      "w4": [
+        1.6,
+        "tick"
+      ],
+      "w5": [
+        2.0,
+        "tick"
+      ],
+      "w6": [
+        2.4,
+        "tick"
+      ],
+      "close": [
+        3.2,
+        "slide"
+      ],
+      "mark": [
+        3.8,
+        "chord"
+      ],
+      "button": [
+        4.4,
+        "pop"
+      ]
+    }
+  },
+  "vertical_edit": [
+    {
+      "id": "s01",
+      "in": 0,
+      "dur": 3.2
+    },
+    {
+      "id": "s04",
+      "in": 0.8,
+      "dur": 5.6
+    },
+    {
+      "id": "s05",
+      "in": 0.8,
+      "dur": 4.0
+    },
+    {
+      "id": "s08",
+      "in": 0.8,
+      "dur": 3.2
+    },
+    {
+      "id": "s09",
+      "in": 1.6,
+      "dur": 4.0
+    }
+  ]
+}

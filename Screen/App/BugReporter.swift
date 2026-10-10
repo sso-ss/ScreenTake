@@ -17,7 +17,7 @@ enum BugReporter {
             Describe the problem.
 
             ## Steps to reproduce
-            1. Describe your first step.
+            1. 
 
             ## What did you expect?
             Describe what you expected to happen.

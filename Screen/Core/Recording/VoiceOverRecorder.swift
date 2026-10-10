@@ -2,13 +2,14 @@ import AVFoundation
 import Combine
 
 @MainActor
-final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
+final class VoiceOverRecorder: ObservableObject {
     @Published private(set) var isBusy = false
     @Published private(set) var isRecording = false
     @Published private(set) var elapsed: Double = 0
     @Published private(set) var level: Float = 0
+    @Published private(set) var isFinishing = false
     @Published var error: String?
-    private var recorder: AVAudioRecorder?
+    private var recorder: MicrophoneRecorder?
     private var player: AVPlayer?
     private var timer: Timer?
     private var task: Task<Void, Never>?
@@ -17,9 +18,12 @@ final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
     private var limit: Double = 0
     private var wasMuted = false
     private var wasWaitingForPlayback = true
+    private var hostStart: CMTime = .zero
+    private var keepTake = false
     private var completion: ((VoiceOverClip) -> Void)?
 
-    func start(player: AVPlayer, duration: Double, completion: @escaping (VoiceOverClip) -> Void) {
+    func start(player: AVPlayer, deviceID: String = "", duration: Double,
+               completion: @escaping (VoiceOverClip) -> Void) {
         guard !isBusy, duration.isFinite, duration > 0,
               player.currentItem?.status == .readyToPlay else {
             error = "Wait for the video preview to finish loading, then try again."
@@ -42,6 +46,10 @@ final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         elapsed = 0
         level = 0
         isBusy = true
+        isFinishing = false
+        keepTake = false
+        let recorder = MicrophoneRecorder()
+        self.recorder = recorder
         task = Task {
             do {
                 let allowed = await AVCaptureDevice.requestAccess(for: .audio)
@@ -51,16 +59,14 @@ final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
                 }
                 let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ScreenTake-Voiceovers", isDirectory: true)
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                let url = directory.appendingPathComponent("Voiceover-\(UUID().uuidString).m4a")
+                let url = directory.appendingPathComponent("Voiceover-\(UUID().uuidString).caf")
                 output = url
-                let recorder = try AVAudioRecorder(url: url, settings: [
-                    AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 48000,
-                    AVNumberOfChannelsKey: 1, AVEncoderBitRateKey: 128000
-                ])
-                self.recorder = recorder
-                recorder.delegate = self
-                recorder.isMeteringEnabled = true
-                guard recorder.prepareToRecord() else { throw VoiceOverError.message("The microphone could not be prepared. Check your input device and try again.") }
+                let device = try Self.microphone(for: deviceID)
+                try await Task.detached(priority: .userInitiated) {
+                    try recorder.prepare(device: device, outputURL: url)
+                }.value
+                try Task.checkCancellation()
+                try await recorder.waitUntilReady()
                 // Preroll before starting either clock; mute playback to avoid recording speaker output.
                 player.isMuted = true
                 player.automaticallyWaitsToMinimizeStalling = false
@@ -69,29 +75,26 @@ final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
                 }
                 try Task.checkCancellation()
                 guard ready else { throw VoiceOverError.message("The video preview could not start. Try again once it is ready.") }
-                let delay = 0.15
-                let hostTime = CMTimeAdd(CMClockGetTime(CMClockGetHostTimeClock()), EditorAudio.time(delay))
-                guard recorder.record(atTime: recorder.deviceCurrentTime + delay, forDuration: limit) else {
-                    throw VoiceOverError.message("The microphone could not start recording.")
-                }
-                player.setRate(1, time: EditorAudio.time(start), atHostTime: hostTime)
+                hostStart = CMTimeAdd(CMClockGetTime(CMClockGetHostTimeClock()), EditorAudio.time(0.15))
+                try recorder.startWriting(to: url, startTime: hostStart)
+                player.setRate(1, time: EditorAudio.time(start), atHostTime: hostStart)
                 isRecording = true
                 timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                     Task { @MainActor in self?.tick() }
                 }
-            } catch is CancellationError {
             } catch {
-                self.error = error.localizedDescription
-                cancel()
+                if !(error is CancellationError) { self.error = error.localizedDescription }
+                await Task.detached { recorder.tearDown() }.value
+                if let output { try? FileManager.default.removeItem(at: output) }
+                reset()
             }
         }
     }
 
     private func tick() {
         guard isRecording, let recorder, let player else { return }
-        recorder.updateMeters()
-        level = min(1, pow(10, recorder.averagePower(forChannel: 0) / 20))
-        elapsed = max(0, min(limit, recorder.currentTime))
+        level = recorder.inputLevel
+        elapsed = max(0, min(limit, CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), hostStart).seconds))
         if elapsed >= limit - 0.03 || (elapsed > 0.3 && player.timeControlStatus != .playing) {
             if elapsed < limit - 0.2 { error = "Narration stopped because video playback paused. Your recorded take was kept." }
             stop()
@@ -99,56 +102,82 @@ final class VoiceOverRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
     }
 
     func stop() {
-        guard isRecording, let recorder, let url = output else { cancel(); return }
-        let recordedDuration = min(limit, max(elapsed, recorder.currentTime))
-        let finish = completion
-        let position = start
-        cleanUp(deleteOutput: false)
-        guard recordedDuration > 0.05 else {
-            try? FileManager.default.removeItem(at: url)
-            error = "The take was too short. Record a little longer and try again."
-            return
-        }
-        finish?(VoiceOverClip(url: url, start: position, duration: recordedDuration, sourceDuration: recordedDuration))
+        finish(keep: true)
     }
 
-    func cancel() { cleanUp(deleteOutput: true) }
+    func cancel() {
+        guard isBusy else { return }
+        keepTake = false
+        if isFinishing { return }
+        if isRecording { finish(keep: false) }
+        else {
+            task?.cancel()
+            player?.cancelPendingPrerolls()
+            player?.pause()
+        }
+    }
 
-    private func cleanUp(deleteOutput: Bool) {
-        task?.cancel()
-        task = nil
+    private func finish(keep: Bool) {
+        guard isRecording, let recorder else { return }
+        keepTake = keep
+        isFinishing = true
+        isRecording = false
+        timer?.invalidate()
+        timer = nil
+        player?.pause()
+        task = Task {
+            let url = await Task.detached { await recorder.stopRecording() }.value
+            var clip: VoiceOverClip?
+            if keepTake, url == nil { error = "The voiceover could not be saved. Please try again." }
+            if keepTake, let url {
+                do {
+                    let asset = AVURLAsset(url: url)
+                    let duration = try await asset.load(.duration).seconds
+                    clip = Self.clip(url: url, start: start, limit: limit,
+                                     offset: recorder.startOffset.seconds, duration: duration)
+                    if clip == nil { throw VoiceOverError.message("The take was too short. Record a little longer and try again.") }
+                } catch { self.error = error.localizedDescription }
+            }
+            let saved = keepTake ? clip : nil
+            let complete = completion
+            if saved == nil, let output { try? FileManager.default.removeItem(at: output) }
+            reset()
+            if let saved { complete?(saved) }
+        }
+    }
+
+    static func microphone(for deviceID: String) throws -> AVCaptureDevice {
+        guard let device = deviceID.isEmpty ? AVCaptureDevice.default(for: .audio) : AVCaptureDevice(uniqueID: deviceID),
+              device.hasMediaType(.audio), device.isConnected else {
+            throw VoiceOverError.message("The selected microphone is unavailable. Choose another microphone and try again.")
+        }
+        return device
+    }
+
+    static func clip(url: URL, start: Double, limit: Double, offset: Double, duration: Double) -> VoiceOverClip? {
+        guard start.isFinite, limit.isFinite, offset.isFinite, duration.isFinite else { return nil }
+        let offset = max(0, offset)
+        let length = min(duration, limit - offset)
+        guard length > 0.05 else { return nil }
+        return VoiceOverClip(url: url, start: start + offset, duration: length, sourceDuration: duration)
+    }
+
+    private func reset() {
         timer?.invalidate()
         timer = nil
         player?.cancelPendingPrerolls()
         player?.pause()
         player?.isMuted = wasMuted
         player?.automaticallyWaitsToMinimizeStalling = wasWaitingForPlayback
-        recorder?.delegate = nil
-        recorder?.stop()
         recorder = nil
         player = nil
-        if deleteOutput, let output { try? FileManager.default.removeItem(at: output) }
         output = nil
         completion = nil
+        task = nil
         isBusy = false
         isRecording = false
+        isFinishing = false
         level = 0
-    }
-
-    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        Task { @MainActor in
-            guard self.recorder === recorder else { return }
-            if flag { elapsed = limit; stop() }
-            else { error = "The microphone recording failed. Please try again."; cancel() }
-        }
-    }
-
-    nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
-        Task { @MainActor in
-            guard self.recorder === recorder else { return }
-            self.error = error?.localizedDescription ?? "The narration could not be saved."
-            cancel()
-        }
     }
 }
 

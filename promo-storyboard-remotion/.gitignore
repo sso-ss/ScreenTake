@@ -1,0 +1,11 @@
+# Match dependency directories and local symlinks.
+node_modules
+out/
+public/fonts/
+*.log
+
+# Recreated by npm run setup and npm run audio.
+/public/wallpapers/
+/public/images/mark.svg
+/public/images/presenter.jpg
+/public/audio/

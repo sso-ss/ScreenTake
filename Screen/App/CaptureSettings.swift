@@ -43,6 +43,7 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Frame Rate
 
     @AppStorage("captureFrameRate") var captureFrameRate: Int = 60
+    @AppStorage("exportResolution") var exportResolution: ExportResolution = .preserveSource
 
     @AppStorage("canvasRatio") var canvasRatio: CanvasRatio = .original
     @AppStorage("desktopCornerRadius") var desktopCornerRadius: Double = 0.025
@@ -88,11 +89,43 @@ final class CaptureSettings: ObservableObject {
 
     // MARK: - Webcam
 
-    @AppStorage("isWebcamEnabled") var isWebcamEnabled: Bool = false
+    @AppStorage("isWebcamEnabled") private var webcamEnabled: Bool = false
+
+    var isWebcamEnabled: Bool {
+        get { webcamEnabled }
+        set {
+            guard newValue != webcamEnabled else { return }
+            objectWillChange.send()
+            webcamEnabled = newValue
+            // Enable narration when the camera is switched on. Afterwards the
+            // microphone remains independent, including when the camera is off.
+            if newValue { isMicrophoneEnabled = true }
+        }
+    }
     @AppStorage("selectedWebcamDeviceID") var selectedWebcamDeviceID: String = ""
     @AppStorage("webcamPiPPositionRaw") var webcamPiPPositionRaw: String = PiPPosition.bottomRight.rawValue
     @AppStorage("webcamPiPSizeRaw") var webcamPiPSizeRaw: String = PiPSize.medium.rawValue
     @AppStorage("webcamPiPShapeRaw") var webcamPiPShapeRaw: String = PiPShape.circle.rawValue
+    @AppStorage("faceBeautyAmount") private var savedFaceBeautyAmount: Double = 0
+    var faceBeautyAmount: Double {
+        get { FaceBeautyFilter.clamped(savedFaceBeautyAmount) }
+        set {
+            let value = FaceBeautyFilter.clamped(newValue)
+            guard value != savedFaceBeautyAmount else { return }
+            objectWillChange.send()
+            savedFaceBeautyAmount = value
+        }
+    }
+
+    @AppStorage("faceMakeupSettings") private var savedFaceMakeup: Data = Data()
+    var faceMakeup: FaceMakeupSettings {
+        get { ((try? JSONDecoder().decode(FaceMakeupSettings.self, from: savedFaceMakeup)) ?? .init()).clamped }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue.clamped), data != savedFaceMakeup else { return }
+            objectWillChange.send()
+            savedFaceMakeup = data
+        }
+    }
 
     var webcamPiPPosition: PiPPosition {
         get { PiPPosition(rawValue: webcamPiPPositionRaw) ?? .bottomRight }

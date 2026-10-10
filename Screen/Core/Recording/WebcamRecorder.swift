@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import Combine
 
 /// Records webcam video to a sidecar .mov file using AVCaptureSession.
 ///
@@ -34,7 +35,14 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
 
     /// Latest pixel buffer for live preview. Updated on every captured frame.
     /// Read from the main thread (PiP overlay); written from the capture queue.
-    private(set) var latestPixelBuffer: CVPixelBuffer?
+    private var previewBuffer: CVPixelBuffer?
+    var latestPixelBuffer: CVPixelBuffer? { lock.withLock { previewBuffer } }
+    var previewFrame: (buffer: CVPixelBuffer, time: Double)? {
+        lock.withLock {
+            guard let previewBuffer, let lastPreviewPTS else { return nil }
+            return (previewBuffer, lastPreviewPTS.seconds)
+        }
+    }
 
     /// Actual camera frame dimensions (set after session starts).
     private var captureWidth: Int = 640
@@ -55,7 +63,6 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
         }
 
         let captureSession = AVCaptureSession()
-        captureSession.sessionPreset = .medium // 480p — sufficient for PiP
 
         let input = try AVCaptureDeviceInput(device: camera)
         guard captureSession.canAddInput(input) else {
@@ -72,6 +79,14 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
             throw WebcamRecorderError.outputConfigFailed
         }
         captureSession.addOutput(output)
+
+        // Keep a high-quality camera master: an overlay can become full screen
+        // later in the editor. Negotiate against the connected camera so older
+        // devices can fall back to their supported capture quality.
+        let presets: [AVCaptureSession.Preset] = [.hd1920x1080, .high, .hd1280x720, .medium]
+        if let preset = presets.first(where: { captureSession.canSetSessionPreset($0) }) {
+            captureSession.sessionPreset = preset
+        }
 
         let dimensions = CMVideoFormatDescriptionGetDimensions(camera.activeFormat.formatDescription)
         let requestedAngle: CGFloat = dimensions.height > dimensions.width ? 90 : 0
@@ -138,7 +153,8 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
             AVVideoWidthKey: captureWidth,
             AVVideoHeightKey: captureHeight,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 2_000_000,
+                // About 12 Mbps at 1080p; retain detail for cropping and export.
+                AVVideoAverageBitRateKey: max(2_000_000, captureWidth * captureHeight * 6),
                 AVVideoMaxKeyFrameIntervalKey: 30,
             ] as [String: Any],
         ]
@@ -205,7 +221,7 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
         session = nil
         videoOutput = nil
         Log.recording.info("Webcam recording stopped")
-        return outputURL
+        return writer.status == .completed ? outputURL : nil
     }
 
     /// Tears down the capture session without writing. Use when cancelling before recording.
@@ -245,9 +261,9 @@ extension WebcamRecorder: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         // Always publish the latest frame for live preview, regardless of recording state
         if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-            latestPixelBuffer = pixelBuffer
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
             lock.withLock {
+                previewBuffer = pixelBuffer
                 if let previous = lastPreviewPTS, timestamp > previous,
                    CMTimeSubtract(timestamp, previous).seconds < 0.2 {
                     consecutivePreviewFrames += 1
@@ -328,4 +344,166 @@ enum WebcamRecorderError: LocalizedError {
         case .framesNotReady: return "Camera did not become ready. Please try recording again."
         }
     }
+}
+
+
+/// Records a camera take against the edited playback clock, like narration.
+@MainActor
+final class VideoOverlayRecorder: ObservableObject {
+    @Published private(set) var isBusy = false
+    @Published private(set) var isRecording = false
+    @Published private(set) var elapsed: Double = 0
+    @Published private(set) var session: AVCaptureSession?
+    @Published private(set) var rotationAngle: CGFloat = 0
+    @Published var error: String?
+    private(set) var camera: WebcamRecorder?
+    private var player: AVPlayer?
+    private var task: Task<Void, Never>?
+    private var timer: Timer?
+    private var output: URL?
+    private var start: Double = 0
+    private var limit: Double = 0
+    private var hostStart: CMTime = .zero
+    private var wasWaiting = true
+    private var keepTake = false
+    @Published private(set) var isFinishing = false
+    private var completion: ((URL, VideoOverlayTiming) -> Void)?
+
+    func start(player: AVPlayer, device: AVCaptureDevice?, duration: Double,
+               completion: @escaping (URL, VideoOverlayTiming) -> Void) {
+        guard !isBusy, player.currentItem?.status == .readyToPlay else {
+            error = "Wait for the video preview to finish loading, then try again."
+            return
+        }
+        let position = player.currentTime().seconds
+        guard position.isFinite, position >= 0, duration.isFinite, duration - position > 0.1 else {
+            error = "Move the playhead before the end of the video to record a camera take."
+            return
+        }
+        player.pause()
+        player.currentItem?.forwardPlaybackEndTime = .invalid
+        self.player = player
+        wasWaiting = player.automaticallyWaitsToMinimizeStalling
+        start = position
+        limit = duration - position
+        self.completion = completion
+        isBusy = true
+        elapsed = 0
+        error = nil
+        keepTake = false
+        isFinishing = false
+        let camera = WebcamRecorder()
+        self.camera = camera
+        task = Task {
+            do {
+                let allowed = await AVCaptureDevice.requestAccess(for: .video)
+                try Task.checkCancellation()
+                guard allowed else { throw VideoOverlayRecordingError.message("Allow Camera access for ScreenTake in System Settings > Privacy & Security, then try again.") }
+                try await Task.detached(priority: .userInitiated) { try camera.prepare(device: device) }.value
+                try Task.checkCancellation()
+                try await camera.waitUntilReady()
+                session = camera.session
+                rotationAngle = camera.rotationAngle
+                player.automaticallyWaitsToMinimizeStalling = false
+                let ready = await withCheckedContinuation { continuation in
+                    player.preroll(atRate: 1) { continuation.resume(returning: $0) }
+                }
+                try Task.checkCancellation()
+                guard ready else { throw VideoOverlayRecordingError.message("The video preview could not start. Try again once it is ready.") }
+                let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ScreenTake-CameraTakes", isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let url = directory.appendingPathComponent("Camera-\(UUID().uuidString).mov")
+                output = url
+                hostStart = CMTimeAdd(CMClockGetTime(CMClockGetHostTimeClock()), EditorAudio.time(0.15))
+                try camera.startWriting(to: url, startTime: hostStart)
+                player.setRate(1, time: EditorAudio.time(start), atHostTime: hostStart)
+                isRecording = true
+                timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+                    Task { @MainActor in self?.tick() }
+                }
+            } catch {
+                if !(error is CancellationError) { self.error = error.localizedDescription }
+                await Task.detached { camera.tearDown() }.value
+                if let output { try? FileManager.default.removeItem(at: output) }
+                reset()
+            }
+        }
+    }
+
+    private func tick() {
+        guard isRecording, let player else { return }
+        elapsed = max(0, min(limit, CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), hostStart).seconds))
+        if elapsed >= limit || (elapsed > 0.3 && player.timeControlStatus != .playing) {
+            if elapsed < limit - 0.2 { error = "Camera recording stopped because playback paused. Your take was kept." }
+            stop()
+        }
+    }
+
+    func stop() { finish(keep: true) }
+
+    func cancel() {
+        guard isBusy else { return }
+        keepTake = false
+        if isFinishing { return }
+        if isRecording { finish(keep: false) }
+        else {
+            task?.cancel()
+            player?.cancelPendingPrerolls()
+            player?.pause()
+        }
+    }
+
+    private func finish(keep: Bool) {
+        guard isRecording, let camera else { return }
+        keepTake = keep
+        isFinishing = true
+        isRecording = false
+        timer?.invalidate()
+        timer = nil
+        player?.pause()
+        session = nil
+        let cutoff = CMTimeMinimum(CMClockGetTime(CMClockGetHostTimeClock()), CMTimeAdd(hostStart, EditorAudio.time(limit)))
+        task = Task {
+            let url = await Task.detached { await camera.stopRecording(at: cutoff) }.value
+            var timing: VideoOverlayTiming?
+            if keepTake, url == nil { error = "The camera take could not be saved. Please try again." }
+            if keepTake, let url {
+                do {
+                    let asset = AVURLAsset(url: url)
+                    let duration = try await asset.load(.duration).seconds
+                    guard duration.isFinite, duration > 0.05,
+                          !(try await asset.loadTracks(withMediaType: .video)).isEmpty else {
+                        throw VideoOverlayRecordingError.message("The take was too short. Record a little longer and try again.")
+                    }
+                    timing = VideoOverlayTiming(start: start, duration: min(limit, duration))
+                } catch { self.error = error.localizedDescription }
+            }
+            let saved = keepTake ? timing : nil
+            let complete = completion
+            if saved == nil, let output { try? FileManager.default.removeItem(at: output) }
+            reset()
+            if let url, let saved { complete?(url, saved) }
+        }
+    }
+
+    private func reset() {
+        timer?.invalidate()
+        timer = nil
+        player?.pause()
+        player?.automaticallyWaitsToMinimizeStalling = wasWaiting
+        player = nil
+        camera = nil
+        session = nil
+        output = nil
+        completion = nil
+        task = nil
+        isFinishing = false
+        isRecording = false
+        isBusy = false
+    }
+}
+
+private enum VideoOverlayRecordingError: LocalizedError {
+    case message(String)
+    var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
 }

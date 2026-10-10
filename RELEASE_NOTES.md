@@ -1,3 +1,15 @@
+# ScreenTake 0.1.14 (build 16)
+
+- Preserve native screen detail and open the editor without rendering the finished video after Stop.
+- Keep the timeline ruler, playhead, and timestamps synchronized.
+- Add optional tracked camera beauty/makeup filters and improve live preview processing.
+- Add a menu bar icon and persistent update badge.
+- Retain editable source media and capture data in saved .screentake projects.
+
+The new DMG is Developer ID signed, notarized, and accepted by Gatekeeper. See [full release notes](distribution/release-v0.1.14.md) and [download](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.14-build16.dmg).
+
+---
+
 # ScreenTake 0.1.13 — Beta
 
 A fresh ScreenTake icon, from your Dock to your next recording.

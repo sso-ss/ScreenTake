@@ -1,9 +1,33 @@
-# macOS and Xcode generated files
 .DS_Store
-*.swp
-*.tmp
-.build/
-DerivedData/
-**/xcuserdata/
+xcuserdata/
 *.xcuserstate
 *.xcuserdatad/
+*.swp
+*.tmp
+DerivedData/
+build/
+.build/
+release/
+
+# Machine-specific Codex configuration.
+/.codex/
+
+# Python bytecode from local checks and asset scripts.
+__pycache__/
+*.pyc
+
+# Local promo export; published website media remains trackable.
+/screentake-promo.mp4
+
+# Skill pack (copilot/claude agent files)
+.github/agents/
+.github/copilot-instructions.md
+skills/
+.claude/
+CLAUDE.md
+test_audio.swift
+test_mux.swift
+
+# Private blog content must remain local-only.
+**/*[Bb][Ll][Oo][Gg]*
+/Saved Projects/

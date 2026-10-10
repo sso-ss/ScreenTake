@@ -7,6 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA1800000000000000000002 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000001 /* AppLanguage.swift */; };
+		FA1800000000000000000004 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000003 /* Localizable.strings */; };
+		E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */; };
+		ED1800010000000000000002 /* BrowserContentDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1800010000000000000001 /* BrowserContentDetector.swift */; };
+		CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14E136D206B494934809F1B /* EditorConnection.swift */; };
+		722F179F5261BE4CFED75348 /* MCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281A6EB43E5620CC29F28115 /* MCPBridge.swift */; };
+		ED8D0E8FD9F699AE82AB67F7 /* MCPStdio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */; };
+		3DA30B2A59EBDB7C0EC9952C /* MCPToolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */; };
+		EB67EBEF5841DE77C7F45233 /* screentake-mcp in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		ED1700070000000000000002 /* EditorLocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700070000000000000001 /* EditorLocalServer.swift */; };
+		ED1700060000000000000002 /* EditorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700060000000000000001 /* EditorCommands.swift */; };
+		ED1700050000000000000002 /* EditValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700050000000000000001 /* EditValidation.swift */; };
+		ED1700040000000000000002 /* EditorProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700040000000000000001 /* EditorProjectStore.swift */; };
+		ED1700030000000000000002 /* VideoFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700030000000000000001 /* VideoFileStore.swift */; };
+		ED1700020000000000000002 /* LiveVideoPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700020000000000000001 /* LiveVideoPreview.swift */; };
+		ED1700010000000000000002 /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1700010000000000000001 /* EditorSession.swift */; };
+		FA1100000000000000000001 /* FaceTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1100000000000000000002 /* FaceTracking.swift */; };
+		BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */; };
 		06EB51A22013466E9080BA96 /* MediaMuxer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */; };
 		0AF59A63D6292356EBBA5FF2 /* CaptureMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */; };
 		0BE99912DC2EC57789666D18 /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8303EE077B22AE6A1E42F4 /* PermissionsManager.swift */; };
@@ -60,9 +78,73 @@
 		ED62B763570DC589CEA40015 /* MouseDataRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */; };
 		F7F9EE71FFAD3720163EBE27 /* VoiceOverRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4364AE7B341D32E889CAB3 /* VoiceOverRecorder.swift */; };
 		F8E354585A461C4A650467E8 /* ScreenCaptureManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEA795A1B9B4147FEA254AF /* ScreenCaptureManager.swift */; };
+		BEA010000000000000000001 /* FaceBeautyFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA010000000000000000002 /* FaceBeautyFilter.swift */; };
+		BEA020000000000000000001 /* BeautyCameraFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA020000000000000000002 /* BeautyCameraFeedView.swift */; };
+		DFA100000000000000000001 /* DenseFaceMesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000002 /* DenseFaceMesh.swift */; };
+		DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000004 /* FaceMesh.mlmodel */; };
+		DFA100000000000000000005 /* triangles.json in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000006 /* triangles.json */; };
+		DFA100000000000000000007 /* LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000008 /* LICENSE.txt */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0DDBFA7F93DEBD50DA5C0C52 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F51C37BF0AC0A85D643C7393 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C6B8F893866D0B13C4930EC;
+			remoteInfo = ScreenTakeMCP;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				EB67EBEF5841DE77C7F45233 /* screentake-mcp in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9E605141F51AF64E8A295346 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */;
+			targetProxy = 0DDBFA7F93DEBD50DA5C0C52 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXFileReference section */
+		FA1800000000000000000001 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		FA1800000000000000000010 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "en.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000011 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ko"; path = "ko.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000012 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ja"; path = "ja.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000013 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000014 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000015 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es"; path = "es.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000016 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "fr"; path = "fr.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000017 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "de"; path = "de.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		FA1800000000000000000018 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt"; path = "pt.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverHelp.swift; sourceTree = "<group>"; };
+		ED1800010000000000000001 /* BrowserContentDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentDetector.swift; sourceTree = "<group>"; };
+		E14E136D206B494934809F1B /* EditorConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorConnection.swift; sourceTree = "<group>"; };
+		281A6EB43E5620CC29F28115 /* MCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPBridge.swift; sourceTree = "<group>"; };
+		6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStdio.swift; sourceTree = "<group>"; };
+		F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPToolCatalog.swift; sourceTree = "<group>"; };
+		F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */ = {isa = PBXFileReference; includeInIndex = 0; path = "screentake-mcp"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED1700070000000000000001 /* EditorLocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorLocalServer.swift; sourceTree = "<group>"; };
+		ED1700060000000000000001 /* EditorCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCommands.swift; sourceTree = "<group>"; };
+		ED1700050000000000000001 /* EditValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditValidation.swift; sourceTree = "<group>"; };
+		ED1700040000000000000001 /* EditorProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProjectStore.swift; sourceTree = "<group>"; };
+		ED1700030000000000000001 /* VideoFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFileStore.swift; sourceTree = "<group>"; };
+		ED1700020000000000000001 /* LiveVideoPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVideoPreview.swift; sourceTree = "<group>"; };
+		ED1700010000000000000001 /* EditorSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSession.swift; sourceTree = "<group>"; };
+		FA1100000000000000000002 /* FaceTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceTracking.swift; sourceTree = "<group>"; };
+		BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoReplacementState.swift; sourceTree = "<group>"; };
 		02DF65C25695C7B3CEF559C9 /* CaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMode.swift; sourceTree = "<group>"; };
 		0EDBA69C53641A60EBBE715D /* RecordingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinator.swift; sourceTree = "<group>"; };
 		1023AEA77834B62F61A85132 /* CursorImageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorImageProvider.swift; sourceTree = "<group>"; };
@@ -121,9 +203,27 @@
 		E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamCompositor.swift; sourceTree = "<group>"; };
 		E61F8DE4BCF6F4DE836AA57A /* Screen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Screen.entitlements; sourceTree = "<group>"; };
 		F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseDataRecorder.swift; sourceTree = "<group>"; };
+		BEA010000000000000000002 /* FaceBeautyFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceBeautyFilter.swift; sourceTree = "<group>"; };
+		BEA020000000000000000002 /* BeautyCameraFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeautyCameraFeedView.swift; sourceTree = "<group>"; };
+		DFA100000000000000000002 /* DenseFaceMesh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenseFaceMesh.swift; sourceTree = "<group>"; };
+		DFA100000000000000000004 /* FaceMesh.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FaceMesh.mlmodel; sourceTree = "<group>"; };
+		DFA100000000000000000006 /* triangles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = triangles.json; sourceTree = "<group>"; };
+		DFA100000000000000000008 /* LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		9A0061607EEC35AE1A7F740D /* ScreenTakeMCP */ = {
+			isa = PBXGroup;
+			children = (
+				E14E136D206B494934809F1B /* EditorConnection.swift */,
+				281A6EB43E5620CC29F28115 /* MCPBridge.swift */,
+				6E5D8D01D4515F2DFA235F20 /* MCPStdio.swift */,
+				F8DED6692BFCAA9A1E6BAA36 /* MCPToolCatalog.swift */,
+			);
+			name = ScreenTakeMCP;
+			path = ScreenTakeMCP;
+			sourceTree = "<group>";
+		};
 		060AB102F076966B4B1994AA /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -133,6 +233,10 @@
 				5BFD069330C6A6AF2F3D7626 /* CaptureToolbarCoordinator.swift */,
 				C71BC748567A61120D433587 /* Log.swift */,
 				97861B5425D6513A778B1B33 /* NavigationState.swift */,
+				BED1C9A5BA5548B29BBAF501 /* VideoReplacementState.swift */,
+				ED1700010000000000000001 /* EditorSession.swift */,
+				ED1700070000000000000001 /* EditorLocalServer.swift */,
+				ED1700060000000000000001 /* EditorCommands.swift */,
 				A6F6E4B4AF86D43F888DD8ED /* RecordingState.swift */,
 				102DD963F4C94915F0CB1525 /* ScreenApp.swift */,
 				E2042CA2A3BFADC44ED932C4 /* UpdateChecker.swift */,
@@ -156,9 +260,13 @@
 				24D4EC2CD2281BDDBC8C4E5D /* CameraTransform.swift */,
 				4759B0EB7C0AE900DB2EC86A /* ClickZoomGenerator.swift */,
 				171672DFD8D7C397D8FC8EBB /* ExportEngine.swift */,
+				ED1700020000000000000001 /* LiveVideoPreview.swift */,
 				7F197F354D7CFC16665AEE29 /* FrameEvaluator.swift */,
 				63D5138D7A1133E7BA0D4278 /* TransformApplicator.swift */,
 				E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */,
+				FA1100000000000000000002 /* FaceTracking.swift */,
+				BEA010000000000000000002 /* FaceBeautyFilter.swift */,
+				DFA100000000000000000002 /* DenseFaceMesh.swift */,
 			);
 			path = Render;
 			sourceTree = "<group>";
@@ -167,6 +275,8 @@
 			isa = PBXGroup;
 			children = (
 				8C7D09BC358AB7CE58549271 /* DesignTokens.swift */,
+				FA1800000000000000000001 /* AppLanguage.swift */,
+				E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -193,6 +303,7 @@
 			isa = PBXGroup;
 			children = (
 				BFA79289094633788C2302CB /* EditorAudio.swift */,
+				ED1700030000000000000001 /* VideoFileStore.swift */,
 				1165E921FFFB3DCDA0C6634D /* MediaMuxer.swift */,
 				D78F0E084D90BCCB1983E33A /* MicrophoneRecorder.swift */,
 				F40E7A749B4CE412BAF007BD /* MouseDataRecorder.swift */,
@@ -215,7 +326,9 @@
 				6BC8E02F1B8324C2AEFB7F1E /* CaptureMeta.swift */,
 				83FC0BFB6012FE0D217E6338 /* MediaAsset.swift */,
 				4AF00DE98C978E0A0DAF2172 /* RenderSettings.swift */,
+				ED1700050000000000000001 /* EditValidation.swift */,
 				82D19650C656141BDEE63D4F /* ScreenProject.swift */,
+				ED1700040000000000000001 /* EditorProjectStore.swift */,
 			);
 			path = Project;
 			sourceTree = "<group>";
@@ -228,6 +341,7 @@
 				13D9678EFB97624617212643 /* CaptureToolbarView.swift */,
 				7A6351207056B8ED49585592 /* CountdownPanel.swift */,
 				8DAEA8A9FE4AF08F1BB3A04A /* WebcamPiPOverlay.swift */,
+				BEA020000000000000000002 /* BeautyCameraFeedView.swift */,
 				39C36C81A6AF9E953D937911 /* ZoomIndicatorOverlay.swift */,
 			);
 			path = Recording;
@@ -262,6 +376,7 @@
 				B468B1848245FFEC920E284F /* CaptureConfiguration.swift */,
 				1023AEA77834B62F61A85132 /* CursorImageProvider.swift */,
 				E55331421FC25D744A0C9C80 /* GlobalHotkeyManager.swift */,
+				ED1800010000000000000001 /* BrowserContentDetector.swift */,
 				7D8303EE077B22AE6A1E42F4 /* PermissionsManager.swift */,
 				2CEA795A1B9B4147FEA254AF /* ScreenCaptureManager.swift */,
 			);
@@ -271,6 +386,8 @@
 		C2D01ADF2185BA163EED870A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				DFA100000000000000000009 /* FaceMesh */,
+				FA1800000000000000000003 /* Localizable.strings */,
 				585E017110E84AE6D2E27DFE /* cursor.svg */,
 			);
 			path = Resources;
@@ -280,6 +397,7 @@
 			isa = PBXGroup;
 			children = (
 				42BF393923C2FFF2D8943AF0 /* Screen */,
+				9A0061607EEC35AE1A7F740D /* ScreenTakeMCP */,
 				E2A4314D8A1E611AC80F3CCA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -288,23 +406,44 @@
 			isa = PBXGroup;
 			children = (
 				B231EADCD2F77286BD0CDDF5 /* Screen.app */,
+				F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
+		DFA100000000000000000009 /* FaceMesh */ = {isa = PBXGroup; children = (DFA100000000000000000004, DFA100000000000000000006, DFA100000000000000000008,); path = FaceMesh; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5DF8C8C070948FF191081E49 /* Build configuration list for PBXNativeTarget "ScreenTakeMCP" */;
+			buildPhases = (
+				91CDDE8CDF107F6A21F0C238 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScreenTakeMCP;
+			packageProductDependencies = (
+			);
+			productName = ScreenTakeMCP;
+			productReference = F140AE02B9FEE2D0DB3B1F2A /* screentake-mcp */;
+			productType = "com.apple.product-type.tool";
+		};
 		807C2DC9328CC59C60BF196B /* Screen */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0DF509C277ADFC256C047756 /* Build configuration list for PBXNativeTarget "Screen" */;
 			buildPhases = (
 				E508B06A65FAE820B948BF41 /* Sources */,
 				14EA0BF61BAE95C3DBD5997C /* Resources */,
+				ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9E605141F51AF64E8A295346 /* PBXTargetDependency */,
 			);
 			name = Screen;
 			packageProductDependencies = (
@@ -331,9 +470,8 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				Base,
-				en,
-			);
+                en, Base, ko, ja, "zh-Hans", "zh-Hant", es, fr, de, pt,
+            );
 			mainGroup = C54FD93C1D0EFD6182FC0486;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
@@ -341,6 +479,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				3C6B8F893866D0B13C4930EC /* ScreenTakeMCP */,
 				807C2DC9328CC59C60BF196B /* Screen */,
 			);
 		};
@@ -353,16 +492,37 @@
 			files = (
 				1233788A2163651F603D5D1A /* Assets.xcassets in Resources */,
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
+				DFA100000000000000000007 /* LICENSE.txt in Resources */,
+				DFA100000000000000000005 /* triangles.json in Resources */,
+				FA1800000000000000000004 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		91CDDE8CDF107F6A21F0C238 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFA80B32B8D16B04686292A4 /* EditorConnection.swift in Sources */,
+				722F179F5261BE4CFED75348 /* MCPBridge.swift in Sources */,
+				ED8D0E8FD9F699AE82AB67F7 /* MCPStdio.swift in Sources */,
+				3DA30B2A59EBDB7C0EC9952C /* MCPToolCatalog.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E508B06A65FAE820B948BF41 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED1700070000000000000002 /* EditorLocalServer.swift in Sources */,
+				ED1700060000000000000002 /* EditorCommands.swift in Sources */,
+				ED1700050000000000000002 /* EditValidation.swift in Sources */,
+				ED1700040000000000000002 /* EditorProjectStore.swift in Sources */,
+				ED1700030000000000000002 /* VideoFileStore.swift in Sources */,
+				ED1700020000000000000002 /* LiveVideoPreview.swift in Sources */,
+				ED1700010000000000000002 /* EditorSession.swift in Sources */,
 				E00DF59C8C4414C70950D47A /* AppState.swift in Sources */,
 				C63504D04F23E2CF13E46AA9 /* AudioEditorViews.swift in Sources */,
 				26E267AD65E36AD219A801FD /* BackgroundStyle.swift in Sources */,
@@ -382,6 +542,8 @@
 				0D1ACBC7DFEB5A8198DE061B /* CountdownPanel.swift in Sources */,
 				1AEE7E7589EE5E32A6AFA0E2 /* CursorImageProvider.swift in Sources */,
 				75ED98801192AADCD5FCCC20 /* DesignTokens.swift in Sources */,
+				FA1800000000000000000002 /* AppLanguage.swift in Sources */,
+				E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */,
 				54B08F57EDCC8C57840429E2 /* EditorAudio.swift in Sources */,
 				95A7C50B767540A097381DDF /* ExportEngine.swift in Sources */,
 				65FBB33BC9495A2909F6CD60 /* FrameEvaluator.swift in Sources */,
@@ -393,8 +555,10 @@
 				902412A6947CDE924EEA4251 /* MicrophoneRecorder.swift in Sources */,
 				ED62B763570DC589CEA40015 /* MouseDataRecorder.swift in Sources */,
 				1C392DF8E721ABDF72E1E563 /* NavigationState.swift in Sources */,
+				BED1C9A5BA5548B29BBAF502 /* VideoReplacementState.swift in Sources */,
 				5427F3A799B85A284210C0EE /* ObjCExceptionCatcher.m in Sources */,
 				A61C71D2524A31E6712E402A /* PermissionSetupWizardView.swift in Sources */,
+				ED1800010000000000000002 /* BrowserContentDetector.swift in Sources */,
 				0BE99912DC2EC57789666D18 /* PermissionsManager.swift in Sources */,
 				DD61E313D18DBC0101B39A1F /* RecordingCoordinator.swift in Sources */,
 				B562E9E34B4A6BD1C13F18E0 /* RecordingSession.swift in Sources */,
@@ -411,6 +575,11 @@
 				21CFE4062470564F7999E148 /* VideoWriter.swift in Sources */,
 				F7F9EE71FFAD3720163EBE27 /* VoiceOverRecorder.swift in Sources */,
 				237CA39EA30BB57C484E32B9 /* WebcamCompositor.swift in Sources */,
+				FA1100000000000000000001 /* FaceTracking.swift in Sources */,
+				BEA020000000000000000001 /* BeautyCameraFeedView.swift in Sources */,
+				BEA010000000000000000001 /* FaceBeautyFilter.swift in Sources */,
+				DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */,
+				DFA100000000000000000001 /* DenseFaceMesh.swift in Sources */,
 				C8B1A1CDBC09070BB74FAB9D /* WebcamPiPOverlay.swift in Sources */,
 				3BEC63D40FB98F9DFD3F636F /* WebcamRecorder.swift in Sources */,
 				0F225E5E991F68D8E0CF87F8 /* ZoomIndicatorOverlay.swift in Sources */,
@@ -419,7 +588,54 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		FA1800000000000000000003 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				FA1800000000000000000010 /* en */,
+				FA1800000000000000000011 /* ko */,
+				FA1800000000000000000012 /* ja */,
+				FA1800000000000000000013 /* zh-Hans */,
+				FA1800000000000000000014 /* zh-Hant */,
+				FA1800000000000000000015 /* es */,
+				FA1800000000000000000016 /* fr */,
+				FA1800000000000000000017 /* de */,
+				FA1800000000000000000018 /* pt */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
+		0A7FACE3BFD14A1793379D71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.screen.ScreenTakeMCP;
+				PRODUCT_NAME = "screentake-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		976FC38647B74DAD95A0E94F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.screen.ScreenTakeMCP;
+				PRODUCT_NAME = "screentake-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
 		6DF9BD23A9FDB71BD48E4A7E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -453,7 +669,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Screen Local Development";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -510,7 +727,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Screen Local Development";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -545,9 +763,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 16;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -560,7 +779,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.11;
+				MARKETING_VERSION = 0.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
@@ -572,9 +791,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 16;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screen/Info.plist;
@@ -586,7 +806,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.11;
+				MARKETING_VERSION = 0.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
@@ -597,6 +817,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5DF8C8C070948FF191081E49 /* Build configuration list for PBXNativeTarget "ScreenTakeMCP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A7FACE3BFD14A1793379D71 /* Debug */,
+				976FC38647B74DAD95A0E94F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		0DF509C277ADFC256C047756 /* Build configuration list for PBXNativeTarget "Screen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

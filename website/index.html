@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6c5ce7">
+  <meta name="description" content="ScreenTake is a native Mac screen recorder and editor. Create demos with smart zoom, custom cursors, webcam overlays, and beautiful backgrounds.">
+  <title>ScreenTake — Your screen. A better take.</title>
+  <link rel="icon" href="assets/mark.svg?v=2" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=38">
+  <script src="assets/gsap.min.js" defer></script>
+  <script src="hero-flow.js?v=1" defer></script>
+  <script src="script.js?v=27" defer></script>
+</head>
+<body>
+  <svg class="symbol-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5"/></symbol>
+    <symbol id="play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+    <symbol id="cursor" viewBox="0 0 24 24"><path d="m5 3 15 10-7 1-3 7Z"/></symbol>
+    <symbol id="zoom" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 12h8m-4-4v8"/></symbol>
+    <symbol id="camera" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+    <symbol id="audio" viewBox="0 0 24 24"><path d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4"/></symbol>
+    <symbol id="voice-wave" viewBox="0 0 240 24"><path d="M4 10v4m8-7v10m8-13v16m8-12v8m8-9v10m8-14v18m8-12v6m8-10v14m8-11v8m8-14v20m8-14v8m8-6v4m8-9v14m8-17v20m8-14v8m8-10v12m8-9v6m8-12v18m8-11v4m8-9v14m8-10v6m8-12v18m8-14v10m8-8v6m8-5v4m8-11v18m8-14v10m8-7v4m8-10v16m8-11v6"/></symbol>
+    <symbol id="cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8 8 13 13M8 16 21 3"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></symbol>
+  </defs></svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="header">
+    <nav class="nav container" aria-label="Main navigation">
+      <a class="brand" href="#" aria-label="ScreenTake home"><img src="assets/mark.svg?v=2" alt="" width="36" height="36">ScreenTake<span class="beta">BETA</span></a>
+      <div class="nav-links" id="nav-links"><a href="#workflow">Workflow</a><a href="#features">Features</a><a href="#canvas">Video framing</a><a href="#how-to-use">How to use</a><a href="#faq">Beta help</a></div>
+      <div class="nav-actions"><button class="button primary small" data-download>Get beta <svg><use href="#arrow"/></svg></button><button class="menu-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="nav-links"><span></span><span></span></button></div>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"><canvas class="hero-flow"></canvas></div>
+      <div class="container hero-content">
+        <h1>Your screen.<br><span>A better take.</span></h1>
+        <p class="hero-description">Record and edit polished screen demos on your Mac.<br class="desktop-break"> Smart zoom, custom cursors, and your camera—all in one app.</p>
+        <div class="hero-actions"><button class="button primary" data-download><svg><use href="#download"/></svg>Download Mac beta</button><a class="button secondary" href="assets/screentake-promo.mp4" data-promo aria-haspopup="dialog" aria-controls="promo-dialog"><svg><use href="#play"/></svg>Watch the demo</a></div>
+        <p class="compatibility">Experimental beta <span>·</span> Apple Silicon <span>·</span> macOS 13+</p>
+      </div>
+    </section>
+    <div class="capabilities-strip">
+      <div class="container capabilities"><span><svg><use href="#screen"/></svg>Native Mac app</span><span><svg><use href="#play"/></svg>30 &amp; 60 FPS capture</span><span><svg><use href="#audio"/></svg>Mic + system audio</span><span><svg><use href="#check"/></svg>Local editing &amp; export</span></div>
+    </div>
+    <section class="workflow-section" id="workflow">
+      <div class="container">
+        <div class="center-heading"><h2>A smoother way<br>to tell your story.</h2><p>Record your screen. Trim, split, and reorder your clips.<br>Then save a finished video to your Mac.</p></div>
+        <div class="workflow-tabs" role="tablist" aria-label="ScreenTake workflow"><button id="tab-record" class="active" role="tab" aria-selected="true" aria-controls="workflow-panel" data-step="record"><span>01</span>Record</button><button id="tab-edit" role="tab" aria-selected="false" aria-controls="workflow-panel" tabindex="-1" data-step="edit"><span>02</span>Edit</button><button id="tab-export" role="tab" aria-selected="false" aria-controls="workflow-panel" tabindex="-1" data-step="export"><span>03</span>Export</button></div>
+        <div class="workflow-panel" id="workflow-panel" role="tabpanel" aria-labelledby="tab-record" tabindex="0"><div class="workflow-visual" data-step="record"><img id="workflow-image" src="assets/recording.png" alt="ScreenTake recording workspace" width="1416" height="806" loading="lazy"><div class="record-motion" aria-hidden="true"><div class="record-demo-screen"><img src="assets/demo-scene.svg?v=2" width="960" height="600" alt=""><span class="record-demo-pointer"><i></i><svg><use href="#cursor"/></svg></span></div><div class="record-demo-status"><i class="record-demo-dot"></i><span>Recording demo</span><span class="record-demo-time">00:04</span><span class="record-demo-meter"><i></i><i></i><i></i><i></i><i></i></span></div></div></div><div class="workflow-description"><div><h3 id="workflow-title">Start with a good take.</h3><span class="workflow-version" id="workflow-version" hidden></span></div><p id="workflow-copy">Choose your screen, set up your microphone and camera, and record at 30 or 60 FPS. Pause and resume from the native capture toolbar.</p></div></div>
+        <div class="editing-details"><span><svg><use href="#cut"/></svg>Trim &amp; split</span><span><svg><use href="#arrow"/></svg>Drag to reorder</span><span><svg><use href="#audio"/></svg>Review detected pauses</span><span><svg><use href="#check"/></svg>Undo your edits</span></div>
+      </div>
+    </section>
+    <section class="section container feature-section" id="features">
+      <div class="section-heading"><div><h2>The little details.<br>The big difference.</h2></div><p>Everything you need to turn “let me show you”<br class="desktop-break"> into something clear, personal, and polished.</p></div>
+      <div class="bento-grid">
+        <article class="feature-card zoom-card">
+          <div class="card-copy"><span class="feature-icon"><svg><use href="#zoom"/></svg></span><h3>Give every click<br>its close-up.</h3><p>Smart zoom brings the important details forward. Adjust the strength from 1.25× to 3× and keep your viewer with you.</p><span class="feature-tag">SMART ZOOM <span>↗</span></span></div>
+          <div class="zoom-demo" aria-label="Illustrated smart zoom preview">
+            <div class="demo-window"><div class="demo-titlebar"><i></i><i></i><i></i><span>Your next big idea</span></div><div class="demo-workspace"><div class="demo-sidebar"><span></span><span></span><span></span><span></span></div><div class="demo-document"><strong>Make something<br>worth sharing.</strong><div class="document-lines"><i></i><i></i></div><span class="demo-cta">Let's take a look <svg><use href="#arrow"/></svg></span></div></div></div>
+            <span class="demo-pointer"><svg><use href="#cursor"/></svg></span><span class="zoom-value"><b class="zoom-number">1×</b> <span>follow the details</span></span>
+          </div>
+        </article>
+        <article class="feature-card cursor-card">
+          <div class="card-copy"><span class="feature-icon"><svg><use href="#cursor"/></svg></span><h3>A cursor with presence.</h3><p>Pick a style. Find the right size.<br>Make your next move easy to follow.</p></div>
+          <div class="cursor-playground"><div class="cursor-display" aria-hidden="true"><svg id="cursor-preview" viewBox="0 0 64 64"><path d="M13 7 52 34 34 37 26 55Z"/></svg></div><div class="cursor-options" role="group" aria-label="Preview cursor style"><button class="selected" data-cursor="arrow" aria-pressed="true" aria-label="Arrow cursor"><svg><use href="#cursor"/></svg></button><button data-cursor="hand" aria-pressed="false" aria-label="Hand cursor"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 33V13a5 5 0 0 1 10 0v15-4a4 4 0 0 1 8 0v5-2a4 4 0 0 1 8 0v4a4 4 0 0 1 8 0v12c0 11-8 17-19 17-7 0-11-4-15-8L12 37c-3-5 3-10 7-6l5 5Z"/></svg></button><button data-cursor="circle" aria-pressed="false" aria-label="Circle cursor"><span class="circle-cursor"></span></button></div><div class="range-label"><label for="cursor-size">Cursor size</label><output id="cursor-size-value" for="cursor-size">150%</output></div><input id="cursor-size" type="range" min="50" max="300" value="150" step="10" aria-label="Preview cursor size"></div>
+          <p class="interaction-hint">Try a style. <span>↗</span></p>
+        </article>
+        <article class="feature-card highlight-card">
+          <div class="card-copy"><span class="feature-icon"><svg><use href="#cursor"/></svg></span><h3>Make every click clear.</h3><p>Highlight clicks so viewers know exactly where to look. Choose from six highlight colors.</p></div>
+          <div class="feature-media">
+            <div class="highlight-illustration" aria-hidden="true"><div class="highlight-target">Click. Follow. Got it.</div><div class="highlight-pointer"><span class="highlight-ring"></span><svg viewBox="0 0 64 64"><path d="M13 7 52 34 34 37 26 55Z"/></svg></div></div>
+            <div class="highlight-palette" aria-label="Highlight colors: White, Yellow, Coral, Green, Blue, Pink"><i style="--swatch:#fff"></i><i style="--swatch:#ffd85c"></i><i style="--swatch:#ff806c"></i><i style="--swatch:#69cd98"></i><i style="--swatch:#6da9ff"></i><i style="--swatch:#ef8fc9"></i></div>
+          </div>
+        </article>
+        <article class="feature-card camera-card">
+          <div class="card-copy"><span class="feature-icon"><svg><use href="#camera"/></svg></span><h3>Put yourself in the picture.</h3><p>Keep your camera in an overlay or go full screen. Adjust the framing, follow your face, and add smooth transitions between sections.</p></div>
+          <div class="feature-media">
+            <div class="camera-illustration"><div class="camera-orbit orbit-one" aria-hidden="true"></div><div class="camera-orbit orbit-two" aria-hidden="true"></div><div class="camera-avatar"><div class="camera-photo"><img src="assets/camera-presenter.png" width="768" height="768" loading="lazy" alt="Presenter speaking to camera"></div></div></div>
+            <div class="camera-chip" aria-hidden="true"><svg><use href="#camera"/></svg> Your best angle</div>
+          </div>
+        </article>
+        <div class="audio-feature-group" role="group" aria-label="Record sound and add narration">
+        <article class="feature-card audio-card">
+          <div class="card-copy"><span class="feature-icon"><svg><use href="#audio"/></svg></span><h3>Capture the sound.</h3><p>Record your microphone, your Mac’s audio, or both. Your explanation and your screen, together.</p></div>
+          <div class="feature-media" aria-hidden="true">
+            <div class="audio-illustration"><div class="waveform"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="audio-labels"><span><i></i>Microphone</span><span><i></i>System audio</span></div>
+          </div>
+        </article>
+        <article class="feature-card voiceover-card" aria-labelledby="voiceover-title">
+          <div class="card-copy">
+            <span class="feature-icon"><svg><use href="#audio"/></svg></span>
+            <h3 id="voiceover-title">Add your voice after.</h3>
+            <p>Choose your microphone and record a voiceover while watching your video. Move and trim each take, then balance your voice with the original sound.</p>
+          </div>
+          <div class="voiceover-preview" aria-hidden="true">
+            <div class="voiceover-preview-header"><img src="assets/demo-scene.svg?v=2" width="960" height="600" alt=""><div><strong>Your recording</strong><span class="voiceover-time">00:05 / 00:10</span></div><span class="voiceover-play"><svg><use href="#play"/></svg></span></div>
+            <div class="voiceover-timeline">
+              <div class="voiceover-playhead-track"><span class="voiceover-playhead"></span></div>
+              <div class="voiceover-ruler"><span>00:00</span><span>00:05</span><span>00:10</span></div>
+              <div class="voiceover-track"><span>Original audio</span><div class="voiceover-original"><svg viewBox="0 0 240 24" preserveAspectRatio="none"><use href="#voice-wave"/></svg></div></div>
+              <div class="voiceover-track"><span>Voiceover</span><div class="voiceover-lane"><div class="voiceover-take"><span>Take 1</span><svg viewBox="0 0 240 24" preserveAspectRatio="none"><use href="#voice-wave"/></svg></div><div class="voiceover-take"><span>Take 2</span><svg viewBox="0 0 240 24" preserveAspectRatio="none"><use href="#voice-wave"/></svg></div></div></div>
+            </div>
+            <div class="voiceover-caption"><svg><use href="#audio"/></svg>Your voice, on its own track.</div>
+          </div>
+        </article>
+        </div>
+      </div>
+      <p class="feature-footnote">Smart zoom is experimental. Save a .screentake project to retain original recording data for cursor and zoom re-editing.</p>
+    </section>
+    <section class="section container canvas-section" id="canvas">
+      <div class="section-heading"><div><h2>Frame your video.<br>Make it yours.</h2></div><p>Give your recording room to shine.<br>Try a background and switch between widescreen, square, and portrait.</p></div>
+      <div class="canvas-playground">
+        <div class="canvas-stage" id="canvas-stage" style="--wallpaper: url('assets/prism.png')"><div class="canvas-frame" id="canvas-frame" data-ratio="landscape"><div class="sample-window"><img src="assets/demo-scene.svg?v=2" width="960" height="600" alt="Skeleton mock screen fitted inside the selected output canvas"></div></div><span class="preview-label">OUTPUT CANVAS · RECORDING KEPT IN PROPORTION</span></div>
+        <div class="canvas-controls"><div class="background-controls"><span class="control-label">Set the mood</span><div class="swatches" role="group" aria-label="Preview background"><button class="swatch selected" data-background="prism" aria-label="Prism background" aria-pressed="true" style="--swatch: url('assets/prism.png')"></button><button class="swatch" data-background="lagoon" aria-label="Lagoon background" aria-pressed="false" style="--swatch: url('assets/lagoon.png')"></button><button class="swatch" data-background="ember" aria-label="Ember background" aria-pressed="false" style="--swatch: url('assets/ember.png')"></button><button class="swatch" data-background="midnight" aria-label="Midnight background" aria-pressed="false" style="--swatch: url('assets/midnight.png')"></button><span id="background-name">Prism</span></div></div><div class="ratio-controls"><span class="control-label">Find your format</span><div class="ratio-options" role="group" aria-label="Preview canvas format"><button class="selected" data-ratio="landscape" aria-pressed="true"><span class="ratio-symbol landscape"></span>16:9</button><button data-ratio="square" aria-pressed="false"><span class="ratio-symbol square"></span>1:1</button><button data-ratio="portrait" aria-pressed="false"><span class="ratio-symbol portrait"></span>9:16</button></div></div></div>
+      </div>
+      <div class="canvas-caption"><span><svg><use href="#check"/></svg>Built-in wallpapers</span><span><svg><use href="#check"/></svg>Landscape, square &amp; vertical</span><span><svg><use href="#check"/></svg>Desktop &amp; phone layouts</span></div>
+    </section>
+    <section class="closing-section"><div class="closing-glow" aria-hidden="true"></div><div class="container closing-content"><div class="closing-copy"><h2>Go ahead.<br>Make a better take.</h2><p>Your ideas deserve more than a raw screen recording.</p></div><div class="closing-download"><button class="button primary" data-download><svg><use href="#download"/></svg>Get ScreenTake for Mac</button><span class="closing-note">v0.1.14 beta · Apple Silicon · macOS 13+</span></div></div></section>
+    <section class="guide-section" id="how-to-use" aria-labelledby="guide-title">
+      <div class="container">
+        <div class="section-heading"><div><h2 id="guide-title">Your first take,<br>step by step.</h2></div><p>From download to your first finished video.<br>A practical guide to the current Mac beta.</p></div>
+        <div class="guide-requirements"><span class="guide-version">v0.1.14 · Build 16</span><span><svg aria-hidden="true"><use href="#check"/></svg>Apple Silicon (M1 or newer)</span><span><svg aria-hidden="true"><use href="#check"/></svg>macOS 13 Ventura or later</span><a href="https://github.com/sso-ss/ScreenTake">Full guide on GitHub <span aria-hidden="true">↗</span></a></div>
+        <ol class="guide-steps">
+          <li><span class="guide-step-number" aria-hidden="true">01</span><h3>Download &amp; install.</h3><p>Get the <a href="downloads/ScreenTake-0.1.14-build16.dmg" download>0.1.14 installer</a>. Open it and drag <strong>ScreenTake.app</strong> into <strong>Applications</strong>. Eject the installer, then open the app.</p><p class="guide-step-tip">Updating? Save your recording, quit the old app, and keep a backup until you’ve tried the new build.</p></li>
+          <li><span class="guide-step-number" aria-hidden="true">02</span><h3>Give it access.</h3><p>Allow <strong>Screen Recording</strong> when prompted. On newer macOS versions, it may be called <strong>Screen &amp; System Audio Recording</strong>. Allow <strong>Microphone</strong> and <strong>Camera</strong> if you want to use them.</p><p class="guide-step-tip">Manage access in System Settings → Privacy &amp; Security. Quit and reopen ScreenTake if macOS asks.</p></li>
+          <li><span class="guide-step-number" aria-hidden="true">03</span><h3>Set up your take.</h3><p>Choose what to capture and select <strong>30 or 60 FPS</strong>. Pick your microphone, system audio, or both. Preview your camera in the canvas, then choose a background and cursor style. Enabling the camera turns the microphone on; you can turn it off or use it on its own.</p><p class="guide-step-tip">Trying smart zoom? Start with a short recording so you can check the result.</p></li>
+          <li><span class="guide-step-number" aria-hidden="true">04</span><h3>Make a test recording.</h3><p>Start with the app’s <strong>recording controls</strong>. Speak, move your pointer, and click through a few actions. Use the capture toolbar to pause and resume; press <kbd>Esc</kbd> to stop.</p><p class="guide-step-tip">A quick test helps you catch microphone or camera issues before recording something important.</p></li>
+          <li><span class="guide-step-number" aria-hidden="true">05</span><h3>Keep the good parts.</h3><p>Preview the recording. <strong>Trim, split, and reorder</strong> clips on the timeline. Listen to detected pauses before removing them. Fine-tune your canvas, cursor, and zoom, then use <strong>Apply Changes</strong> for supported adjustments.</p><p class="guide-step-tip">Choose File → Save Project… to retain source media, cursor data, and edits in a .screentake project.</p></li>
+          <li><span class="guide-step-number" aria-hidden="true">06</span><h3>Save, check, share.</h3><p>When your preview is ready, use the save/download control or <kbd>⌘</kbd> + <kbd>S</kbd> to choose a destination. Save the <strong>MOV file</strong>, play it back, and check the audio, camera, and zoom before sharing.</p><p class="guide-step-tip">Files stay on your Mac. Canceling the Save dialog keeps your recording available in the app.</p></li>
+        </ol>
+        <div class="guide-feedback"><div><strong>Help shape the next take.</strong><p>Found a bug? Include your Mac model, macOS version, ScreenTake version, and what happened. Remove private information from screenshots or recordings.</p></div><a class="button secondary" href="https://github.com/sso-ss/ScreenTake/issues">Share feedback <svg aria-hidden="true"><use href="#arrow"/></svg></a></div>
+      </div>
+    </section>
+    <section class="faq-section container" id="faq"><div><h2>A little help.<br>A better first take.</h2><p class="beta-help-intro">Setup, shortcuts, and current limitations.<br>For Apple Silicon Macs running macOS 13+.</p><a class="text-link" href="https://github.com/sso-ss/ScreenTake/issues">Questions or feedback? <svg><use href="#arrow"/></svg></a></div><div class="faq-list">
+<details><summary>macOS is blocking the first launch<span aria-hidden="true">+</span></summary><div class="guide-detail-body"><p>ScreenTake is signed with a Developer ID certificate and notarized by Apple. Make sure you installed the current DMG, then try opening the app from Applications. macOS may ask you to allow Screen Recording, Microphone, or Camera access.</p><p>If the app still won’t open, <a href="https://github.com/sso-ss/ScreenTake/issues">report the exact macOS message</a>. Don’t disable macOS security protections.</p></div></details>
+<details><summary>Useful keyboard shortcuts<span aria-hidden="true">+</span></summary><div class="guide-detail-body"><table class="shortcut-table"><caption>Recording and saving shortcuts</caption><thead><tr><th scope="col">Shortcut</th><th scope="col">Action</th><th scope="col">When it works</th></tr></thead><tbody><tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Toggle manual zoom</td><td>During recording, across apps</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Space</kbd></td><td>Pause or resume</td><td>During recording, across apps</td></tr><tr><td><kbd>Esc</kbd></td><td>Stop recording</td><td>During recording, across apps</td></tr><tr><td><kbd>⌘</kbd> + <kbd>S</kbd></td><td>Open Save dialog</td><td>In ScreenTake, once the preview is ready</td></tr></tbody></table><p><strong>Watch for conflicts:</strong> Control + Space may switch keyboard languages. Escape can stop a recording even when another app is focused. Use the capture toolbar if a shortcut conflicts.</p><p>Plain <kbd>Z</kbd> and <kbd>Space</kbd> also toggle zoom and pause when ScreenTake receives keyboard input. Manual zoom takes priority over automatic click zoom. Start recording with the app controls; Command + Shift + 2 isn’t connected in this build.</p></div></details>
+<details><summary>What to check while testing the beta<span aria-hidden="true">+</span></summary><div class="guide-detail-body"><p><strong>Review your export before sharing.</strong> Smart zoom is experimental. Some devices can experience intermittent microphone stalls or a brief black opening frame in the webcam overlay. Audio/video sync, multi-monitor capture, and performance across Macs still need testing.</p><p>Saved .screentake projects keep original recording data for cursor and zoom re-editing. Imported finished videos do not include that data. Editable sources also use local disk space.</p><p>ScreenTake checks for new builds when the app is open and ready to use, about once a day. You can also choose <strong>ScreenTake → Check for Updates…</strong>. Download Update opens the GitHub release page; installation is manual. <a href="release-notes.html">Read the current release notes.</a></p></div></details>
+<details><summary>Can I edit a video I already have?<span>+</span></summary><p>Yes. Import a video to preview it, edit its timeline, and adjust its presentation. Cursor and zoom re-editing require original capture data from a recording or saved .screentake project; they cannot be recovered from an imported, finished video.</p></details>
+<details><summary>Where are my videos saved?<span>+</span></summary><p>Recordings and editable sources stay on your Mac. Use File → Save Project… to keep editing later. Preview your work, then choose where to save the exported MOV file. You can share it with the tools you already use.</p></details>
+    </div></section>
+  </main>
+  <footer class="footer container"><a class="brand" href="#"><img src="assets/mark.svg?v=2" width="30" height="30" alt="">ScreenTake</a><p>Made for showing, not just telling.</p><div><a href="release-notes.html">Release notes</a><a href="https://github.com/sso-ss/ScreenTake/issues">Feedback</a><a href="https://github.com/sso-ss/ScreenTake">GitHub <span aria-hidden="true">↗</span></a></div></footer>
+  <dialog id="download-dialog" aria-labelledby="download-title"><button class="close-dialog" aria-label="Close download details">×</button><img src="assets/app-icon.svg?v=2" width="64" height="64" alt=""><h2 id="download-title">Get ScreenTake.</h2><p>Version 0.1.14 · Build 16 · Beta</p><div class="download-requirements"><span><svg><use href="#check"/></svg>Apple Silicon Mac (M1 or newer)</span><span><svg><use href="#check"/></svg>macOS 13 Ventura or later</span></div><div class="test-build-note"><strong>An early look, made for testing.</strong><p>This build is signed with a Developer ID certificate and notarized by Apple. Recording and device reliability are still being refined. Check the release notes and make a short test recording first.</p></div><a class="button primary download-link" href="downloads/ScreenTake-0.1.14-build16.dmg" download><svg><use href="#download"/></svg>Download test build (.dmg)</a><a class="dialog-notes" href="release-notes.html">Release notes &amp; installation details <span>↗</span></a></dialog>
+  <button class="page-motion-toggle" id="feature-motion-toggle" type="button" role="switch" aria-label="Page motion" aria-checked="true" title="Turn off motion" hidden><span class="motion-label">Turn off motion</span><span class="motion-switch" aria-hidden="true"></span></button>
+  <dialog id="promo-dialog" class="promo-dialog" aria-labelledby="promo-title">
+    <div class="promo-heading"><h2 id="promo-title">Watch the demo</h2><button type="button" class="close-dialog" aria-label="Close video" autofocus>&times;</button></div>
+    <video controls playsinline preload="none" src="assets/screentake-promo.mp4" aria-label="ScreenTake workflow promo"></video>
+    <audio preload="none" src="assets/screentake-promo-audio.wav"></audio>
+    <p class="promo-status" role="status" hidden></p>
+  </dialog>
+</body>
+</html>

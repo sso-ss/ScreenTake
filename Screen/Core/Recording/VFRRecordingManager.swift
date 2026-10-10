@@ -137,8 +137,9 @@ final class VFRRecordingManager: @unchecked Sendable {
             generateCursorImage()
         }
 
-        let baseBitRate = 20_000_000
-        let scaledBitRate = Int(Double(baseBitRate) * max(1.0, Double(configuration.frameRate) / 60.0))
+        let scaledBitRate = VideoEncodingQuality.bitRate(
+            size: CGSize(width: outputWidth, height: outputHeight),
+            frameRate: Double(configuration.frameRate), recordingMaster: true)
 
         let writerConfig = VideoWriterConfiguration(
             width: outputWidth,

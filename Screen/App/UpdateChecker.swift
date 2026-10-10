@@ -1,8 +1,9 @@
 import AppKit
+import Combine
 import Foundation
 
-struct ScreenRelease: Decodable, Equatable {
-    struct Asset: Decodable, Equatable {
+struct ScreenRelease: Codable, Equatable {
+    struct Asset: Codable, Equatable {
         let name: String
     }
 
@@ -44,7 +45,7 @@ struct ScreenRelease: Decodable, Equatable {
 }
 
 @MainActor
-final class UpdateChecker {
+final class UpdateChecker: ObservableObject {
     static let interval: TimeInterval = 24 * 60 * 60
     static let endpoint = URL(string: "https://api.github.com/repos/sso-ss/ScreenTake/releases/latest")!
 
@@ -52,6 +53,8 @@ final class UpdateChecker {
     private let installedVersion: String
     private let fetch: () async throws -> ScreenRelease
     private let now: () -> Date
+    // Availability outlives a dismissed reminder, including across app launches.
+    @Published private(set) var availableRelease: ScreenRelease?
     private(set) var pendingRelease: ScreenRelease?
     private(set) var feedback: String?
     private(set) var isChecking = false
@@ -69,6 +72,13 @@ final class UpdateChecker {
         self.installedVersion = installedVersion
         self.now = now
         self.fetch = fetch
+        if let data = defaults.data(forKey: "updates.availableRelease"),
+           let release = try? JSONDecoder().decode(ScreenRelease.self, from: data),
+           release.isNewer(than: installedVersion) {
+            availableRelease = release
+        } else {
+            defaults.removeObject(forKey: "updates.availableRelease")
+        }
     }
 
     nonisolated static func fetchLatest() async throws -> ScreenRelease {
@@ -97,12 +107,17 @@ final class UpdateChecker {
         do {
             let release = try await fetch()
             if release.isNewer(than: installedVersion) {
-                if manual || defaults.string(forKey: "updates.skippedVersion") != release.tag_name {
-                    pendingRelease = release
-                    feedback = nil
+                availableRelease = release
+                defaults.set(try? JSONEncoder().encode(release), forKey: "updates.availableRelease")
+                pendingRelease = release
+                feedback = nil
+            } else {
+                availableRelease = nil
+                pendingRelease = nil
+                defaults.removeObject(forKey: "updates.availableRelease")
+                if manual {
+                    feedback = "No newer downloadable test build was found. You are running ScreenTake \(installedVersion)."
                 }
-            } else if manual {
-                feedback = "No newer downloadable test build was found. You are running ScreenTake \(installedVersion)."
             }
         } catch {
             if manual {
@@ -111,10 +126,7 @@ final class UpdateChecker {
         }
     }
 
-    func dismissUpdate(skip: Bool) {
-        if skip, let release = pendingRelease {
-            defaults.set(release.tag_name, forKey: "updates.skippedVersion")
-        }
+    func dismissUpdate() {
         defaults.set(now(), forKey: "updates.lastCheck")
         pendingRelease = nil
     }
@@ -129,14 +141,22 @@ final class UpdateChecker {
     }
 
     func tick(manual: Bool = false) async {
+        // A background app can discover releases without bringing up a window.
         guard let appState, Self.canPresent(
-            active: NSApplication.shared.isActive,
-            recording: appState.isRecording || appState.isRecordingVoiceOver,
+            active: true,
+            recording: appState.isRecording || appState.isRecordingEditorMedia,
             processing: appState.recording.processingStage != nil || appState.isExportingVideo,
             selecting: appState.captureToolbarCoordinator != nil,
             setupComplete: defaults.bool(forKey: "hasCompletedPermissionSetup")
         ) else { return }
         await check(manual: manual)
+        presentIfPossible()
+    }
+
+    func showAvailableUpdate() {
+        guard let availableRelease else { return }
+        pendingRelease = availableRelease
+        feedback = nil
         presentIfPossible()
     }
 
@@ -146,6 +166,7 @@ final class UpdateChecker {
 
     static func makeUpdateAlert(release: ScreenRelease, installedVersion: String) -> NSAlert {
         let alert = NSAlert()
+        if let icon = AppBrand.icon { alert.icon = icon }
         alert.messageText = "ScreenTake \(release.version) is available"
         alert.informativeText = "Installed: \(installedVersion)"
         let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 180))
@@ -163,16 +184,17 @@ final class UpdateChecker {
         textView.string = String((release.body ?? "A new test build is available.").prefix(12000))
         scrollView.documentView = textView
         alert.accessoryView = scrollView
-        alert.addButton(withTitle: "Download Update")
+        let downloadButton = alert.addButton(withTitle: "Download Update")
+        downloadButton.keyEquivalent = "\r"
+        downloadButton.bezelColor = .controlAccentColor
         alert.addButton(withTitle: "Remind Me Later").keyEquivalent = "\u{1b}"
-        alert.addButton(withTitle: "Skip This Version")
         return alert
     }
 
     private func presentIfPossible() {
         guard !isPresenting, let appState,
               Self.canPresent(active: NSApplication.shared.isActive,
-                              recording: appState.isRecording || appState.isRecordingVoiceOver,
+                              recording: appState.isRecording || appState.isRecordingEditorMedia,
                               processing: appState.recording.processingStage != nil || appState.isExportingVideo,
                               selecting: appState.captureToolbarCoordinator != nil,
                               setupComplete: defaults.bool(forKey: "hasCompletedPermissionSetup")),
@@ -182,6 +204,7 @@ final class UpdateChecker {
         let release = pendingRelease
         let alert = release.map { Self.makeUpdateAlert(release: $0, installedVersion: installedVersion) } ?? NSAlert()
         if release == nil {
+            if let icon = AppBrand.icon { alert.icon = icon }
             alert.messageText = "Check for Updates"
             alert.informativeText = feedback ?? ""
             alert.addButton(withTitle: "OK")
@@ -193,7 +216,7 @@ final class UpdateChecker {
                 if response == .alertFirstButtonReturn {
                     NSWorkspace.shared.open(release.html_url)
                 }
-                self.dismissUpdate(skip: response == .alertThirdButtonReturn)
+                self.dismissUpdate()
             }
             self.feedback = nil
             self.isPresenting = false

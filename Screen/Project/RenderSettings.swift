@@ -8,7 +8,7 @@ enum PhoneContentMode: String, CaseIterable, Codable {
     var displayName: String { rawValue.capitalized }
 }
 
-struct VideoEditSettings: Equatable {
+struct VideoEditSettings: Equatable, Codable {
     var ratio: CanvasRatio = .original
     var layout: DeviceLayout = .desktop
     var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
@@ -16,6 +16,7 @@ struct VideoEditSettings: Equatable {
     var backgroundEnabled = true
     var crop = PhoneCrop()
     var phoneMode: PhoneContentMode = .fit
+    var phoneVideoURL: URL?
     var showCursor = true
     var cursorShape: CursorShape = .arrow
     var cursorScale: Double = 1
@@ -28,16 +29,265 @@ struct VideoEditSettings: Equatable {
     var webcamShape: PiPShape = .circle
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
+    /// Optional so projects saved before beauty filtering decode with the effect off.
+    var faceBeautyAmount: Double?
+    var faceMakeup: FaceMakeupSettings?
+    var cameraLayout = CameraLayoutSettings()
+    /// Layout changes follow camera source time, including moved and trimmed takes.
+    var cameraLayoutChanges: [CameraLayoutChange] = []
+    var usesFaceTracking: Bool {
+        webcamEnabled && (cameraLayout.followFace || cameraLayoutChanges.contains { $0.settings.followFace })
+    }
     var videoOverlayURL: URL?
+    /// Nil for a camera sidecar synchronized to the original recording.
+    var videoOverlayTiming: VideoOverlayTiming?
     var audioEnabled = true
     var originalAudioVolume: Double = 1
+    /// Nil migrates older projects to linked audio following the screen edits.
+    var recordedAudioClips: [MediaTimelineClip]?
+    var closeTimelineGaps: Bool?
+    var closesTimelineGaps: Bool { closeTimelineGaps ?? true }
     var voiceOverEnabled = true
     var voiceOverVolume: Double = 1
     var voiceOvers: [VoiceOverClip] = []
     var trim = VideoTrim()
+    var exportResolution: ExportResolution = .preserveSource
+    /// Optional source metadata captured from the browser's visible web area.
+    /// Keeping this with the draft preserves detection when a project is reopened.
+    var recordedBrowserContentRect: CGRect?
+    /// Present while the toolbar toggle owns the crop. Retain the previous crop
+    /// so switching off restores it even after saving and reopening a project.
+    var browserToolbarCrop: BrowserToolbarCrop?
+
+    var isBrowserToolbarHidden: Bool { browserToolbarCrop != nil }
+
+    var usesCanvas: Bool { backgroundEnabled || ratio != .original || layout != .desktop }
+
+    func outputSize(source: CGSize) -> CGSize {
+        exportResolution.size(source: source, crop: crop, ratio: ratio, layout: layout,
+                              usesCanvas: usesCanvas, phoneMode: phoneMode)
+    }
 }
 
-struct ZoomSegment: Equatable, Identifiable {
+struct BrowserToolbarCrop: Equatable, Codable {
+    var previousCrop: PhoneCrop
+}
+
+enum CameraLayout: String, CaseIterable, Codable {
+    case overlay, fullScreen
+    var displayName: String { self == .overlay ? "Overlay" : "Full Screen" }
+}
+
+enum CameraTransitionMotion: String, CaseIterable, Codable {
+    case smooth, linear, easeIn, easeOut
+
+    var displayName: String {
+        switch self {
+        case .smooth: return "Smooth"
+        case .linear: return "Linear"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        }
+    }
+
+    func progress(at fraction: Double) -> Double {
+        let t = fraction.isFinite ? min(1, max(0, fraction)) : 0
+        switch self {
+        case .smooth: return t * t * (3 - 2 * t)
+        case .linear: return t
+        case .easeIn: return t * t
+        case .easeOut: return 1 - (1 - t) * (1 - t)
+        }
+    }
+}
+
+struct CameraLayoutSettings: Equatable, Codable {
+    var layout: CameraLayout = .overlay
+    var zoom: Double = 1
+    var centerX: Double = 0.5
+    var centerY: Double = 0.5
+    var followFace: Bool = false
+    var smoothTransition: Bool = false
+    var transitionDuration: Double = CameraLayoutTransition.duration
+    var transitionMotion: CameraTransitionMotion = .smooth
+
+    private enum CodingKeys: String, CodingKey {
+        case layout, zoom, centerX, centerY, followFace, smoothTransition, transitionDuration, transitionMotion
+    }
+
+    init(layout: CameraLayout = .overlay, zoom: Double = 1, centerX: Double = 0.5,
+         centerY: Double = 0.5, followFace: Bool = false, smoothTransition: Bool = false,
+         transitionDuration: Double = CameraLayoutTransition.duration, transitionMotion: CameraTransitionMotion = .smooth) {
+        self.layout = layout
+        self.zoom = zoom
+        self.centerX = centerX
+        self.centerY = centerY
+        self.followFace = followFace
+        self.smoothTransition = smoothTransition
+        self.transitionDuration = transitionDuration
+        self.transitionMotion = transitionMotion
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        layout = try values.decodeIfPresent(CameraLayout.self, forKey: .layout) ?? .overlay
+        zoom = try values.decodeIfPresent(Double.self, forKey: .zoom) ?? 1
+        centerX = try values.decodeIfPresent(Double.self, forKey: .centerX) ?? 0.5
+        centerY = try values.decodeIfPresent(Double.self, forKey: .centerY) ?? 0.5
+        followFace = try values.decodeIfPresent(Bool.self, forKey: .followFace) ?? false
+        smoothTransition = try values.decodeIfPresent(Bool.self, forKey: .smoothTransition) ?? false
+        transitionDuration = try values.decodeIfPresent(Double.self, forKey: .transitionDuration) ?? CameraLayoutTransition.duration
+        transitionMotion = try values.decodeIfPresent(CameraTransitionMotion.self, forKey: .transitionMotion) ?? .smooth
+    }
+
+    var clampedTransitionDuration: Double {
+        transitionDuration.isFinite ? min(2, max(0.1, transitionDuration)) : CameraLayoutTransition.duration
+    }
+
+    /// Ignore transition options and framing fields that the current layout
+    /// does not use. Changing timing alone must never animate identical views.
+    func hasDifferentFraming(from previous: Self) -> Bool {
+        if layout != previous.layout || followFace != previous.followFace { return true }
+        guard layout == .fullScreen else { return false }
+        func zoomValue(_ value: Double) -> Double { value.isFinite ? min(3, max(1, value)) : 1 }
+        func centerValue(_ value: Double) -> Double { value.isFinite ? min(1, max(0, value)) : 0.5 }
+        if zoomValue(zoom) != zoomValue(previous.zoom) { return true }
+        return !followFace && (centerValue(centerX) != centerValue(previous.centerX)
+                              || centerValue(centerY) != centerValue(previous.centerY))
+    }
+
+    func crop(in source: CGRect, output: CGSize) -> CGRect {
+        guard source.width > 0, source.height > 0, output.width > 0, output.height > 0 else { return source }
+        let scale = max(output.width / source.width, output.height / source.height)
+            * CGFloat(zoom.isFinite ? min(3, max(1, zoom)) : 1)
+        let size = CGSize(width: output.width / scale, height: output.height / scale)
+        let horizontal = CGFloat(centerX.isFinite ? min(1, max(0, centerX)) : 0.5)
+        let vertical = CGFloat(centerY.isFinite ? min(1, max(0, centerY)) : 0.5)
+        return CGRect(x: source.minX + (source.width - size.width) * horizontal,
+                      y: source.minY + (source.height - size.height) * (1 - vertical),
+                      width: size.width, height: size.height)
+    }
+}
+
+struct CameraLayoutChange: Equatable, Codable {
+    var start: Double
+    var settings: CameraLayoutSettings
+
+    static func settings(at seconds: Double, initial: CameraLayoutSettings,
+                         changes: [Self]) -> CameraLayoutSettings {
+        changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start <= seconds }
+            .max { $0.start < $1.start }?.settings ?? initial
+    }
+
+    static func previousSettings(before start: Double, initial: CameraLayoutSettings,
+                                 changes: [Self]) -> CameraLayoutSettings {
+        changes.filter { $0.start.isFinite && $0.start >= 0 && $0.start < start }
+            .max { $0.start < $1.start }?.settings ?? initial
+    }
+
+    static func canTransition(into change: Self, initial: CameraLayoutSettings, changes: [Self]) -> Bool {
+        guard change.start.isFinite, change.start > 0 else { return false }
+        return change.settings.hasDifferentFraming(from: previousSettings(before: change.start, initial: initial, changes: changes))
+    }
+
+    /// Resolve in camera source time so seeks, moved takes and exports agree.
+    static func transition(at seconds: Double, initial: CameraLayoutSettings,
+                           changes: [Self]) -> CameraLayoutTransition? {
+        guard seconds.isFinite,
+              let change = changes.filter({ $0.start.isFinite && $0.start >= 0 && $0.start <= seconds })
+                .max(by: { $0.start < $1.start }), change.settings.smoothTransition,
+              canTransition(into: change, initial: initial, changes: changes) else { return nil }
+        let previous = previousSettings(before: change.start, initial: initial, changes: changes)
+        let next = changes.filter { $0.start.isFinite && $0.start > change.start }.map(\.start).min()
+        let duration = min(change.settings.clampedTransitionDuration, next.map { $0 - change.start } ?? .infinity)
+        guard duration > 0, seconds < change.start + duration else { return nil }
+        let fraction = min(1, max(0, (seconds - change.start) / duration))
+        return CameraLayoutTransition(from: previous, to: change.settings,
+                                      progress: change.settings.transitionMotion.progress(at: fraction))
+    }
+
+    static func split(at outputSeconds: Double, in range: VideoOverlayTimelineRange,
+                      initial: CameraLayoutSettings, changes: [Self]) -> Self? {
+        guard outputSeconds.isFinite, range.sourceStart.isFinite, range.duration.isFinite,
+              outputSeconds >= range.outputStart, outputSeconds < range.outputStart + range.duration else { return nil }
+        let sourceTime = range.sourceStart + outputSeconds - range.outputStart
+        let boundaries = changes.map(\.start).filter { $0.isFinite && $0 >= 0 }
+        let start = max(range.sourceStart, boundaries.filter { $0 <= sourceTime }.max() ?? range.sourceStart)
+        let end = min(range.sourceStart + range.duration,
+                      boundaries.filter { $0 > sourceTime }.min() ?? range.sourceStart + range.duration)
+        guard sourceTime - start >= 1.0 / 30, end - sourceTime >= 1.0 / 30 else { return nil }
+        return Self(start: sourceTime, settings: settings(at: sourceTime, initial: initial, changes: changes))
+    }
+}
+
+struct CameraLayoutTransition {
+    static let duration: Double = 0.4
+    var from: CameraLayoutSettings
+    var to: CameraLayoutSettings
+    var progress: Double
+}
+
+struct VideoOverlayTiming: Equatable, Codable {
+    var start: Double
+    var duration: Double
+    var sourceStart: Double = 0
+
+    func sampleTime(at outputSeconds: Double) -> CMTime? {
+        let seconds = outputSeconds - start
+        guard seconds.isFinite, start.isFinite, duration.isFinite, sourceStart.isFinite,
+              start >= 0, sourceStart >= 0, seconds >= 0, seconds < duration else { return nil }
+        return CMTime(seconds: sourceStart + seconds, preferredTimescale: 60000)
+    }
+
+    enum Adjustment { case move, trimStart, trimEnd }
+
+    func adjusted(by delta: Double, adjustment: Adjustment, total: Double, sourceDuration: Double) -> Self {
+        guard delta.isFinite, total.isFinite, sourceDuration.isFinite,
+              total > 0.05, sourceDuration > 0.05 else { return self }
+        var result = self
+        switch adjustment {
+        case .move:
+            result.start = min(total - 0.05, max(0, start + delta))
+        case .trimStart:
+            guard start < total - 0.05 else { return self }
+            let shift = min(duration - 0.05, total - start - 0.05,
+                            max(-min(start, sourceStart), delta))
+            result.start += shift
+            result.sourceStart += shift
+            result.duration -= shift
+        case .trimEnd:
+            guard start < total - 0.05 else { return self }
+            result.duration = max(0.05, min(sourceDuration - sourceStart, total - start, duration + delta))
+        }
+        return result
+    }
+}
+
+/// A camera sidecar follows source clips; a separately attached take follows edited time.
+struct VideoOverlayTimelineRange: Equatable {
+    let outputStart: Double
+    let sourceStart: Double
+    let duration: Double
+
+    static func visible(timing: VideoOverlayTiming?, timeline: EditedTimeline, sourceDuration: Double) -> [Self] {
+        guard sourceDuration.isFinite, sourceDuration > 0 else { return [] }
+        if let timing {
+            let length = min(timing.duration, timeline.duration.seconds - timing.start, sourceDuration - timing.sourceStart)
+            guard timing.start.isFinite, timing.sourceStart.isFinite,
+                  timing.start >= 0, timing.sourceStart >= 0, length > 0 else { return [] }
+            return [Self(outputStart: timing.start, sourceStart: timing.sourceStart, duration: length)]
+        }
+        return zip(timeline.ranges, timeline.outputStarts).compactMap { range, placement in
+            let outputStart = placement.seconds
+            let start = max(0, range.start.seconds)
+            let end = min(sourceDuration, range.end.seconds)
+            guard end > start else { return nil }
+            return Self(outputStart: outputStart + start - range.start.seconds, sourceStart: start, duration: end - start)
+        }
+    }
+}
+
+struct ZoomSegment: Equatable, Identifiable, Codable {
     var id = UUID()
     var start: Double
     var end: Double
@@ -47,7 +297,7 @@ struct ZoomSegment: Equatable, Identifiable {
     var followsCursor = true
 }
 
-struct PhoneCrop: Equatable {
+struct PhoneCrop: Equatable, Codable {
     var rect: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)
 
     enum Corner: CaseIterable { case topLeft, topRight, bottomLeft, bottomRight }
@@ -107,6 +357,68 @@ enum CanvasRatio: String, CaseIterable, Codable {
         case .portrait: return CGSize(width: 1080, height: 1350)
         case .vertical: return CGSize(width: 1080, height: 1920)
         }
+    }
+}
+
+/// Resolution is independent of canvas shape. Preserve source allows room for
+/// the background/device frame without reducing the captured content's pixels.
+enum ExportResolution: String, CaseIterable, Codable {
+    case preserveSource, uhd4k, fhd1080
+
+    var displayName: String {
+        switch self {
+        case .preserveSource: return "Preserve source"
+        case .uhd4k: return "4K"
+        case .fhd1080: return "1080p"
+        }
+    }
+
+    func size(source: CGSize, crop: PhoneCrop = PhoneCrop(), ratio: CanvasRatio = .original,
+              layout: DeviceLayout = .desktop, usesCanvas: Bool = false,
+              phoneMode: PhoneContentMode = .fit) -> CGSize {
+        let content = crop.pixelRect(in: source).size
+        let reference = ratio.size(source: usesCanvas ? source : content)
+        let scale: CGFloat
+        switch self {
+        case .preserveSource:
+            scale = 1 / Self.contentScale(source: content, output: reference, layout: layout,
+                                          usesCanvas: usesCanvas, phoneMode: phoneMode)
+        case .uhd4k, .fhd1080:
+            if ratio == .original {
+                scale = (self == .uhd4k ? 3840 : 1920) / max(reference.width, reference.height)
+            } else {
+                scale = self == .uhd4k ? 2 : 1
+            }
+        }
+        // Round up so padding and encoder-safe dimensions cannot shrink content.
+        return CGSize(width: max(2, ceil((reference.width * scale - 0.000001) / 2) * 2),
+                      height: max(2, ceil((reference.height * scale - 0.000001) / 2) * 2))
+    }
+
+    static func contentScale(source: CGSize, output: CGSize, layout: DeviceLayout,
+                             usesCanvas: Bool, phoneMode: PhoneContentMode) -> CGFloat {
+        let rect: CGRect
+        if usesCanvas {
+            let geometry = CanvasGeometry(size: output, layout: layout, sourceSize: source)
+            if let desktop = geometry.desktop {
+                rect = desktop
+            } else if let phone = geometry.phone {
+                rect = CanvasGeometry.phoneContent(phone, layout: layout)
+            } else { return 1 }
+        } else { rect = CGRect(origin: .zero, size: output) }
+        let horizontal = rect.width / max(1, source.width)
+        let vertical = rect.height / max(1, source.height)
+        return layout.isPhone && phoneMode == .fill ? max(horizontal, vertical) : min(horizontal, vertical)
+    }
+}
+
+enum VideoEncodingQuality {
+    /// HEVC budgets scale with pixels and frame rate; a recording master gets
+    /// extra headroom because it will be decoded and encoded again on export.
+    static func bitRate(size: CGSize, frameRate: Double, recordingMaster: Bool = false) -> Int {
+        let pixels = Double(size.width * size.height)
+        let rate = pixels * max(30, frameRate) * (recordingMaster ? 0.16 : 0.12)
+        return max(recordingMaster ? 30_000_000 : 20_000_000, Int(rate.rounded(.up)))
     }
 }
 

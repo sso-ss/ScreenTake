@@ -13,4 +13,4 @@ Voiceover uses the Mac's default microphone. Preview audio is muted during recor
 
 Editing is session-based, like the rest of the existing editor. Apply and download your finished video before closing the session; reopening an exported movie does not restore separate editable voiceover takes.
 
-`test_voiceover.swift` checks decoded audio timing, independent levels/mutes, source trims, end clipping, waveform levels, and narration exports with no original audio. Its `--ui` option renders the audio controls and timeline at 1000×680 and 800×500. Live microphone quality and hardware synchronization still require a recording on the user's selected input device.
+`Tests/test_voiceover.swift` checks decoded audio timing, independent levels/mutes, source trims, end clipping, waveform levels, and narration exports with no original audio. Its `--ui` option renders the audio controls and timeline at 1000×680 and 800×500. Live microphone quality and hardware synchronization still require a recording on the user's selected input device.

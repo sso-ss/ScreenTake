@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-/// Media asset — stores relative paths within the .screenize package
+/// Media asset — stores relative paths within the .screentake package
 struct MediaAsset: Codable, Equatable {
     var videoRelativePath: String
     var mouseDataRelativePath: String?

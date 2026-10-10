@@ -22,17 +22,24 @@ final class ExportEngine: ObservableObject {
         var outputURL: URL
         var codec: AVVideoCodecType = .hevc
         var fileType: AVFileType = .mov
-        var bitRate: Int = 20_000_000
+        /// Nil selects a quality budget based on output dimensions and frame rate.
+        var bitRate: Int?
         var keyFrameInterval: Int = 60
 
-        /// Output resolution. Nil = same as source.
+        /// Explicit pixel dimensions override the selected export resolution.
         var outputSize: CGSize?
 
         /// Webcam PiP overlay settings
         var webcamVideoURL: URL?
+        var videoOverlayTiming: VideoOverlayTiming?
+        var videoOverlayTrim: VideoTrim?
         var pipPosition: PiPPosition = .bottomRight
         var pipSize: PiPSize = .medium
         var pipShape: PiPShape = .circle
+        var cameraLayout = CameraLayoutSettings()
+        var cameraLayoutChanges: [CameraLayoutChange] = []
+        var faceBeautyAmount: Double = 0
+        var faceMakeup: FaceMakeupSettings = .init()
 
         /// Mouse data for cursor overlay on fill frames
         var mouseDataURL: URL?
@@ -51,8 +58,18 @@ final class ExportEngine: ObservableObject {
         var phoneCrop: PhoneCrop = PhoneCrop()
         var phoneContentMode: PhoneContentMode = .fit
         var forceCanvas: Bool = false
+        var exportResolution: ExportResolution = .preserveSource
 
         var usesCanvas: Bool { forceCanvas || canvasRatio != .original || deviceLayout != .desktop }
+
+        /// Only suppress cursor cadence when a continuous, fixed full-screen
+        /// camera covers the entire recording. Mixed layouts and moved/trimmed
+        /// overlays retain 60 fps for visible cursor and transition motion.
+        func cameraCoversRecording(duration: CMTime, webcamRange: CMTimeRange) -> Bool {
+            webcamVideoURL != nil && videoOverlayTiming == nil && cameraLayout.layout == .fullScreen
+                && cameraLayoutChanges.isEmpty && webcamRange.isValid
+                && webcamRange.start <= .zero && webcamRange.end >= duration
+        }
     }
 
     // MARK: - Export
@@ -69,6 +86,41 @@ final class ExportEngine: ObservableObject {
         keyframes: [CameraKeyframe],
         configuration: Configuration
     ) async throws -> URL {
+        let cancellation = ExportCancellation()
+        let manager = FileManager.default
+        let staging = try manager.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                      appropriateFor: configuration.outputURL, create: true)
+        defer { try? manager.removeItem(at: staging) }
+        var staged = configuration
+        staged.outputURL = staging.appendingPathComponent(configuration.outputURL.lastPathComponent)
+        await MainActor.run { self.isExporting = true; self.progress = 0 }
+        do {
+            _ = try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                return try await render(sourceURL: sourceURL, keyframes: keyframes,
+                                        configuration: staged, cancellation: cancellation)
+            } onCancel: { cancellation.cancel() }
+            try Task.checkCancellation()
+            if manager.fileExists(atPath: configuration.outputURL.path) {
+                _ = try manager.replaceItemAt(configuration.outputURL, withItemAt: staged.outputURL)
+            } else {
+                try manager.moveItem(at: staged.outputURL, to: configuration.outputURL)
+            }
+            return configuration.outputURL
+        } catch {
+            await MainActor.run { self.isExporting = false }
+            throw error
+        }
+    }
+
+    private nonisolated func render(sourceURL: URL, keyframes: [CameraKeyframe],
+                                    configuration: Configuration, cancellation: ExportCancellation) async throws -> URL {
+        let faceTrack: FaceTrackingTrack?
+        if let cameraURL = configuration.webcamVideoURL,
+           configuration.cameraLayout.followFace || configuration.cameraLayoutChanges.contains(where: { $0.settings.followFace }) {
+            faceTrack = try await FaceTrackingAnalyzer.shared.track(for: cameraURL)
+        } else { faceTrack = nil }
+        try Task.checkCancellation()
         let asset = AVURLAsset(url: sourceURL)
         let duration = try await asset.load(.duration)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
@@ -83,13 +135,22 @@ final class ExportEngine: ObservableObject {
             width: abs(orientedBounds.width),
             height: abs(orientedBounds.height)
         )
-        let cropRect = (configuration.deviceLayout.isPhone ? configuration.phoneCrop : PhoneCrop()).pixelRect(in: originalSize)
+        let cropRect = configuration.phoneCrop.pixelRect(in: originalSize)
         let sourceSize = cropRect.size
         let normalizedCrop = CGRect(x: cropRect.minX / originalSize.width, y: 1 - cropRect.maxY / originalSize.height,
                                     width: cropRect.width / originalSize.width, height: cropRect.height / originalSize.height)
-        let outputSize = configuration.outputSize ?? configuration.canvasRatio.size(source: originalSize)
+        let outputSize = configuration.outputSize ?? configuration.exportResolution.size(
+            source: originalSize, crop: configuration.phoneCrop, ratio: configuration.canvasRatio,
+            layout: configuration.deviceLayout, usesCanvas: configuration.usesCanvas,
+            phoneMode: configuration.phoneContentMode)
+        let sourceFrameRate = try await videoTrack.load(.nominalFrameRate)
+        let bitRate = configuration.bitRate ?? VideoEncodingQuality.bitRate(
+            size: outputSize, frameRate: max(60, Double(sourceFrameRate)))
         let canvas = configuration.usesCanvas
-            ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout, wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode, desktopCornerRadius: CGFloat(configuration.desktopCornerRadius)) : nil
+            ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout,
+                               wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode,
+                               desktopCornerRadius: CGFloat(configuration.desktopCornerRadius),
+                               preserveSourcePixels: configuration.outputSize == nil && configuration.exportResolution == .preserveSource) : nil
         var phoneReader: TimedVideoReader?
         if configuration.deviceLayout == .duo {
             guard let phoneURL = configuration.phoneVideoURL else { throw ExportError.missingPhoneVideo }
@@ -154,12 +215,6 @@ final class ExportEngine: ObservableObject {
             }
         }
 
-        // Remove existing output file
-        let fm = FileManager.default
-        if fm.fileExists(atPath: configuration.outputURL.path) {
-            try fm.removeItem(at: configuration.outputURL)
-        }
-
         // Set up writer
         let writer = try AVAssetWriter(outputURL: configuration.outputURL, fileType: configuration.fileType)
 
@@ -168,7 +223,7 @@ final class ExportEngine: ObservableObject {
             AVVideoWidthKey: Int(outputSize.width),
             AVVideoHeightKey: Int(outputSize.height),
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: configuration.bitRate,
+                AVVideoAverageBitRateKey: bitRate,
                 AVVideoMaxKeyFrameIntervalKey: configuration.keyFrameInterval,
                 AVVideoProfileLevelKey: configuration.codec == .hevc
                     ? "HEVC_Main_AutoLevel"
@@ -231,11 +286,23 @@ final class ExportEngine: ObservableObject {
         var webcamReader: AVAssetReader?
         var webcamReaderOutput: AVAssetReaderTrackOutput?
         var compositor: WebcamCompositor?
+        var overlayFrames: OverlayVideoFrames?
+        var webcamDuration: CMTime = .zero
+        var webcamRange: CMTimeRange = .invalid
+        var webcamTransform = CGAffineTransform.identity
+        let overlayTimeline = try configuration.videoOverlayTrim?.timeline(duration: duration)
 
         if let webcamURL = configuration.webcamVideoURL,
            FileManager.default.fileExists(atPath: webcamURL.path) {
             let webcamAsset = AVURLAsset(url: webcamURL)
-            if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
+            webcamDuration = (try? await webcamAsset.load(.duration)) ?? .zero
+            if configuration.videoOverlayTiming != nil {
+                overlayFrames = OverlayVideoFrames(url: webcamURL, preciseTiming: faceTrack != nil)
+                compositor = WebcamCompositor(outputSize: outputSize, position: configuration.pipPosition,
+                                               pipSize: configuration.pipSize, shape: configuration.pipShape)
+            } else if let webcamTrack = try? await webcamAsset.loadTracks(withMediaType: .video).first {
+                webcamRange = (try? await webcamTrack.load(.timeRange)) ?? .invalid
+                webcamTransform = (try? await webcamTrack.load(.preferredTransform)) ?? .identity
                 let wReader = try AVAssetReader(asset: webcamAsset)
                 let wOutput = AVAssetReaderTrackOutput(track: webcamTrack, outputSettings: readerSettings)
                 wOutput.alwaysCopiesSampleData = true
@@ -254,6 +321,7 @@ final class ExportEngine: ObservableObject {
                 }
             }
         }
+        let hasCameraFrames = webcamReaderOutput != nil || overlayFrames != nil
 
         // Process frames
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -262,10 +330,12 @@ final class ExportEngine: ObservableObject {
             // Video processing
             group.enter()
             let videoQueue = DispatchQueue(label: "com.screen.export.video", qos: .userInitiated)
+            var videoFinished = false
 
             // Track the current webcam frame so we can hold it across multiple video frames
             // (webcam is ~30fps, screen is 60fps — we must sync by timestamp, not 1:1)
             var currentWebcamImage: CIImage?
+            var currentWebcamSampleTime: Double?
             var pendingWebcamSample: CMSampleBuffer?
             var webcamExhausted = false
 
@@ -274,12 +344,14 @@ final class ExportEngine: ObservableObject {
             var lastAppendedPTS: CMTime = CMTime(value: -1, timescale: 600)
             var lastSourceImage: CIImage?
             let hasCursorAnimation = cursorCGImage != nil && !mousePositions.isEmpty
+                && !(hasCameraFrames && configuration.cameraCoversRecording(duration: duration, webcamRange: webcamRange))
             let fillFrameInterval: TimeInterval = hasCursorAnimation ? 1.0 / 60.0 : 1.0 / 30.0
             var nextCursorFrameIndex: Int64 = 0
 
             /// Safely append a pixel buffer, ensuring strictly increasing PTS.
             /// Catches ObjC exceptions from AVAssetWriter to prevent crashes.
             func safeAppend(_ buffer: CVPixelBuffer, at pts: CMTime) -> Bool {
+                guard !cancellation.isCancelled else { return false }
                 guard CMTimeCompare(pts, lastAppendedPTS) > 0 else { return false }
                 guard writer.status == .writing else { return false }
                 do {
@@ -426,11 +498,32 @@ final class ExportEngine: ObservableObject {
                         }
                         guard CMTimeCompare(CMSampleBufferGetPresentationTimeStamp(sample), pts) <= 0 else { break }
                         if let buffer = CMSampleBufferGetImageBuffer(sample) {
-                            currentWebcamImage = CIImage(cvPixelBuffer: buffer)
+                            currentWebcamSampleTime = CMSampleBufferGetPresentationTimeStamp(sample).seconds
+                            let upright = CIImage(cvPixelBuffer: buffer).transformed(by: webcamTransform)
+                            currentWebcamImage = upright.transformed(by: CGAffineTransform(
+                                translationX: -upright.extent.minX, y: -upright.extent.minY))
                         }
                         pendingWebcamSample = nil
                     }
                 }
+
+                if let timing = configuration.videoOverlayTiming, let overlayFrames {
+                    let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
+                    let sample = timing.sampleTime(at: outputTime.seconds).flatMap { overlayFrames.frame(at: $0) }
+                    currentWebcamImage = sample?.image
+                    currentWebcamSampleTime = sample?.time.seconds
+                } else if webcamReaderOutput != nil, pts >= webcamDuration {
+                    currentWebcamImage = nil
+                }
+                let outputTime = overlayTimeline?.outputTime(at: pts) ?? pts
+                let cameraTime = configuration.videoOverlayTiming?.sampleTime(at: outputTime.seconds)?.seconds ?? pts.seconds
+                let cameraLayout = CameraLayoutChange.settings(at: cameraTime, initial: configuration.cameraLayout,
+                                                               changes: configuration.cameraLayoutChanges)
+                let cameraTransition = CameraLayoutChange.transition(at: cameraTime, initial: configuration.cameraLayout,
+                                                                     changes: configuration.cameraLayoutChanges)
+                let animatingCamera = compositor != nil && currentWebcamImage != nil && cameraTransition != nil
+                let cameraFillsCanvas = compositor != nil && currentWebcamImage != nil
+                    && cameraLayout.layout == .fullScreen && cameraTransition == nil
 
                 var frameImage = image
 
@@ -464,11 +557,32 @@ final class ExportEngine: ObservableObject {
                                                   camera: transform, primaryOverlay: cursorLayer)
                 }
 
+                // During the layout animation, keep the screen cursor below the
+                // expanding camera, just as it is in the live preview.
+                if animatingCamera, canvas == nil, time >= 0,
+                   let cursorCGImage, let position = cursorPosition(at: time) {
+                    let point = CGPoint(x: mousePaddingRatio + position.x * mouseContentScale,
+                                        y: mousePaddingRatio + (1 - position.y) * mouseContentScale)
+                    if normalizedCrop.contains(point) {
+                        let camera = transform.clamped()
+                        let x = ((point.x - normalizedCrop.minX) / normalizedCrop.width - camera.centerX) * camera.zoom + 0.5
+                        let y = ((point.y - normalizedCrop.minY) / normalizedCrop.height - camera.centerY) * camera.zoom + 0.5
+                        let overlay = CIImage(cgImage: cursorCGImage).transformed(by: CGAffineTransform(
+                            translationX: x * outputSize.width - cursorHotspot.x,
+                            y: (1 - y) * outputSize.height - (CGFloat(cursorCGImage.height) - cursorHotspot.y)))
+                        frameImage = overlay.composited(over: frameImage).cropped(to: CGRect(origin: .zero, size: outputSize))
+                    }
+                }
+
                 if let compositor,
                    let webcamImage = currentWebcamImage {
                     frameImage = compositor.composite(
                         webcamImage: webcamImage,
-                        onto: frameImage
+                        onto: frameImage,
+                        settings: cameraLayout,
+                        faceFocus: faceTrack?.focus(at: cameraTime),
+                        transition: cameraTransition,
+                        beautyAmount: configuration.faceBeautyAmount, beautyTime: currentWebcamSampleTime ?? cameraTime, makeup: configuration.faceMakeup
                     )
                 }
 
@@ -487,7 +601,7 @@ final class ExportEngine: ObservableObject {
                 ciContext.render(frameImage, to: outBuffer)
 
                 // Draw cursor from mouse position data on every frame
-                if time >= 0, canvas == nil {
+                if time >= 0, canvas == nil, !cameraFillsCanvas, !animatingCamera {
                     drawCursor(on: outBuffer, transform: transform, atTime: time)
                 }
 
@@ -505,14 +619,21 @@ final class ExportEngine: ObservableObject {
             }
 
             videoInput.requestMediaDataWhenReady(on: videoQueue) { [weak self] in
+                guard !videoFinished else { return }
                 while videoInput.isReadyForMoreMediaData {
+                    if cancellation.isCancelled {
+                        videoFinished = true
+                        videoInput.markAsFinished()
+                        group.leave()
+                        return
+                    }
                     let shouldContinue = autoreleasepool { () -> Bool in
                     guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
-                        if let image = lastSourceImage, hasCursorAnimation || webcamReaderOutput != nil || phoneReader != nil || !keyframes.isEmpty {
+                        if let image = lastSourceImage, hasCursorAnimation || hasCameraFrames || phoneReader != nil || !keyframes.isEmpty {
                             var fillTime = hasCursorAnimation
                                 ? Double(nextCursorFrameIndex) / 60
                                 : CMTimeGetSeconds(lastAppendedPTS) + fillFrameInterval
-                            while fillTime < totalSeconds {
+                            while fillTime < totalSeconds && !cancellation.isCancelled {
                                 let fillPTS = hasCursorAnimation
                                     ? CMTime(value: nextCursorFrameIndex, timescale: 60)
                                     : CMTime(seconds: fillTime, preferredTimescale: 600)
@@ -528,6 +649,7 @@ final class ExportEngine: ObservableObject {
                             }
                         }
                         withExtendedLifetime(webcamReader) {}
+                        videoFinished = true
                         videoInput.markAsFinished()
                         group.leave()
                         return false
@@ -555,7 +677,7 @@ final class ExportEngine: ObservableObject {
                     if hasCursorAnimation {
                         if let previousImage = lastSourceImage {
                             var frameTime = Double(nextCursorFrameIndex) / 60
-                            while frameTime < timeSeconds - 0.000_001 {
+                            while frameTime < timeSeconds - 0.000_001 && !cancellation.isCancelled {
                                 let framePTS = CMTime(value: nextCursorFrameIndex, timescale: 60)
                                 if renderAndWrite(image: previousImage, transform: camera(at: frameTime),
                                                   at: framePTS, time: frameTime) {
@@ -591,11 +713,11 @@ final class ExportEngine: ObservableObject {
                                 sampleT += sampleStep
                             }
 
-                            if hasCursorAnimation || hasZoomActivity || webcamReaderOutput != nil || phoneReader != nil {
+                            if hasCursorAnimation || hasZoomActivity || hasCameraFrames || phoneReader != nil {
                                 // Generate fill frames at ~30fps through the gap
                                 var fillCount = 0
                                 var fillTime = lastAppendedSeconds + fillFrameInterval
-                                while fillTime < timeSeconds - fillFrameInterval * 0.5 {
+                                while fillTime < timeSeconds - fillFrameInterval * 0.5 && !cancellation.isCancelled {
                                     let fillTransform = camera(at: fillTime)
                                     let fillPTS = CMTime(seconds: fillTime, preferredTimescale: 600)
                                     if renderAndWrite(image: prevImage, transform: fillTransform, at: fillPTS, time: fillTime) {
@@ -629,9 +751,18 @@ final class ExportEngine: ObservableObject {
                 let audioQueue = DispatchQueue(label: "com.screen.export.audio.\(pair.writer.hash)", qos: .userInitiated)
                 let readerOut = pair.reader
                 let writerIn = pair.writer
+                var audioFinished = false
                 writerIn.requestMediaDataWhenReady(on: audioQueue) {
+                    guard !audioFinished else { return }
                     while writerIn.isReadyForMoreMediaData {
+                        if cancellation.isCancelled {
+                            audioFinished = true
+                            writerIn.markAsFinished()
+                            group.leave()
+                            return
+                        }
                         guard let sampleBuffer = readerOut.copyNextSampleBuffer() else {
+                            audioFinished = true
                             writerIn.markAsFinished()
                             group.leave()
                             return
@@ -642,6 +773,12 @@ final class ExportEngine: ObservableObject {
             }
 
             group.notify(queue: .main) {
+                if cancellation.isCancelled {
+                    reader.cancelReading()
+                    writer.cancelWriting()
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
                 writer.endSession(atSourceTime: duration)
                 writer.finishWriting {
                     if let error = writer.error {
@@ -652,6 +789,8 @@ final class ExportEngine: ObservableObject {
                 }
             }
         }
+
+        try Task.checkCancellation()
 
         if reader.status == .failed { throw reader.error ?? ExportError.readerSetupFailed }
         if let error = phoneReader?.error { throw error }
@@ -665,6 +804,13 @@ final class ExportEngine: ObservableObject {
         Log.export.info("Export completed: \(configuration.outputURL.lastPathComponent), read=\(framesRead), written=\(framesWritten), dropped=\(droppedFrameCount)")
         return configuration.outputURL
     }
+}
+
+private final class ExportCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+    func cancel() { lock.lock(); cancelled = true; lock.unlock() }
 }
 
 private final class TimedVideoReader {
@@ -725,5 +871,45 @@ enum ExportError: LocalizedError {
         case .missingPhoneVideo: return "Choose a phone video for the Duo layout."
         case .incompleteFrames: return "Some video frames could not be rendered. The original video has been kept."
         }
+    }
+}
+
+final class OverlayVideoFrames {
+    struct Frame {
+        let image: CIImage
+        let time: CMTime
+    }
+    private let generator: AVAssetImageGenerator
+    private let lock = NSLock()
+    private var cachedTime = -Double.infinity
+    private var cachedFrame: Frame?
+    private let preciseTiming: Bool
+
+    init(url: URL, maximumSize: CGSize = .zero, preciseTiming: Bool = false) {
+        self.preciseTiming = preciseTiming
+        generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = maximumSize
+        generator.requestedTimeToleranceBefore = preciseTiming ? .zero : CMTime(value: 1, timescale: 30)
+        generator.requestedTimeToleranceAfter = preciseTiming ? .zero : CMTime(value: 1, timescale: 30)
+    }
+
+    func image(at time: CMTime) -> CIImage? { frame(at: time)?.image }
+
+    func frame(at time: CMTime) -> Frame? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard time.isNumeric else { return nil }
+        // Tracked framing must use the same source frame when playing forward,
+        // seeking backward, and exporting; nearby-frame reuse depends on history.
+        if preciseTiming ? time.seconds == cachedTime : abs(time.seconds - cachedTime) < 1.0 / 30 { return cachedFrame }
+        var actualTime = CMTime.invalid
+        if let image = try? generator.copyCGImage(at: time, actualTime: &actualTime), actualTime.isNumeric {
+            // Separate requests can resolve to one camera sample. Preserve both
+            // its actual timestamp and CIImage identity for the beauty cache.
+            if cachedFrame?.time != actualTime { cachedFrame = Frame(image: CIImage(cgImage: image), time: actualTime) }
+            cachedTime = time.seconds
+        }
+        return cachedTime == time.seconds ? cachedFrame : nil
     }
 }

@@ -1,31 +1,114 @@
+import AppKit
 import Foundation
 import SwiftUI
 
-/// Design system color tokens — macOS dark mode grays from mockup-tool
+enum AppBrand {
+    /// Outline of the three-panel mark, kept as a template for menu bar contrast.
+    static let menuBarIcon: NSImage = {
+        let image = NSImage(size: NSSize(width: 22, height: 18), flipped: false) { _ in
+            NSColor.black.setStroke()
+            let transform = AffineTransform(translationByX: -0.52, byY: 20.52)
+            var scaled = transform
+            scaled.scale(x: 0.18, y: -0.18)
+            let border = NSBezierPath(roundedRect: NSRect(x: 8, y: 25, width: 112, height: 78), xRadius: 18, yRadius: 18)
+            let panels = NSBezierPath()
+            panels.move(to: NSPoint(x: 22.11, y: 25))
+            panels.line(to: NSPoint(x: 55, y: 46.2))
+            panels.move(to: NSPoint(x: 50, y: 81))
+            panels.line(to: NSPoint(x: 50, y: 103))
+            panels.move(to: NSPoint(x: 120, y: 41.9))
+            panels.line(to: NSPoint(x: 79.2, y: 68.2))
+            let play = NSBezierPath()
+            play.move(to: NSPoint(x: 50, y: 49))
+            play.curve(to: NSPoint(x: 55, y: 46.2), controlPoint1: NSPoint(x: 50, y: 46.2), controlPoint2: NSPoint(x: 52.6, y: 44.7))
+            play.line(to: NSPoint(x: 79.2, y: 61.8))
+            play.curve(to: NSPoint(x: 79.2, y: 68.2), controlPoint1: NSPoint(x: 81.6, y: 63.3), controlPoint2: NSPoint(x: 81.6, y: 66.7))
+            play.line(to: NSPoint(x: 55, y: 83.8))
+            play.curve(to: NSPoint(x: 50, y: 81), controlPoint1: NSPoint(x: 52.6, y: 85.3), controlPoint2: NSPoint(x: 50, y: 83.8))
+            play.close()
+            for path in [border, panels, play] {
+                path.transform(using: scaled)
+                path.lineWidth = 1.2
+                path.lineJoinStyle = .round
+                path.lineCapStyle = .round
+                path.stroke()
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+
+    /// Bypass Launch Services' cached icon, which can belong to an older installation.
+    static var icon: NSImage? {
+        guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else { return nil }
+        return NSImage(contentsOf: url)
+    }
+}
+
+/// An app preference, independent of recording and export settings.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    static let defaultsKey = "appAppearance"
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: return "Follow System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var nativeAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil // Inherit macOS, including changes while the app is open.
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+
+    @MainActor
+    func apply() {
+        NSApplication.shared.appearance = nativeAppearance
+    }
+}
+
+/// Adaptive interface colors. Media and exported canvas colors remain independent.
 enum DesignColors {
+    static func adaptive(light: String, dark: String) -> Color {
+        let lightColor = NSColor(Color(hex: light))
+        let darkColor = NSColor(Color(hex: dark))
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? darkColor : lightColor
+        })
+    }
+
+    static let previewBackground = adaptive(light: "#e9e9ed", dark: "#141415")
+
     // MARK: - Background Colors
 
-    static let windowBackground = Color(hex: "#1c1c1e")
-    static let controlBackground = Color(hex: "#2c2c2e")
-    static let inputBackground = Color(hex: "#3a3a3c")
+    static let windowBackground = adaptive(light: "#f5f5f7", dark: "#1c1c1e")
+    static let controlBackground = adaptive(light: "#ffffff", dark: "#2c2c2e")
+    static let inputBackground = adaptive(light: "#eaeaef", dark: "#3a3a3c")
 
     // MARK: - Border Colors
 
-    static let separator = Color(hex: "#1a1a1c")
-    static let inputBorder = Color(hex: "#48484a")
+    static let separator = adaptive(light: "#dcdce2", dark: "#1a1a1c")
+    static let inputBorder = adaptive(light: "#c5c5ce", dark: "#48484a")
 
     // MARK: - Text Colors
 
-    static let primaryLabel = Color(hex: "#e5e5ea")
-    static let secondaryLabel = Color(hex: "#98989d")
-    static let tertiaryLabel = Color(hex: "#636366")
+    static let primaryLabel = adaptive(light: "#242428", dark: "#e5e5ea")
+    static let secondaryLabel = adaptive(light: "#61616a", dark: "#98989d")
+    static let tertiaryLabel = adaptive(light: "#70707a", dark: "#8e8e93")
 
     // MARK: - Track Colors
 
-    static let cameraTrack = Color(hex: "#60a5fa")    // Blue
-    static let cursorTrack = Color(hex: "#4ade80")     // Green
-    static let keystrokeTrack = Color(hex: "#fb923c")  // Orange
-    static let audioTrack = Color(hex: "#fbbf24")      // Yellow
+    static let cameraTrack = adaptive(light: "#2563c9", dark: "#60a5fa")    // Blue
+    static let cursorTrack = adaptive(light: "#16803c", dark: "#4ade80")     // Green
+    static let keystrokeTrack = adaptive(light: "#b45309", dark: "#fb923c")  // Orange
+    static let audioTrack = adaptive(light: "#946200", dark: "#fbbf24")      // Yellow
 
     static func trackColor(for type: String) -> Color {
         switch type {
@@ -61,6 +144,10 @@ enum Typography {
 // MARK: - Spacing
 
 enum Spacing {
+    // Official settings layout: label to control, then feature to feature.
+    static let labelToControl: CGFloat = 12
+    static let featureGap: CGFloat = 20
+
     static let xs: CGFloat = 2
     static let sm: CGFloat = 4
     static let md: CGFloat = 8
@@ -80,6 +167,39 @@ enum CornerRadius {
     static let xxl: CGFloat = 12
 }
 
+// MARK: - Compact Actions
+
+enum ControlMetrics {
+    static let actionHeight: CGFloat = 24
+    static let mediumActionHeight: CGFloat = 32
+}
+
+enum ActionButtonSize {
+    case compact, medium
+
+    var height: CGFloat { self == .medium ? ControlMetrics.mediumActionHeight : ControlMetrics.actionHeight }
+    var fontSize: CGFloat { self == .medium ? 13 : 12 }
+    var horizontalPadding: CGFloat { self == .medium ? 12 : 10 }
+}
+
+struct CompactActionButtonStyle: ButtonStyle {
+    var prominent = false
+    var size: ActionButtonSize = .compact
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: size.fontSize, weight: .medium))
+            .foregroundStyle(prominent ? Color.white : (configuration.role == .destructive ? DesignColors.error : DesignColors.primaryLabel))
+            .padding(.horizontal, size.horizontalPadding)
+            .frame(height: size.height)
+            .background(prominent ? DesignColors.accent : DesignColors.inputBackground,
+                        in: RoundedRectangle(cornerRadius: CornerRadius.md))
+            .contentShape(RoundedRectangle(cornerRadius: CornerRadius.md))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+    }
+}
+
 // MARK: - Window Chrome (from mockup-tool)
 
 enum WindowChrome {
@@ -95,8 +215,8 @@ enum WindowChrome {
     static let maximizeColor = Color(hex: "#28c840")
 
     // Title bar gradient
-    static let titleBarTop = Color(hex: "#3a3a3c")
-    static let titleBarBottom = Color(hex: "#2c2c2e")
+    static let titleBarTop = DesignColors.inputBackground
+    static let titleBarBottom = DesignColors.controlBackground
 
     // Shadow
     static let shadowRadius: CGFloat = 60

@@ -10,7 +10,8 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
-    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Screen Local Development"
 
 targets:
   Screen:
@@ -20,17 +21,26 @@ targets:
       - path: Screen
         excludes:
           - "**/.DS_Store"
+    dependencies:
+      - target: ScreenTakeMCP
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screen.Screen
         PRODUCT_NAME: ScreenTake
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: 0.1.11
-        CURRENT_PROJECT_VERSION: 13
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        MARKETING_VERSION: 0.1.14
+        CURRENT_PROJECT_VERSION: 16
         INFOPLIST_KEY_NSScreenCaptureUsageDescription: "ScreenTake needs screen recording access to capture your display."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "ScreenTake needs microphone access to record audio."
         INFOPLIST_KEY_CFBundleDisplayName: ScreenTake
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.video"
+        INFOPLIST_FILE: Screen/Info.plist
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_ENTITLEMENTS: Screen/Screen.entitlements
         SWIFT_OBJC_BRIDGING_HEADER: Screen/Screen-Bridging-Header.h
@@ -43,3 +53,17 @@ targets:
       properties:
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
+  ScreenTakeMCP:
+    type: tool
+    platform: macOS
+    productName: screentake-mcp
+    sources:
+      - path: ScreenTakeMCP
+    settings:
+      base:
+        PRODUCT_NAME: screentake-mcp
+        PRODUCT_BUNDLE_IDENTIFIER: com.screen.ScreenTakeMCP
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "5.9"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"

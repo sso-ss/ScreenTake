@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.screentake.transcript-test</string>
+    <key>CFBundleExecutable</key>
+    <string>transcript-test</string>
+    <key>CFBundleName</key>
+    <string>ScreenTake Transcript Test</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Test on-device transcription of a local audio file.</string>
+</dict>
+</plist>
