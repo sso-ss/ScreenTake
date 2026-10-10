@@ -4,6 +4,17 @@ xcuserdata/
 DerivedData/
 build/
 .build/
+release/
+
+# Machine-specific Codex configuration.
+/.codex/
+
+# Python bytecode from local checks and asset scripts.
+__pycache__/
+*.pyc
+
+# Local promo export; published website media remains trackable.
+/screentake-promo.mp4
 
 # Skill pack (copilot/claude agent files)
 .github/agents/
