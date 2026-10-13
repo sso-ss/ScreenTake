@@ -4,11 +4,20 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.15 (build 17)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.16 (build 18)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.15-build17.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.16-build18.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.15
+## New in 0.1.16
+
+- Download and install updates inside ScreenTake using Sparkle. Automatic update checks show a menu bar badge; manual checks open the installer flow.
+- Open **Settings → Updates** to enable **Automatically download and install updates on quit**. This option is off by default. Future updates download in the background and install when you quit.
+- Recording, media processing, and unsaved projects block quitting or restarting for an update. Save an editable project before installing. If a restart is deferred, finish your work and choose **Install and Relaunch** in Updates settings.
+- Update feeds and downloads are signed and verified before installation.
+
+Install 0.1.16 from the DMG once to enable the new updater. Builds through 0.1.15 still require a manual installation.
+
+## Included from 0.1.15
 
 - Export more reliably when the video encoder is busy. Failed or cancelled exports preserve an existing destination file, and export failures are logged for troubleshooting.
 - Edit with shortcuts for playback, frame stepping, splitting, undo/redo, audio linking, timeline zoom, applying changes, and export. Open the timeline's **keyboard** button for the shortcut reference.
@@ -122,7 +131,7 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
 - Saved `.screentake` projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.
 - Editable source media uses local disk space. Save a `.screentake` project to continue editing later; a finished MOV does not preserve the complete editable project.
-- ScreenTake checks this repository for new releases about once a day while the app is open and ready to use. You can also choose **ScreenTake → Check for Updates…**. The reminder opens the release page; installation is manual. Version 0.1.10 can update to 0.1.11 through the previous repository, then use the current ScreenTake release page for later updates.
+- ScreenTake 0.1.16 checks a signed update feed about once a day while the app is open and ready to use. Choose **ScreenTake → Check for Updates…** for an immediate check. Automatic download and installation on quit is optional in **Settings → Updates**. Earlier builds open GitHub Releases and need one manual installation of 0.1.16.
 
 ## Feedback
 
@@ -131,3 +140,20 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 For export failures, include the exact error message, whether the video was recorded or imported, the selected export resolution, and whether camera and audio tracks were enabled.
 
 This repository contains the native app sources, editable promo projects, public website, and release installers. The screenshots show the native Mac app; website animations are demonstrations.
+
+## Build from source
+
+The 0.1.16 installer is published ahead of its app source changes. The published source currently builds 0.1.14.
+
+On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](../AGENTS.md) for signing requirements and [docs](../docs) for implementation and validation notes.
+
+## Development checks
+
+Standalone Swift checks and their Python MCP companion live in [Tests/](../Tests). Run checks from the repository root:
+
+```sh
+python3 tools/run_swift_checks.py Tests/test_editor_session.swift
+python3 tools/run_swift_checks.py --render-only Tests/test_video_trim.swift
+```
+
+The runner also accepts a bare filename such as `test_editor_session.swift`. See [Tests/README.md](../Tests/README.md) for details.

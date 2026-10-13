@@ -3,18 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScreenTake 0.1.15 — Release notes</title>
+  <title>ScreenTake 0.1.16 — Release notes</title>
   <link rel="icon" href="assets/mark.svg?v=2">
   <link rel="stylesheet" href="styles.css?v=38">
 </head>
 <body>
   <main class="container section release-notes">
     <a href="index.html">← Back to ScreenTake</a>
-    <p class="eyebrow">BETA · BUILD 17</p>
-    <h1>ScreenTake 0.1.15</h1>
-    <p>More reliable exports, faster editing with keyboard shortcuts, and camera mirroring you can control.</p>
+    <p class="eyebrow">BETA · BUILD 18</p>
+    <h1>ScreenTake 0.1.16</h1>
+    <p>Update inside ScreenTake, with optional automatic downloads and installation when you quit.</p>
 
     <h2>What’s new</h2>
+    <ul>
+      <li>Check, download, and install updates inside ScreenTake with Sparkle. Background checks use a persistent menu bar badge.</li>
+      <li>Enable automatic downloads and installation on quit in Settings → Updates. Automatic installation is optional and off by default.</li>
+      <li>Recording, media processing, and unsaved projects block a restart. Save your editable project first; deferred restarts can be resumed with Install and Relaunch in Updates settings.</li>
+      <li>Update feeds and downloads are signed and verified before installation.</li>
+    </ul>
+    <p>Install 0.1.16 from the DMG once to enable the new updater. Builds through 0.1.15 require a manual installation.</p>
+    <h2>Included from 0.1.15</h2>
     <ul>
       <li>Export more reliably when the video encoder is busy. Failed or cancelled exports preserve an existing destination file, and failures are logged for troubleshooting.</li>
       <li>Edit with shortcuts for playback, frame stepping, splitting, undo/redo, audio linking, timeline zoom, applying changes, and export. Open the timeline’s keyboard button for the full shortcut reference.</li>
@@ -44,11 +52,11 @@
       <li>Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.</li>
     </ul>
 
-    <a class="button primary" href="downloads/ScreenTake-0.1.15-build17.dmg" download>Download 0.1.15 for Apple Silicon</a>
-    <p><a href="downloads/ScreenTake-0.1.15-build17.dmg.sha256">SHA-256 checksum</a> · Beta build 17</p>
+    <a class="button primary" href="downloads/ScreenTake-0.1.16-build18.dmg" download>Download 0.1.16 for Apple Silicon</a>
+    <p><a href="downloads/ScreenTake-0.1.16-build18.dmg.sha256">SHA-256 checksum</a> · Beta build 18</p>
 
     <h2>Install</h2>
-    <p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it. Update reminders open a download page; installation remains manual.</p>
+    <p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it. This one-time manual installation enables in-app updates. Use ScreenTake → Check for Updates… or enable automatic downloads and installation on quit in Settings → Updates.</p>
 
     <h2>Beta notes</h2>
     <p>The app and installer are signed with a Developer ID certificate, and Apple has notarized the installer. Make a short test recording and check your export before sharing. Smart zoom and device reliability are still being refined.</p>
