@@ -3,18 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScreenTake 0.1.14 — Release notes</title>
+  <title>ScreenTake 0.1.15 — Release notes</title>
   <link rel="icon" href="assets/mark.svg?v=2">
   <link rel="stylesheet" href="styles.css?v=38">
 </head>
 <body>
   <main class="container section release-notes">
     <a href="index.html">← Back to ScreenTake</a>
-    <p class="eyebrow">BETA · BUILD 16</p>
-    <h1>ScreenTake 0.1.14</h1>
-    <p>Sharper screen detail, quicker editing after Stop, and a timeline that stays in sync.</p>
+    <p class="eyebrow">BETA · BUILD 17</p>
+    <h1>ScreenTake 0.1.15</h1>
+    <p>More reliable exports, faster editing with keyboard shortcuts, and camera mirroring you can control.</p>
 
     <h2>What’s new</h2>
+    <ul>
+      <li>Export more reliably when the video encoder is busy. Failed or cancelled exports preserve an existing destination file, and failures are logged for troubleshooting.</li>
+      <li>Edit with shortcuts for playback, frame stepping, splitting, undo/redo, audio linking, timeline zoom, applying changes, and export. Open the timeline’s keyboard button for the full shortcut reference.</li>
+      <li>Choose Mirror Camera before recording or while editing. Mirroring applies consistently to the live camera preview, editor preview, and exported video, and is retained in saved projects. Existing projects keep their original orientation.</li>
+    </ul>
+
+    <h2>Included from 0.1.14</h2>
     <ul>
       <li>Open the editor sooner after stopping. Effects render when you apply changes or download your finished video.</li>
       <li>Keep native screen detail, including odd-sized window captures, with original-size content placed at 1×.</li>
@@ -37,7 +44,8 @@
       <li>Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.</li>
     </ul>
 
-    <a class="button primary" href="downloads/ScreenTake-0.1.14-build16.dmg" download>Download 0.1.14 for Apple Silicon</a>
+    <a class="button primary" href="downloads/ScreenTake-0.1.15-build17.dmg" download>Download 0.1.15 for Apple Silicon</a>
+    <p><a href="downloads/ScreenTake-0.1.15-build17.dmg.sha256">SHA-256 checksum</a> · Beta build 17</p>
 
     <h2>Install</h2>
     <p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it. Update reminders open a download page; installation remains manual.</p>

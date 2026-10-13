@@ -4,11 +4,17 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.14 (build 16)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.15 (build 17)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.14-build16.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.15-build17.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.14
+## New in 0.1.15
+
+- Export more reliably when the video encoder is busy. Failed or cancelled exports preserve an existing destination file, and export failures are logged for troubleshooting.
+- Edit with shortcuts for playback, frame stepping, splitting, undo/redo, audio linking, timeline zoom, applying changes, and export. Open the timeline's **keyboard** button for the shortcut reference.
+- Choose **Mirror Camera** in the Camera panel before recording or while editing. Mirroring applies consistently to the live camera preview, editor preview, and exported video, and is retained in saved projects. Existing projects keep their original orientation.
+
+## Included from 0.1.14
 
 - Open the editor sooner after stopping a recording. Video effects render when you apply changes or download your finished video.
 - Retain native screen detail, including odd-sized window captures, and avoid scaling original-size content at 1×.
@@ -50,11 +56,11 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Screen capture | Choose a display or window; record at 30 or 60 FPS; pause, resume, and stop from the native capture toolbar or keyboard shortcuts. |
 | Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
 | Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
-| Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Undo and redo timeline edits; zoom the timeline and scrub the preview. |
+| Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Use editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
 | Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
 | Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor; adjust zoom strength and focus for eligible recordings. |
-| Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
+| Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop corners, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose built-in wallpapers, including Prism, Lagoon, Ember, and Midnight. Toggle the background for an original-size desktop canvas. |
 | Preview and export | Preview edits immediately after recording; render effects when applying changes or exporting a MOV. Save a .screentake project to retain source media and edits. Recordings and editable source files stay on your Mac. |
@@ -69,20 +75,47 @@ Select your microphone above **Record Voiceover** in the Audio panel. The select
 4. Open ScreenTake and allow Screen Recording, Microphone, and Camera access when needed.
 5. Make a short test recording and check the exported video and audio before sharing.
 
-Use **File → Save Project…** to retain source media, capture data, and edits in a `.screentake` project. Use the download control to export a finished MOV.
+Use **File → Save Project…** to retain source media, capture data, and edits in a `.screentake` project. Use **File → Export Video…** or the **Download** control to export a finished MOV; pending edits render before the file is saved.
 
 This build is signed with a Developer ID certificate and notarized by Apple. If macOS blocks the first launch, confirm you downloaded the current DMG and report the exact message. Do not disable macOS security protections.
 
 ## Keyboard shortcuts
+
+These editing shortcuts are available in 0.1.15. Click the timeline's **keyboard** button to see them in the app.
+
+### Editing and files
+
+| Shortcut | Action |
+| --- | --- |
+| Space | Play or pause the editor preview. |
+| J / K / L | Play in reverse / pause / play forward. |
+| Left / Right Arrow | Step backward or forward one frame with the timeline focused. |
+| Shift + Left / Right Arrow | Seek backward or forward one second with the timeline focused. |
+| Command + Left / Right Arrow | Go to the start or end of the edited video. |
+| Home / End | Go to the start or end of the edited video. |
+| Command + B | Split the selected track at the playhead, or the screen track when no track is selected. |
+| Command + Z | Undo the last edit. |
+| Command + Shift + Z | Redo the last edit. |
+| Delete | Remove the selected clip, camera take, voiceover, or zoom section with the timeline focused. |
+| Command + Shift + L | Link or unlink the selected recorded audio/video section. |
+| Command + = / Command + - | Zoom the timeline in or out. |
+| Command + Shift + Return | Apply pending changes. |
+| Command + E / Command + S | Open the Save dialog to export the finished video. |
+| Command + Shift + S | Save an editable `.screentake` project. |
+| Command + O | Open a video for editing. |
+| Command + Shift + O | Open an editable project. |
+
+Playback keys work while the editor is active and yield to text fields and dialogs. Click a timeline clip to focus the timeline for frame stepping, one-second seeks, and deletion. Editing actions are unavailable while recording or processing media.
+
+### During recording
 
 | Shortcut | Action |
 | --- | --- |
 | Control + Z | Toggle manual zoom during recording. |
 | Control + Space | Pause or resume recording. |
 | Escape | Stop recording. |
-| Command + S | Open the Save dialog when the recording preview is ready. |
 
-The recording shortcuts work across apps. Plain Z and Space also toggle zoom and pause when ScreenTake has keyboard focus. Control + Space can conflict with macOS input-language switching; use the capture toolbar if needed.
+The recording shortcuts work across apps. During recording, plain Z and Space also toggle zoom and pause when the capture toolbar has keyboard focus. Control + Space can conflict with macOS input-language switching; use the capture toolbar if needed.
 
 ## Current limitations and updates
 
@@ -95,9 +128,13 @@ The recording shortcuts work across apps. Plain Z and Space also toggle zoom and
 
 [Report an issue](https://github.com/sso-ss/ScreenTake/issues) with your Mac model, macOS version, ScreenTake version, and steps to reproduce the problem. Remove private information from screenshots and recordings before sharing them.
 
+For export failures, include the exact error message, whether the video was recorded or imported, the selected export resolution, and whether camera and audio tracks were enabled.
+
 This repository contains the native app sources, editable promo projects, public website, and release installers. The screenshots show the native Mac app; website animations are demonstrations.
 
 ## Build from source
+
+The 0.1.15 installer is published ahead of its app source changes. The published source currently builds 0.1.14.
 
 On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
 
