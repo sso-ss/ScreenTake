@@ -4,18 +4,24 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.16 (build 18)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.17 (build 19)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.16-build18.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.17-build19.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.16
+## New in 0.1.17
+
+- Clear obsolete and intermediate files from imported-video exports to reduce temporary disk use. Original media, the current result, Undo references, and saved projects are preserved.
+- Keep generated frames evenly spaced during long exports with many zooms, including imported videos with sparse frame timing.
+- Validated a 15-minute imported video with 300 zooms and audio at 1080p. The exact user-reported failure could not be confirmed without the original clip or error message.
+
+## Included from 0.1.16
 
 - Download and install updates inside ScreenTake using Sparkle. Automatic update checks show a menu bar badge; manual checks open the installer flow.
 - Open **Settings → Updates** to enable **Automatically download and install updates on quit**. This option is off by default. Future updates download in the background and install when you quit.
 - Recording, media processing, and unsaved projects block quitting or restarting for an update. Save an editable project before installing. If a restart is deferred, finish your work and choose **Install and Relaunch** in Updates settings.
 - Update feeds and downloads are signed and verified before installation.
 
-Install 0.1.16 from the DMG once to enable the new updater. Builds through 0.1.15 still require a manual installation.
+Install 0.1.16 or later from the DMG once to enable the new updater. Builds through 0.1.15 still require a manual installation.
 
 ## Included from 0.1.15
 
@@ -90,7 +96,7 @@ This build is signed with a Developer ID certificate and notarized by Apple. If 
 
 ## Keyboard shortcuts
 
-These editing shortcuts are available in 0.1.15. Click the timeline's **keyboard** button to see them in the app.
+These editing shortcuts are available in 0.1.15 and later. Click the timeline's **keyboard** button to see them in the app.
 
 ### Editing and files
 
@@ -131,7 +137,7 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
 - Saved `.screentake` projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.
 - Editable source media uses local disk space. Save a `.screentake` project to continue editing later; a finished MOV does not preserve the complete editable project.
-- ScreenTake 0.1.16 checks a signed update feed about once a day while the app is open and ready to use. Choose **ScreenTake → Check for Updates…** for an immediate check. Automatic download and installation on quit is optional in **Settings → Updates**. Earlier builds open GitHub Releases and need one manual installation of 0.1.16.
+- ScreenTake 0.1.16 and later check a signed update feed about once a day while the app is open and ready to use. Choose **ScreenTake → Check for Updates…** for an immediate check. Automatic download and installation on quit is optional in **Settings → Updates**. Earlier builds open GitHub Releases and need one manual installation of 0.1.16 or later.
 
 ## Feedback
 
@@ -143,7 +149,7 @@ This repository contains the native app sources, editable promo projects, public
 
 ## Build from source
 
-The 0.1.16 installer is published ahead of its app source changes. The published source currently builds 0.1.14.
+The 0.1.17 installer is published ahead of its app source changes. The published source currently builds 0.1.14.
 
 On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
 
