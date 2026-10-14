@@ -70,7 +70,8 @@ enum EditorAudio {
 
     static func export(video: URL, originalEnabled: Bool, originalVolume: Double,
                        clips: [VoiceOverClip], voiceOverVolume: Double,
-                       recordedSource: URL? = nil, recordedClips: [MediaTimelineClip]? = nil) async throws -> URL {
+                       recordedSource: URL? = nil, recordedClips: [MediaTimelineClip]? = nil,
+                       outputDirectory: URL? = nil) async throws -> URL {
         if recordedClips == nil && clips.isEmpty && originalEnabled && originalVolume == 1 { return video }
         let asset = AVURLAsset(url: video)
         let duration = try await asset.load(.duration)
@@ -92,7 +93,8 @@ enum EditorAudio {
         guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
             throw VideoTrimError.exportFailed
         }
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("ScreenTake-audio-\(UUID().uuidString).mov")
+        let output = (outputDirectory ?? FileManager.default.temporaryDirectory)
+            .appendingPathComponent("ScreenTake-audio-\(UUID().uuidString).mov")
         exporter.outputURL = output
         exporter.outputFileType = .mov
         exporter.timeRange = CMTimeRange(start: .zero, duration: duration)

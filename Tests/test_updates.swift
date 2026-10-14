@@ -1,145 +1,60 @@
 import AppKit
 import Foundation
+import Sparkle
 
 @main
-struct UpdateCheckerTest {
-    static func release(_ version: String, host: String = "github.com", prerelease: Bool = false, draft: Bool = false, asset: Bool = true, assetPrefix: String = "ScreenTake-") -> ScreenRelease {
-        ScreenRelease(tag_name: "v\(version)", html_url: URL(string: "https://\(host)/sso-ss/ScreenTake/releases/tag/v\(version)")!, body: "Update notes", draft: draft, prerelease: prerelease,
-                      assets: asset ? [.init(name: "\(assetPrefix)\(version)-build4.dmg")] : [])
-    }
-
+struct UpdateCheckerTests {
     @MainActor
-    static func main() async throws {
-        let suite = "ScreenUpdateTests.\(UUID().uuidString)"
+    static func main() throws {
+        let suite = "ScreenTake.UpdateTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        var date = Date(timeIntervalSince1970: 1_800_000_000)
-        var requests = 0
-        var latest = release("0.1.3")
-        let checker = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", now: { date }, fetch: {
-            requests += 1
-            return latest
-        })
-        precondition(release("0.1.10").isNewer(than: "0.1.9"))
-        precondition(!release("0.1.6", assetPrefix: "ScreenTake-share-").isNewer(than: "0.1.5"))
-        precondition(!release("0.1.2").isNewer(than: "0.1.2"))
-        precondition(!release("0.1.1").isNewer(than: "0.1.2"))
-        precondition(!release("0.1.2.0").isNewer(than: "0.1.2"))
-        for version in ["1..2", "1.2-beta", "1.2.3.4.5", "999999999999999999999999"] {
-            precondition(!release(version).isNewer(than: "0.1.2"))
+
+        let checker = UpdateChecker(defaults: defaults, installedBuild: "18")
+        precondition(checker.automaticallyChecksForUpdates)
+        precondition(!checker.automaticallyDownloadsUpdates)
+        checker.automaticallyChecksForUpdates = false
+        checker.automaticallyDownloadsUpdates = true
+        let relaunched = UpdateChecker(defaults: defaults, installedBuild: "18")
+        precondition(!relaunched.automaticallyChecksForUpdates && relaunched.automaticallyDownloadsUpdates)
+        print("PASS: check defaults, opt-in automatic installs, and persisted preferences")
+
+        let newer = ScreenRelease(version: "0.1.17", build: "19")
+        checker.remember(newer)
+        precondition(UpdateChecker(defaults: defaults, installedBuild: "18").availableRelease == newer)
+        precondition(UpdateChecker(defaults: defaults, installedBuild: "19").availableRelease == nil)
+        defaults.set(Data("corrupt".utf8), forKey: "updates.sparkleRelease")
+        precondition(UpdateChecker(defaults: defaults, installedBuild: "18").availableRelease == nil)
+        precondition(!ScreenRelease(version: "invalid", build: "beta").isNewer(than: "18"))
+        precondition(!ScreenRelease(version: "0.1.16", build: "18").isNewer(than: "18"))
+        checker.remember(newer)
+        checker.remember(nil)
+        precondition(defaults.data(forKey: "updates.sparkleRelease") == nil)
+        print("PASS: available badge survives relaunch, installed/withdrawn badge clears, corrupt cache rejected")
+
+        precondition(UpdateSafety().canCheck && UpdateSafety().canRestart)
+        let dirty = UpdateSafety(unsavedWork: true)
+        precondition(dirty.canCheck && !dirty.canRestart)
+        for unsafe in [UpdateSafety(recording: true), UpdateSafety(processing: true),
+                       UpdateSafety(selecting: true), UpdateSafety(setupComplete: false)] {
+            precondition(!unsafe.canCheck && !unsafe.canRestart)
         }
-        precondition(!release("0.1.3", host: "example.com").isNewer(than: "0.1.2"))
-        precondition(!release("0.1.3", prerelease: true).isNewer(than: "0.1.2"))
-        precondition(!release("0.1.3", draft: true).isNewer(than: "0.1.2"))
-        precondition(!release("0.1.3", asset: false).isNewer(than: "0.1.2"))
-        print("PASS: numeric version comparison, malformed releases, trusted links, downloadable assets")
+        print("PASS: recording, export/processing, capture selection, onboarding and unsaved restart protection")
 
-        await checker.check()
-        precondition(requests == 1 && checker.pendingRelease == latest)
-        precondition(checker.availableRelease == latest)
-        await checker.check()
-        precondition(requests == 1)
-        checker.dismissUpdate()
-        precondition(checker.pendingRelease == nil && checker.availableRelease == latest)
-        let cached = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", now: { date }, fetch: { latest })
-        precondition(cached.availableRelease == latest && cached.pendingRelease == nil)
-        cached.showAvailableUpdate()
-        precondition(cached.pendingRelease == latest)
-        cached.dismissUpdate()
-        date.addTimeInterval(UpdateChecker.interval - 1)
-        await checker.check()
-        precondition(requests == 1 && checker.pendingRelease == nil)
-        date.addTimeInterval(1)
-        await checker.check()
-        precondition(requests == 2 && checker.pendingRelease == latest)
-        checker.dismissUpdate()
-        // Old skipped-version preferences must not suppress reminders after upgrading.
-        defaults.set(latest.tag_name, forKey: "updates.skippedVersion")
-        date.addTimeInterval(UpdateChecker.interval)
-        let restarted = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", now: { date }, fetch: { latest })
-        await restarted.check()
-        precondition(restarted.pendingRelease == latest)
-        restarted.dismissUpdate()
-        await restarted.check(manual: true)
-        precondition(restarted.pendingRelease == latest)
-        restarted.dismissUpdate()
-        latest = release("0.1.4")
-        date.addTimeInterval(UpdateChecker.interval)
-        await restarted.check()
-        precondition(restarted.pendingRelease == latest)
-        precondition(restarted.availableRelease == latest)
-        print("PASS: daily throttle, reminders after restart, legacy skip ignored, manual override, subsequent releases")
-
-        let upgraded = UpdateChecker(defaults: defaults, installedVersion: "0.1.4", fetch: { latest })
-        precondition(upgraded.availableRelease == nil)
-        precondition(defaults.data(forKey: "updates.availableRelease") == nil)
-        print("PASS: update badge persists after dismissal/relaunch and clears after installing the release")
-
-        let updateAlert = UpdateChecker.makeUpdateAlert(release: latest, installedVersion: "0.1.2")
-        precondition(updateAlert.buttons.map(\.title) == ["Download Update", "Remind Me Later"])
-        precondition(updateAlert.buttons[0].keyEquivalent == "\r")
-        precondition(updateAlert.buttons[0].bezelColor == .controlAccentColor)
-        precondition(updateAlert.buttons[1].keyEquivalent == "\u{1b}")
-        print("PASS: accented default download button and single dismissal action")
-
-        let offline = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", fetch: { throw URLError(.notConnectedToInternet) })
-        defaults.removeObject(forKey: "updates.lastCheck")
-        await offline.check()
-        precondition(offline.feedback == nil && !offline.isChecking)
-        await offline.check(manual: true)
-        precondition(offline.feedback?.contains("Unable") == true)
-        defaults.set(try JSONEncoder().encode(latest), forKey: "updates.availableRelease")
-        let cachedOffline = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", fetch: { throw URLError(.notConnectedToInternet) })
-        await cachedOffline.check(manual: true)
-        precondition(cachedOffline.availableRelease == latest)
-        let withdrawn = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", fetch: { release("0.1.2") })
-        await withdrawn.check(manual: true)
-        precondition(withdrawn.availableRelease == nil && withdrawn.pendingRelease == nil)
-        precondition(defaults.data(forKey: "updates.availableRelease") == nil)
-        let upToDate = UpdateChecker(defaults: defaults, installedVersion: "0.1.4", fetch: { release("0.1.4") })
-        await upToDate.check(manual: true)
-        precondition(upToDate.pendingRelease == nil && upToDate.feedback?.contains("No newer") == true)
-        print("PASS: silent automatic network failure and manual error/up-to-date feedback")
-
-        for cachedRelease in [release("0.1.5", host: "example.com"), release("0.1.5", draft: true), release("0.1.5", asset: false)] {
-            defaults.set(try JSONEncoder().encode(cachedRelease), forKey: "updates.availableRelease")
-            let invalidCache = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", fetch: { latest })
-            precondition(invalidCache.availableRelease == nil)
+        let info = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: "Screen/Info.plist")), format: nil) as! [String: Any]
+        precondition(info["SUFeedURL"] as? String == "https://sso-ss.github.io/ScreenTake/appcast.xml")
+        precondition(info["SUPublicEDKey"] as? String == "8ZGF+YBJisBtZCmLfs6sY+87Y2zJaqzN0Kolz70lmbE=")
+        precondition(info["SURequireSignedFeed"] as? Bool == true)
+        precondition(info["SUVerifyUpdateBeforeExtraction"] as? Bool == true)
+        precondition(info["SUAutomaticallyUpdate"] as? Bool == false)
+        for selector in ["updater:mayPerformUpdateCheck:error:", "updater:didFindValidUpdate:",
+                         "updaterDidNotFindUpdate:error:", "updater:didFinishUpdateCycleForUpdateCheck:error:",
+                         "updater:shouldPostponeRelaunchForUpdate:untilInvokingBlock:",
+                         "standardUserDriverShouldHandleShowingScheduledUpdate:andInImmediateFocus:",
+                         "standardUserDriverWillHandleShowingUpdate:forUpdate:state:"] {
+            precondition(checker.responds(to: NSSelectorFromString(selector)), "Missing Sparkle callback: \(selector)")
         }
-        defaults.set(Data("bad cached data".utf8), forKey: "updates.availableRelease")
-        let corruptCache = UpdateChecker(defaults: defaults, installedVersion: "0.1.2", fetch: { latest })
-        precondition(corruptCache.availableRelease == nil)
-        print("PASS: offline badge retained, withdrawn release cleared, invalid cache rejected")
-
-        precondition(UpdateChecker.canPresent(active: true, recording: false, processing: false, selecting: false, setupComplete: true))
-        precondition(!UpdateChecker.canPresent(active: false, recording: false, processing: false, selecting: false, setupComplete: true))
-        precondition(!UpdateChecker.canPresent(active: true, recording: true, processing: false, selecting: false, setupComplete: true))
-        precondition(!UpdateChecker.canPresent(active: true, recording: false, processing: true, selecting: false, setupComplete: true))
-        precondition(!UpdateChecker.canPresent(active: true, recording: false, processing: false, selecting: true, setupComplete: true))
-        precondition(!UpdateChecker.canPresent(active: true, recording: false, processing: false, selecting: false, setupComplete: false))
-        print("PASS: inactive, recording, export, capture selection, and onboarding safety gates")
-
-        if CommandLine.arguments.contains("--live") {
-            let live = try await UpdateChecker.fetchLatest()
-            precondition(live.html_url.host == "github.com" && !live.assets.isEmpty)
-            print("PASS: live GitHub release \(live.tag_name)")
-        }
-        if CommandLine.arguments.contains("--preview") {
-            let application = NSApplication.shared
-            application.setActivationPolicy(.accessory)
-            let alert = UpdateChecker.makeUpdateAlert(release: release("0.1.3"), installedVersion: "0.1.2")
-            alert.messageText += " (Preview)"
-            alert.layout()
-            alert.window.center()
-            alert.window.makeKeyAndOrderFront(nil)
-            application.activate(ignoringOtherApps: true)
-            RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-            let content = alert.window.contentView!
-            let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds)!
-            content.cacheDisplay(in: content.bounds, to: bitmap)
-            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "/tmp/Screen-update-preview.png"))
-            alert.window.orderOut(nil)
-            print("PASS: native update dialog preview at /tmp/Screen-update-preview.png")
-        }
+        precondition(checker.supportsGentleScheduledUpdateReminders)
+        print("PASS: pinned HTTPS feed/key, required signed feeds and archives, non-interrupting background reminders")
     }
 }

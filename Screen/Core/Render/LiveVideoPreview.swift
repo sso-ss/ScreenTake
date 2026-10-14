@@ -49,7 +49,8 @@ enum LiveVideoPreview {
             keyframes = try await ClickZoomGenerator.generate(
                 from: mouseURL,
                 sourceVideoURL: request.source,
-                settings: .init(zoomLevel: request.settings.zoomLevel),
+                settings: .init(zoomLevel: request.settings.zoomLevel,
+                                transitionMotion: request.settings.zoomTransitionMotion ?? .smooth),
                 segments: request.settings.zoomSegments
             )
         } else { keyframes = [] }

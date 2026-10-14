@@ -100,6 +100,7 @@ final class CaptureSettings: ObservableObject {
             if newValue { isMicrophoneEnabled = true }
         }
     }
+    @AppStorage("isCameraMirrored") var isCameraMirrored = false
     @AppStorage("selectedWebcamDeviceID") var selectedWebcamDeviceID: String = ""
     @AppStorage("webcamPiPPositionRaw") var webcamPiPPositionRaw: String = PiPPosition.bottomRight.rawValue
     @AppStorage("webcamPiPSizeRaw") var webcamPiPSizeRaw: String = PiPSize.medium.rawValue

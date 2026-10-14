@@ -17,6 +17,7 @@ echo "Building ScreenTake..."
 xcodebuild \
   -project "$PROJECT_DIR/Screen.xcodeproj" \
   -scheme Screen \
+  -packageAuthorizationProvider netrc \
   -configuration "$BUILD_CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA_DIR" \
   CODE_SIGN_IDENTITY="Developer ID Application: So Eun Ahn (43LSH32H5S)" \
@@ -24,6 +25,8 @@ xcodebuild \
   CODE_SIGNING_REQUIRED=YES \
   "${SIGNING_FLAGS[@]}" \
   build
+
+"$PROJECT_DIR/distribution/sign-sparkle.sh" "$APP_PATH"
 
 echo "Opening ScreenTake..."
 open "$APP_PATH"

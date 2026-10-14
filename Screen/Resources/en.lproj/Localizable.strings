@@ -264,3 +264,39 @@
 "Face definition" = "Face definition";
 
 "Under-eye shadow" = "Under-eye shadow";
+
+"Mirror Camera" = "Mirror Camera";
+"Flip the camera horizontally in preview and export." = "Flip the camera horizontally in preview and export.";
+"Editing shortcuts" = "Editing shortcuts";
+"Play / Pause" = "Play / Pause";
+"Reverse / Pause / Play" = "Reverse / Pause / Play";
+"Previous / Next Frame" = "Previous / Next Frame";
+"Seek One Second" = "Seek One Second";
+"Go to start / end" = "Go to start / end";
+"Split at Playhead" = "Split at Playhead";
+"Undo / Redo" = "Undo / Redo";
+"Delete Selection" = "Delete Selection";
+"Link / Unlink Audio" = "Link / Unlink Audio";
+"Zoom Timeline In / Out" = "Zoom Timeline In / Out";
+"Export Video…" = "Export Video…";
+"Playback keys are available while editing, outside text fields." = "Playback keys are available while editing, outside text fields.";
+
+// Automatic updates
+"Updates" = "Updates";
+"Automatically check for updates" = "Automatically check for updates";
+"Automatically download and install updates on quit" = "Automatically download and install updates on quit";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "Updates install when you quit. Recording, media processing, and unsaved projects must finish first.";
+"Automatic installation is optional. You can always check and install updates manually here." = "Automatic installation is optional. You can always check and install updates manually here.";
+"Install and Relaunch" = "Install and Relaunch";
+"ScreenTake is keeping your work safe" = "ScreenTake is keeping your work safe";
+"Finish recording before updating or quitting." = "Finish recording before updating or quitting.";
+"Wait for media processing to finish before updating or quitting." = "Wait for media processing to finish before updating or quitting.";
+"Close the capture controls before updating or quitting." = "Close the capture controls before updating or quitting.";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "Save your project before installing the update or quitting. Exporting a video does not save the editable project.";
+"Complete permission setup before checking for updates." = "Complete permission setup before checking for updates.";
+"You’re up to date." = "You’re up to date.";
+"Unable to check for updates. Try again later." = "Unable to check for updates. Try again later.";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "Unable to start the updater. Reinstall the latest ScreenTake build.";
+
+"Zoom transition" = "Zoom transition";
+"Zoom transition motion" = "Zoom transition motion";

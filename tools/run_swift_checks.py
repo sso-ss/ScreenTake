@@ -33,6 +33,11 @@ def main():
                         "-o", str(exception_object)], check=True, cwd=root)
         sources = sorted(str(p) for p in (root / "Screen").rglob("*.swift") if p.name != "ScreenApp.swift")
         environment = dict(os.environ)
+        sparkle = root / ".build/DerivedData/Build/Products/Release"
+        if not (sparkle / "Sparkle.framework").is_dir():
+            sparkle = root / ".build/SparkleTools"
+        if not (sparkle / "Sparkle.framework").is_dir():
+            parser.error("Build ScreenTake first to resolve the Sparkle framework.")
         if any(check.name == "test_editor_mcp.swift" for check in checks):
             helper = build / "screentake-mcp"
             subprocess.run(["xcrun", "swiftc", "-parse-as-library", "-swift-version", "5",
@@ -49,7 +54,7 @@ def main():
             if check.name == "test_video_trim.swift":
                 command += [str(root / "Screen/Core/Recording/MediaMuxer.swift"), str(root / "Screen/App/Log.swift")]
             else:
-                command += ["-I", str(root / "Screen/Core/Recording"), "-import-objc-header",
+                command += ["-F", str(sparkle), "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", str(sparkle), "-I", str(root / "Screen/Core/Recording"), "-import-objc-header",
                             str(root / "Screen/Screen-Bridging-Header.h"), *sources, str(app), str(exception_object)]
             print(f"Compiling {check.name}…", flush=True)
             subprocess.run([*command, str(check), "-o", str(executable)], check=True, cwd=root)

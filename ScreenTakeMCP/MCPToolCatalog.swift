@@ -54,12 +54,13 @@ enum MCPToolCatalog {
         "phoneMode": choices("fit", "fill"), "phoneVideoURL": fileURL,
         "showCursor": boolean, "cursorShape": choices("arrow", "hand", "circle"), "cursorScale": number(0.5, 3),
         "zoomEnabled": boolean, "zoomLevel": number(1, 10),
+        "zoomTransitionMotion": choices("smooth", "linear", "easeIn", "easeOut"),
         "zoomSegments": array(object([
             "id": uuid, "start": time, "end": time, "zoom": number(1, 10), "centerX": number(0, 1),
             "centerY": number(0, 1), "followsCursor": boolean
         ], required: ["id", "start", "end", "zoom", "centerX", "centerY", "followsCursor"])),
         "restoreAutomaticZooms": boolean,
-        "webcamEnabled": boolean, "webcamShape": choices("circle", "roundedSquare"),
+        "webcamEnabled": boolean, "cameraMirrored": boolean, "webcamShape": choices("circle", "roundedSquare"),
         "webcamPosition": choices("topLeft", "topCenter", "topRight", "middleLeft", "center", "middleRight", "bottomLeft", "bottomCenter", "bottomRight"),
         "webcamSize": choices("small", "medium", "large"), "videoOverlayURL": fileURL, "cameraLayout": camera,
         "faceBeautyAmount": number(0, 1),

@@ -398,7 +398,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
             pipSize: capture.webcamPiPSize,
             shape: capture.webcamPiPShape,
             screenBounds: bounds,
-            beautyAmount: capture.faceBeautyAmount, makeup: capture.faceMakeup
+            beautyAmount: capture.faceBeautyAmount, makeup: capture.faceMakeup, mirrored: capture.isCameraMirrored
         )
     }
 

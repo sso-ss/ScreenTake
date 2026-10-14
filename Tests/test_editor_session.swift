@@ -2,11 +2,13 @@ import AppKit
 import AVFoundation
 import CoreImage
 import SwiftUI
+import Darwin
 
 @main
 struct EditorSessionChecks {
     @MainActor
     static func main() async throws {
+        setbuf(stdout, nil)
         NSApplication.shared.setActivationPolicy(.accessory)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("editor-session-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -128,6 +130,38 @@ struct EditorSessionChecks {
         precondition(remainingSource == original, "Original media was modified")
         print("PASS: real export dimensions, cut pixels and audio, atomic download, and original source preservation")
 
+        // A long imported clip can produce several large intermediate files.
+        // Keep only the active render, including when the audio stage fails.
+        let firstRenderDirectory = output.deletingLastPathComponent()
+        let firstRenderFiles = try FileManager.default.contentsOfDirectory(at: firstRenderDirectory, includingPropertiesForKeys: nil)
+        precondition(firstRenderFiles.count == 1, "Trim intermediate was retained")
+        session.draft.originalAudioVolume = 0.5
+        let currentRender = try await session.applyChanges()
+        let currentDirectory = currentRender.deletingLastPathComponent()
+        precondition(!FileManager.default.fileExists(atPath: firstRenderDirectory.path), "Obsolete render was retained")
+        let currentFiles = try FileManager.default.contentsOfDirectory(at: currentDirectory, includingPropertiesForKeys: nil)
+        precondition(currentFiles.count == 1 && currentFiles[0].standardizedFileURL.resolvingSymlinksInPath()
+            == currentRender.standardizedFileURL.resolvingSymlinksInPath(), "Audio intermediate was retained")
+        let lostVoiceOver = directory.appendingPathComponent("missing-voiceover.mov")
+        session.draft.voiceOvers = [.init(url: lostVoiceOver, duration: 1, sourceDuration: 3)]
+        func renderDirectories() throws -> Set<URL> {
+            Set(try FileManager.default.contentsOfDirectory(at: FileManager.default.temporaryDirectory,
+                includingPropertiesForKeys: nil).filter { $0.lastPathComponent.hasPrefix("ScreenTake-export-") })
+        }
+        let beforeFailure = try renderDirectories()
+        do {
+            _ = try await session.applyChanges()
+            preconditionFailure("Missing voiceover succeeded")
+        } catch { }
+        let afterFailure = try renderDirectories()
+        precondition(afterFailure == beforeFailure, "Failed pipeline left partial renders")
+        precondition(session.videoURL == currentRender && FileManager.default.fileExists(atPath: currentRender.path))
+        let sourceAfterFailure = try Data(contentsOf: source)
+        let downloadAfterFailure = try Data(contentsOf: destination)
+        precondition(sourceAfterFailure == original && downloadAfterFailure == downloadedData)
+        session.draft.voiceOvers = []
+        print("PASS: obsolete and intermediate renders removed; failed audio export preserves current render and user media")
+
         // Rapid edits must publish only the newest preview, and close must invalidate it.
         session.draft.trim = VideoTrim(start: 0, end: 0.5)
         session.draft.trim = VideoTrim(start: 2, end: 3)
@@ -136,6 +170,7 @@ struct EditorSessionChecks {
         session.draft.ratio = .original
         session.close()
         await Task.yield()
+        precondition(!FileManager.default.fileExists(atPath: currentDirectory.path), "Closing the editor retained temporary renders")
         precondition(session.player == nil && session.sourceURL == nil && !session.previewReady && !session.hasUnsavedWork)
         try await session.openVideo(source)
         precondition(session.draft.trim == VideoTrim() && !session.canUndo && session.previewReady)
@@ -146,6 +181,39 @@ struct EditorSessionChecks {
         try await checkPlayback(session)
         session.close()
         print("PASS: rapid preview replacement, close cancellation, and clean session reopening")
+
+        // A render reopened as a source must survive subsequent renders. An
+        // explicitly saved project takes ownership even inside the work folder.
+        try await session.openVideo(source)
+        session.draft.originalAudioVolume = 0.4
+        let ownedSource = try await session.applyChanges()
+        try await session.openVideo(ownedSource)
+        session.draft.originalAudioVolume = 0.6
+        let replacement = try await session.applyChanges()
+        precondition(FileManager.default.fileExists(atPath: ownedSource.path), "Reopened source was removed")
+        let beforeCancellation = try renderDirectories()
+        session.draft.exportResolution = .uhd4k
+        let exportTask = Task { try await session.applyChanges() }
+        while !session.exportEngine.isExporting || session.exportEngine.progress == 0 {
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+        exportTask.cancel()
+        do { _ = try await exportTask.value; preconditionFailure("Cancelled render succeeded") }
+        catch is CancellationError { }
+        let afterCancellation = try renderDirectories()
+        precondition(beforeCancellation == afterCancellation && session.videoURL == replacement,
+                     "Cancelled pipeline left files or replaced the current render")
+        precondition(FileManager.default.fileExists(atPath: ownedSource.path))
+        session.draft.exportResolution = .preserveSource
+        let userOwnedDirectory = replacement.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: userOwnedDirectory) }
+        let savedProject = userOwnedDirectory.appendingPathComponent("user-saved.screentake")
+        try await session.saveProject(to: savedProject)
+        session.close()
+        let reopenedProject = try await EditorProjectStore.load(from: savedProject)
+        precondition(FileManager.default.fileExists(atPath: reopenedProject.source.path)
+                     && FileManager.default.fileExists(atPath: replacement.path))
+        print("PASS: cancellation cleans partial files; reopened render sources and explicitly saved projects are retained")
     }
 
     @MainActor

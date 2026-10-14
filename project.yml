@@ -11,7 +11,12 @@ settings:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: "Screen Local Development"
+    CODE_SIGN_IDENTITY: "Developer ID Application: So Eun Ahn (43LSH32H5S)"
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
 
 targets:
   Screen:
@@ -22,6 +27,7 @@ targets:
         excludes:
           - "**/.DS_Store"
     dependencies:
+      - package: Sparkle
       - target: ScreenTakeMCP
         embed: true
         codeSign: true
@@ -34,8 +40,8 @@ targets:
         PRODUCT_NAME: ScreenTake
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        MARKETING_VERSION: 0.1.14
-        CURRENT_PROJECT_VERSION: 16
+        MARKETING_VERSION: 0.1.17
+        CURRENT_PROJECT_VERSION: 19
         INFOPLIST_KEY_NSScreenCaptureUsageDescription: "ScreenTake needs screen recording access to capture your display."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "ScreenTake needs microphone access to record audio."
         INFOPLIST_KEY_CFBundleDisplayName: ScreenTake

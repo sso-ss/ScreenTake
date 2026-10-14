@@ -22,11 +22,15 @@ struct VideoEditSettings: Equatable, Codable {
     var cursorScale: Double = 1
     var zoomEnabled = false
     var zoomLevel: Double = 2
+    /// Nil keeps projects saved before motion controls on the original smooth curve.
+    var zoomTransitionMotion: ZoomTransitionMotion?
     var zoomSegments: [ZoomSegment]? = nil
     var webcamEnabled = false
     var webcamShape: PiPShape = .circle
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
+    /// Nil preserves the orientation of projects saved before mirroring was available.
+    var cameraMirrored: Bool?
     /// Optional so projects saved before beauty filtering decode with the effect off.
     var faceBeautyAmount: Double?
     var faceMakeup: FaceMakeupSettings?
@@ -95,6 +99,28 @@ enum CameraTransitionMotion: String, CaseIterable, Codable {
         case .linear: return t
         case .easeIn: return t * t
         case .easeOut: return 1 - (1 - t) * (1 - t)
+        }
+    }
+}
+
+enum ZoomTransitionMotion: String, CaseIterable, Codable {
+    case smooth, linear, easeIn, easeOut
+
+    var displayName: String {
+        switch self {
+        case .smooth: return "Smooth"
+        case .linear: return "Linear"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        }
+    }
+
+    var easing: EasingCurve {
+        switch self {
+        case .smooth: return .easeInOut
+        case .linear: return .linear
+        case .easeIn: return .easeIn
+        case .easeOut: return .easeOut
         }
     }
 }

@@ -91,6 +91,10 @@ final class WebcamRecorder: NSObject, @unchecked Sendable {
         let dimensions = CMVideoFormatDescriptionGetDimensions(camera.activeFormat.formatDescription)
         let requestedAngle: CGFloat = dimensions.height > dimensions.width ? 90 : 0
         let outputConnection = output.connection(with: .video)
+        if outputConnection?.isVideoMirroringSupported == true {
+            outputConnection?.automaticallyAdjustsVideoMirroring = false
+            outputConnection?.isVideoMirrored = false
+        }
         if #available(macOS 14.0, *) {
             rotationAngle = outputConnection?.isVideoRotationAngleSupported(requestedAngle) == true ? requestedAngle : 0
             outputConnection?.videoRotationAngle = rotationAngle
