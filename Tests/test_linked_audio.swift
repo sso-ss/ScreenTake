@@ -118,7 +118,11 @@ struct LinkedAudioChecks {
         let exported = try await EditorAudio.export(video: trimmed, originalEnabled: true, originalVolume: 1,
             clips: [], voiceOverVolume: 1, recordedSource: audio, recordedClips: settings.recordedAudioClips)
         try await verify(AVURLAsset(url: exported), expectSilence: true)
+        let originalPackets = try await compressedVideo(trimmed)
+        let exportedPackets = try await compressedVideo(exported)
+        check(originalPackets == exportedPackets, "Unity-gain audio edits must preserve compressed video samples")
         print("PASS: middle-gap exported pixels and sound")
+        print("PASS: rebuilding linked audio clips preserves video without a second encode")
         settings.trim = trim(independentRipple); settings.recordedAudioClips = independentRipple.audio
         let independentPreview = try await LiveVideoPreview.makeItem(.init(source: source, audio: audio, mouse: nil, webcam: nil, settings: settings))
         try await verify(independentPreview.asset, composition: independentPreview.videoComposition,
@@ -158,6 +162,27 @@ struct LinkedAudioChecks {
         let rendered = try await reopened.applyChanges()
         try await verify(AVURLAsset(url: rendered), expectSilence: false, videoChannels: [0, 2, -1])
         print("PASS: session Undo/Redo, existing commands, preview rebuild, project save/reopen, and actual editor export")
+    }
+    static func compressedVideo(_ url: URL) async throws -> [Data] {
+        let asset = AVURLAsset(url: url)
+        let track = try await asset.loadTracks(withMediaType: .video)[0]
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        reader.add(output)
+        check(reader.startReading(), "Read compressed video")
+        var packets: [Data] = []
+        while let sample = output.copyNextSampleBuffer() {
+            guard CMSampleBufferGetNumSamples(sample) > 0 else { continue }
+            guard let block = CMSampleBufferGetDataBuffer(sample) else { preconditionFailure("Missing compressed video") }
+            var bytes = Data(count: CMBlockBufferGetDataLength(block))
+            let status = bytes.withUnsafeMutableBytes {
+                CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: $0.count, destination: $0.baseAddress!)
+            }
+            check(status == noErr, "Read compressed video packet")
+            packets.append(bytes)
+        }
+        check(reader.status == .completed && !packets.isEmpty, "Read all compressed video samples")
+        return packets
     }
     static func makeVideo(_ url: URL) async throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)

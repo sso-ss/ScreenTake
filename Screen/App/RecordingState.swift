@@ -410,6 +410,7 @@ final class RecordingState: ObservableObject {
                 }
             }
 
+            processingStage = .processing
             let untrimmedURL = resultURL
             resultURL = try await settings.trim.export(source: untrimmedURL)
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,

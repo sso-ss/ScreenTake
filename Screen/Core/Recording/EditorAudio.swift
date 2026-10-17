@@ -89,8 +89,12 @@ enum EditorAudio {
         }
         let mix = try await mix(into: composition, duration: duration, originalVolume: originalVolume,
                                 clips: clips, voiceOverVolume: voiceOverVolume)
-        // An audio mix requires encoding; passthrough would ignore volume changes.
-        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+        // Unity-gain edits only rearrange samples. Preserve the already rendered
+        // video instead of running a second encoder while rebuilding audio clips.
+        // Real level changes still require encoding: passthrough ignores audioMix.
+        let changesLevels = (originalEnabled && originalVolume != 1) || (!clips.isEmpty && voiceOverVolume != 1)
+        let preset = changesLevels ? AVAssetExportPresetHighestQuality : AVAssetExportPresetPassthrough
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: preset) else {
             throw VideoTrimError.exportFailed
         }
         let output = (outputDirectory ?? FileManager.default.temporaryDirectory)
@@ -98,7 +102,7 @@ enum EditorAudio {
         exporter.outputURL = output
         exporter.outputFileType = .mov
         exporter.timeRange = CMTimeRange(start: .zero, duration: duration)
-        exporter.audioMix = mix
+        if changesLevels { exporter.audioMix = mix }
         await withTaskCancellationHandler {
             await exporter.export()
         } onCancel: {
