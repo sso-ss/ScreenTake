@@ -140,11 +140,17 @@ struct SettingsView: View {
 
     var body: some View {
         settingsPresentation
-        .sheet(isPresented: $isShowingAppSettings) {
+        .sheet(isPresented: $isShowingAppSettings, onDismiss: {
+            AppState.shared.updates.settingsDidClose()
+        }) {
             AppSettingsView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openAppSettings)) { _ in
             isShowingAppSettings = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .exportEditorVideo)) { _ in
+            guard !editsBusy, hasValidTimeline, let videoURL else { return }
+            presentSavePanel(for: videoURL)
         }
         .alert("Export Error", isPresented: Binding(
             get: { session.exportError != nil },
@@ -376,7 +382,7 @@ struct SettingsView: View {
                 )
             )
             if isShowingCameraPreview, let recorder = cameraPreview.recorder, cameraPreview.session != nil {
-                BeautyCameraFeedView(recorder: recorder, amount: appState.capture.faceBeautyAmount, makeup: appState.capture.faceMakeup)
+                BeautyCameraFeedView(recorder: recorder, amount: appState.capture.faceBeautyAmount, makeup: appState.capture.faceMakeup, mirrored: appState.capture.isCameraMirrored)
                     .localizedAccessibilityLabel("Live camera preview")
                     .accessibilityIdentifier("inlineCameraPreview")
             } else if isShowingCameraPreview, cameraPreview.isStarting {
@@ -647,6 +653,7 @@ struct SettingsView: View {
                     settingsToggle(icon: "plus.magnifyingglass", label: "Zoom", isOn: $session.draft.zoomEnabled)
                     if session.draft.zoomEnabled {
                         zoomLevelSlider(selection: $session.draft.zoomLevel)
+                        zoomTransitionControls
                         if let selectedZoom, session.mouseURL != nil {
                             zoomFocusControls(selectedZoom)
                         }
@@ -654,6 +661,11 @@ struct SettingsView: View {
                 }
             case .camera:
                 settingsSection("Camera") {
+                    settingsToggle(icon: "arrow.left.and.right", label: "Mirror Camera", isOn: Binding(
+                        get: { session.draft.cameraMirrored ?? false },
+                        set: { session.draft.cameraMirrored = $0 }
+                    ))
+                    .hoverHelp("Flip the camera horizontally in preview and export.")
                     beautyControls(amount: Binding(get: { sessionBeautyAmount }, set: { session.draft.faceBeautyAmount = $0 }))
                     makeupControls(settings: Binding(get: { session.draft.faceMakeup ?? .init() }, set: { session.draft.faceMakeup = $0 }))
                         .disabled(videoOverlayRecorder.isBusy)
@@ -664,7 +676,7 @@ struct SettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         if videoOverlayRecorder.isBusy {
                             if videoOverlayRecorder.session != nil, let recorder = videoOverlayRecorder.camera {
-                                BeautyCameraFeedView(recorder: recorder, amount: sessionBeautyAmount, makeup: session.draft.faceMakeup ?? .init())
+                                BeautyCameraFeedView(recorder: recorder, amount: sessionBeautyAmount, makeup: session.draft.faceMakeup ?? .init(), mirrored: session.draft.cameraMirrored ?? false)
                                     .frame(height: 140)
                                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
                             }
@@ -768,6 +780,24 @@ struct SettingsView: View {
         }
     }
 
+    private var zoomTransitionControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Zoom transition").foregroundStyle(DesignColors.primaryLabel)
+            Picker("Motion", selection: Binding(
+                get: { session.draft.zoomTransitionMotion ?? .smooth },
+                set: { session.draft.zoomTransitionMotion = $0 }
+            )) {
+                ForEach(ZoomTransitionMotion.allCases, id: \.self) { motion in
+                    Text(LocalizedStringKey(motion.displayName)).tag(motion)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity)
+            .localizedAccessibilityLabel("Zoom transition motion")
+            .accessibilityIdentifier("zoomTransitionMotion")
+        }
+    }
+
     private func zoomFocusControls(_ segment: ZoomSegment) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(LocalizedStringKey(String(format: AppLanguage.text("Zoom at %.1fs"), locale: AppLanguage.current.locale, segment.start)))
@@ -829,7 +859,8 @@ struct SettingsView: View {
             }
             .buttonStyle(CompactActionButtonStyle(size: .medium))
             .disabled(!hasEditChanges || !hasValidTimeline || editsBusy || appState.updates.isPresenting)
-            .hoverHelp(applyDisabledReason ?? "Render the video with your current edits.")
+            .keyboardShortcut(.return, modifiers: [.command, .shift])
+            .hoverHelp(applyDisabledReason ?? "Render the video with your current edits. ⇧⌘Return")
             .accessibilityIdentifier("applyVideoChanges")
             Button {
                 if let videoURL { presentSavePanel(for: videoURL) }
@@ -928,6 +959,11 @@ struct SettingsView: View {
                             .font(Typography.caption)
                             .foregroundStyle(DesignColors.secondaryLabel)
                         webcamDevicePicker
+                        settingsToggle(icon: "arrow.left.and.right", label: "Mirror Camera", isOn: Binding(
+                            get: { appState.capture.isCameraMirrored },
+                            set: { appState.capture.isCameraMirrored = $0 }
+                        ))
+                            .hoverHelp("Flip the camera horizontally in preview and export.")
                         webcamShapePicker(selection: Binding(
                             get: { appState.capture.webcamPiPShape },
                             set: { appState.capture.webcamPiPShape = $0 }
@@ -2333,7 +2369,7 @@ final class TimelinePlayback: ObservableObject {
         detach()
         self.player = player
         seconds = player.currentTime().seconds.isFinite ? player.currentTime().seconds : 0
-        isPlaying = player.rate > 0
+        isPlaying = player.rate != 0
         observer = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 30), queue: .main) { [weak self, weak player] time in
             MainActor.assumeIsolated {
                 guard let self, let player, self.player === player else { return }
@@ -2341,7 +2377,7 @@ final class TimelinePlayback: ObservableObject {
             }
         }
         rateObserver = player.observe(\.rate, options: [.initial, .new]) { [weak self] player, _ in
-            let playing = player.rate > 0
+            let playing = player.rate != 0
             Task { @MainActor [weak self, weak player] in
                 guard let self, let player, self.player === player else { return }
                 self.isPlaying = playing
@@ -2575,7 +2611,15 @@ struct VideoTrimControls: View {
             else { localSelectedSegment = newValue }
         }
     }
-    private var mediaTimeline: LinkedMediaTimeline? { session?.mediaTimeline }
+    @State private var draggingMedia: LinkedMediaTimeline?
+    @State private var mediaDragOrigin: LinkedMediaTimeline?
+    @State private var mediaDragScale: Double = 1
+    @State private var screenDragOffset: Double = 0
+    private var mediaTimeline: LinkedMediaTimeline? { draggingMedia ?? session?.mediaTimeline }
+    private var selectedScreenID: UUID? {
+        guard let selectedSegment else { return nil }
+        return session?.mediaTimeline.video.first { $0.sourceRange == selectedSegment }?.id
+    }
     private var selectedAudioID: UUID? {
         get { session?.selectedRecordedAudioID }
         nonmutating set { session?.selectedRecordedAudioID = newValue }
@@ -2583,7 +2627,7 @@ struct VideoTrimControls: View {
     private var selectedMedia: (clip: MediaTimelineClip, track: LinkedMediaTimeline.Track)? {
         guard let mediaTimeline else { return nil }
         if let selectedAudioID, let clip = mediaTimeline.clip(selectedAudioID, on: .audio) { return (clip, .audio) }
-        if let selectedSegment, let clip = mediaTimeline.video.first(where: { $0.sourceRange == selectedSegment }) { return (clip, .screen) }
+        if let selectedScreenID, let clip = mediaTimeline.clip(selectedScreenID, on: .screen) { return (clip, .screen) }
         return nil
     }
     private var selectionLinked: Bool {
@@ -2610,12 +2654,19 @@ struct VideoTrimControls: View {
             }
         }
     }
+    private func focusTimeline() {
+        filmstripFocused = true
+        focusedZoomID = nil
+        keyboardFocusRequest += 1
+    }
+
     private func selectAudio(_ clip: MediaTimelineClip) {
         player.pause()
         selectedAudioID = clip.id
         selectedSegment = mediaTimeline?.partner(of: clip, on: .audio)?.sourceRange
         selectedVoiceOverID = nil; selectedZoomID = nil; focusedZoomID = nil
-        isVideoOverlaySelected = false; filmstripFocused = true
+        isVideoOverlaySelected = false
+        focusTimeline()
     }
     private func canDeleteMedia(_ clip: MediaTimelineClip, on track: LinkedMediaTimeline.Track) -> Bool {
         guard var mediaTimeline else { return false }
@@ -2633,6 +2684,35 @@ struct VideoTrimControls: View {
         session?.editMediaTimeline { $0.trim(id, on: track, beginning: beginning, by: delta,
                                            sourceDuration: duration, closeGaps: closeGaps) }
     }
+    private func previewMediaTrim(_ id: UUID, on track: LinkedMediaTimeline.Track,
+                                  beginning: Bool, translation: Double, scale: Double) {
+        if mediaDragOrigin == nil {
+            mediaDragOrigin = session?.mediaTimeline
+            mediaDragScale = max(0.001, scale)
+            player.pause()
+            focusTimeline()
+        }
+        guard var candidate = mediaDragOrigin else { return }
+        _ = candidate.trim(id, on: track, beginning: beginning, by: translation / mediaDragScale,
+                           sourceDuration: duration, closeGaps: session?.draft.closesTimelineGaps ?? true)
+        draggingMedia = candidate
+    }
+
+    private func finishMediaTrim() {
+        let selectedID = selectedScreenID
+        let candidate = draggingMedia
+        draggingMedia = nil
+        mediaDragOrigin = nil
+        guard let candidate else { return }
+        if session?.editMediaTimeline({ timeline in
+            guard timeline != candidate else { return false }
+            timeline = candidate
+            return true
+        }) == true, let selectedID {
+            selectedSegment = candidate.clip(selectedID, on: .screen)?.sourceRange
+        }
+    }
+
     private var canUndoEdit: Bool { session?.canUndo ?? !history.isEmpty }
     private var canRedoEdit: Bool { session?.canRedo ?? !redoHistory.isEmpty }
     private var canUndoZoom: Bool { session?.canUndo ?? !zoomHistory.isEmpty }
@@ -2661,15 +2741,27 @@ struct VideoTrimControls: View {
     @State private var zoomDragSourceOffset: Double = 0
     @FocusState private var focusedZoomID: UUID?
     @FocusState private var filmstripFocused: Bool
+    @State private var isShowingShortcuts = false
+    @State private var playbackFrameRate: Double = 30
+    @State private var keyboardFocusRequest = 0
+    @State private var selectingScreen = false
     @State private var hoveredZoomGapID: String?
     @State private var hoveredZoomPosition: Double?
     @State private var pendingZoomRange: ClosedRange<Double>?
     @State private var pendingZoomGapID: String?
 
-    private var selection: VideoTrim { dragging ?? trim }
+    private var selection: VideoTrim {
+        if let draggingMedia {
+            var result = trim
+            result.clips = draggingMedia.video
+            result.timelineLength = draggingMedia.duration
+            return result
+        }
+        return dragging ?? trim
+    }
     private var minimumLength: Double { min(0.1, duration) }
     private var mediaDuration: CMTime { CMTime(seconds: duration, preferredTimescale: 60000) }
-    private var timeline: EditedTimeline? { try? trim.timeline(duration: mediaDuration) }
+    private var timeline: EditedTimeline? { try? selection.timeline(duration: mediaDuration) }
     private var sourceSeconds: Double {
         timeline?.sourceTime(at: CMTime(seconds: playback.seconds, preferredTimescale: 60000)).seconds ?? 0
     }
@@ -2735,6 +2827,23 @@ struct VideoTrimControls: View {
         draggingZooms = nil
     }
 
+    private func deleteTimelineSelection() {
+        guard session?.isBusy != true else { return }
+        if selectedMedia != nil {
+            deleteSelectedMedia()
+        } else if isVideoOverlaySelected {
+            removeVideoOverlay()
+        } else if let id = selectedVoiceOverID {
+            player.pause()
+            voiceOvers.removeAll { $0.id == id }
+            selectedVoiceOverID = nil
+        } else if selectedZoomID != nil {
+            removeSelectedZoom()
+        } else if let removableSelection {
+            commit(removableSelection)
+        }
+    }
+
     private func removeSelectedZoom() {
         guard let selectedZoomID, visibleZooms.contains(where: { $0.id == selectedZoomID }) else { return }
         commitZooms(visibleZooms.filter { $0.id != selectedZoomID })
@@ -2757,7 +2866,7 @@ struct VideoTrimControls: View {
         selectedVoiceOverID = nil
         selectedSegment = nil
         selectedZoomID = id
-        focusedZoomID = id
+        focusTimeline()
     }
 
     private func addZoom(from start: Double, to end: Double) {
@@ -3021,21 +3130,24 @@ struct VideoTrimControls: View {
         .background(DesignColors.controlBackground)
         .focusable()
         .focused($filmstripFocused)
-        .onDeleteCommand {
-            if selectedMedia != nil {
-                deleteSelectedMedia()
-            } else if isVideoOverlaySelected {
-                removeVideoOverlay()
-            } else if let id = selectedVoiceOverID {
-                player.pause()
-                voiceOvers.removeAll { $0.id == id }
-                selectedVoiceOverID = nil
-            } else if focusedZoomID != nil, focusedZoomID == selectedZoomID {
-                removeSelectedZoom()
-            } else if let removableSelection {
-                commit(removableSelection)
+        .background(EditorPlaybackKeyboardMonitor(enabled: session?.isBusy != true,
+                                                   allowFrameStepping: filmstripFocused || focusedZoomID != nil,
+                                                   hasSelection: selectedMedia != nil || isVideoOverlaySelected || selectedVoiceOverID != nil || selectedZoomID != nil,
+                                                   focusRequest: keyboardFocusRequest) { shortcut in
+            switch shortcut {
+            case .deleteSelection: deleteTimelineSelection()
+            case .togglePlayback: togglePlayback()
+            case .pause: player.pause()
+            case .play: playForward()
+            case .reverse: player.rate = -1
+            case .step(let direction, let seconds):
+                seekOutput(playback.seconds + Double(direction) * (seconds ? 1 : 1 / playbackFrameRate))
+            case .start: seekOutput(0)
+            case .end: seekOutput(editedDuration)
             }
-        }
+        })
+        .sheet(isPresented: $isShowingShortcuts) { EditorShortcutsView() }
+        .onDeleteCommand(perform: deleteTimelineSelection)
         .overlayPreferenceValue(TimelineTooltipKey.self) { tooltips in
             GeometryReader { geometry in
                 if let tooltip = tooltips.last {
@@ -3066,6 +3178,8 @@ struct VideoTrimControls: View {
         }
         .onAppear { if session == nil { playback.attach(player) } }
         .onDisappear {
+            draggingMedia = nil
+            mediaDragOrigin = nil
             if session == nil { playback.detach() }
             silence.clear()
         }
@@ -3122,6 +3236,10 @@ struct VideoTrimControls: View {
             }
         }
         .task(id: source) {
+            if let track = try? await AVURLAsset(url: source).loadTracks(withMediaType: .video).first,
+               let rate = try? await track.load(.nominalFrameRate), rate.isFinite, rate > 0 {
+                playbackFrameRate = Double(rate)
+            } else { playbackFrameRate = 30 }
             thumbnails = []
             hoveredZoomGapID = nil
             hoveredZoomPosition = nil
@@ -3171,8 +3289,9 @@ struct VideoTrimControls: View {
                 .buttonStyle(.plain)
                 .localizedAccessibilityLabel(splitLabel)
                 .accessibilityIdentifier("splitAtPlayhead")
-                .disabled(!canSplit)
-                .modifier(TimelineTooltip(text: canSplit ? "\(splitLabel) at the playhead"
+                .disabled(!canSplit || session?.isBusy == true)
+                .keyboardShortcut("b", modifiers: .command)
+                .modifier(TimelineTooltip(text: canSplit ? "\(splitLabel) at the playhead · ⌘B"
                     : "Select a screen or camera section and move the playhead inside it to split"))
                 icon("arrow.uturn.backward", "Undo timeline edit") {
                     if let session { session.undo() }
@@ -3180,17 +3299,20 @@ struct VideoTrimControls: View {
                         redoHistory.append(restore(previous))
                     }
                 }.disabled(!canUndoEdit)
-                    .modifier(TimelineTooltip(text: !canUndoEdit ? "No timeline edits to undo" : "Undo the last split, removal, trim, or reorder"))
+                    .keyboardShortcut("z", modifiers: .command)
+                    .modifier(TimelineTooltip(text: !canUndoEdit ? "No timeline edits to undo" : "Undo the last edit · ⌘Z"))
                 icon("arrow.uturn.forward", "Redo timeline edit") {
                     if let session { session.redo() }
                     else if let next = redoHistory.popLast() {
                         history.append(restore(next))
                     }
                 }.disabled(!canRedoEdit)
-                    .modifier(TimelineTooltip(text: !canRedoEdit ? "No timeline edits to redo" : "Redo the last timeline edit"))
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .modifier(TimelineTooltip(text: !canRedoEdit ? "No timeline edits to redo" : "Redo the last edit · ⇧⌘Z"))
                 Divider().frame(height: 16).padding(.horizontal, 6)
                 timelineToggle("link", label: selectionLinked ? "Unlink" : "Link", isOn: selectionLinked,
                                disabledReason: linkDisabledReason, identifier: "linkRecordedAudio") { toggleMediaLink() }
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
                 timelineToggle("arrow.left.to.line", label: "Close gaps", isOn: session?.draft.closesTimelineGaps ?? true,
                                disabledReason: timelineBusyReason ?? (session == nil ? "Open a video to change gap closing." : nil),
                                identifier: "closeTimelineGaps") {
@@ -3210,7 +3332,8 @@ struct VideoTrimControls: View {
                 Divider()
                     .frame(height: 16)
                     .padding(.horizontal, 6)
-                icon("minus", "Zoom timeline out") { zoom = max(1, zoom - 1) }
+                icon("minus", "Zoom timeline out · ⌘−") { zoom = max(1, zoom - 1) }
+                    .keyboardShortcut("-", modifiers: .command)
                     .disabled(zoom <= 1)
                     .modifier(TimelineTooltip(text: zoom <= 1 ? "The timeline is already fully zoomed out" : "Zoom timeline out"))
                 if expanded {
@@ -3218,26 +3341,35 @@ struct VideoTrimControls: View {
                                value: String(format: "%.2f×", zoom), thumbSize: 14, height: 24, keyboardStep: 0.25)
                         .frame(width: 80)
                 }
-                icon("plus", "Zoom timeline in") { zoom = min(8, zoom + 1) }
+                icon("plus", "Zoom timeline in · ⌘=") { zoom = min(8, zoom + 1) }
+                    .keyboardShortcut("=", modifiers: .command)
                     .disabled(zoom >= 8)
                     .modifier(TimelineTooltip(text: zoom >= 8 ? "The timeline is at its maximum zoom" : "Zoom timeline in"))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            icon("keyboard", "Editing shortcuts") { isShowingShortcuts = true }
+                .accessibilityIdentifier("editingShortcuts")
         }
+    }
+
+    private func playForward() {
+        player.currentItem?.forwardPlaybackEndTime = .invalid
+        if playback.seconds >= editedDuration - 0.01 {
+            seekOutput(0)
+        }
+        player.play()
+    }
+
+    private func togglePlayback() {
+        if player.rate != 0 { player.pause() }
+        else { playForward() }
     }
 
     private func playbackControls(isPlaying: Bool) -> some View {
             HStack(spacing: 4) {
                 icon("backward.end.fill", "Go to start") { seekOutput(0) }
                 Button {
-                    if player.rate > 0 { player.pause() }
-                    else {
-                        player.currentItem?.forwardPlaybackEndTime = .invalid
-                        if playback.seconds >= (timeline?.duration.seconds ?? 0) - 0.01 {
-                            player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-                        }
-                        player.play()
-                    }
+                    togglePlayback()
                 } label: {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .frame(width: 32, height: 32)
@@ -3324,7 +3456,7 @@ struct VideoTrimControls: View {
         selectedVoiceOverID = nil
         selectedZoomID = nil
         focusedZoomID = nil
-        filmstripFocused = true
+        focusTimeline()
         isVideoOverlaySelected = true
     }
 
@@ -3339,10 +3471,10 @@ struct VideoTrimControls: View {
     }
 
     @ViewBuilder
-    private func cameraLane(width: Double) -> some View {
+    private func cameraLane(width: Double, total: Double) -> some View {
         if let url = videoOverlayURL, let timeline {
             VideoOverlayFilmstrip(url: url, timing: $videoOverlayTiming, timeline: timeline,
-                                  width: width, enabled: videoOverlayEnabled, selected: isVideoOverlaySelected,
+                                  width: width * editedDuration / total, enabled: videoOverlayEnabled, selected: isVideoOverlaySelected,
                                   cameraLayout: cameraLayout, cameraLayoutChanges: cameraLayoutChanges,
                                   playhead: playback.seconds, select: selectVideoOverlay, remove: removeVideoOverlay,
                                   seek: seekOutput)
@@ -3355,12 +3487,16 @@ struct VideoTrimControls: View {
         if let audio, let mediaTimeline {
             ForEach(mediaTimeline.audio) { clip in
                 let linked = mediaTimeline.partner(of: clip, on: .audio) != nil
-                let highlighted = selectedAudioID == clip.id || (linked && selectedSegment == clip.sourceRange)
+                let highlighted = selectedAudioID == clip.id || (linked && mediaTimeline.partner(of: clip, on: .audio)?.id == selectedScreenID)
                 RecordedAudioTimelineClip(url: audio, clip: clip, selected: highlighted, linked: linked,
                     muted: originalMuted, scale: width / total,
                     select: { selectAudio(clip) }, seek: seekOutput,
                     move: { delta in session?.editMediaTimeline { $0.move(clip.id, on: .audio, by: delta) } },
                     trim: { beginning, delta in trimMedia(clip.id, on: .audio, beginning: beginning, delta: delta) },
+                    previewTrim: { beginning, translation, scale in
+                        previewMediaTrim(clip.id, on: .audio, beginning: beginning, translation: translation, scale: scale)
+                    },
+                    finishTrim: finishMediaTrim,
                     delete: { selectAudio(clip); deleteSelectedMedia() },
                     canDelete: canDeleteMedia(clip, on: .audio),
                     toggleLink: { selectAudio(clip); toggleMediaLink() },
@@ -3380,14 +3516,16 @@ struct VideoTrimControls: View {
                 VoiceOverTimelineClip(clip: $clip, selected: $selectedVoiceOverID,
                                       total: total, scale: width / total, muted: voiceOverMuted,
                                       number: (voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1,
-                                      pause: { player.pause(); selectedAudioID = nil; selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false })
+                                      pause: { player.pause(); selectedAudioID = nil; selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false; focusTimeline() })
                     .offset(x: 12 + width * clip.start / total, y: audioLaneTop + (audio == nil ? 0 : 50))
             }
         }
     }
 
     private func filmstrip(width: Double, seconds: Double) -> some View {
-        let total = max(0.001, editedDuration)
+        // Keep the time-to-pixel scale fixed until release, so resizing an edge
+        // follows the pointer instead of stretching the whole timeline.
+        let total = max(0.001, mediaDragOrigin?.duration ?? editedDuration)
         return ZStack(alignment: .topLeading) {
             ForEach(0...Int(8 * zoom), id: \.self) { tick in
                 let fraction = Double(tick) / Double(Int(8 * zoom))
@@ -3404,7 +3542,7 @@ struct VideoTrimControls: View {
                     .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
             }
             if zoomEnabled && mouse != nil { zoomLane(width: width, total: total) }
-            cameraLane(width: width)
+            cameraLane(width: width, total: total)
             audioLanes(width: width, total: total)
             Rectangle().fill(.clear).contentShape(Rectangle())
                 .frame(width: width, height: 24).offset(x: 12)
@@ -3569,10 +3707,10 @@ struct VideoTrimControls: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 3)
+                .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { gesture in
-                        selectZoom(segment.id)
                         if zoomDragOrigin == nil {
+                            selectZoom(segment.id)
                             zoomDragOrigin = segment
                             zoomDragOutputStart = outputStart
                             zoomDragSourceOffset = sourceOffset
@@ -3581,11 +3719,11 @@ struct VideoTrimControls: View {
                                                   outputStart: zoomDragOutputStart, sourceOffset: zoomDragSourceOffset,
                                                   delta: gesture.translation.width / scale)
                     }
-                    .onEnded { _ in
+                    .onEnded { gesture in
                         if let draggingZooms { commitZooms(draggingZooms) }
                         zoomDragOrigin = nil
+                        if abs(gesture.translation.width) < 0.5 { seek(source: segment.start) }
                     })
-                .onTapGesture { selectZoom(segment.id); seek(source: segment.start) }
             zoomEdge(segment, scale: scale, edge: 1)
         }
         .frame(width: width, height: 19)
@@ -3612,10 +3750,9 @@ struct VideoTrimControls: View {
         Rectangle().fill(DesignColors.cameraTrack)
             .frame(width: 6, height: 19)
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 2)
+            .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { gesture in
-                    selectZoom(segment.id)
-                    if zoomDragOrigin == nil { zoomDragOrigin = segment }
+                    if zoomDragOrigin == nil { selectZoom(segment.id); zoomDragOrigin = segment }
                     draggingZooms = adjustedZoom(zoomDragOrigin ?? segment,
                                                  delta: gesture.translation.width / scale, edge: edge)
                 }
@@ -3629,6 +3766,7 @@ struct VideoTrimControls: View {
         let segment = segments[index]
         let clipWidth = max(1, width * segment.duration.seconds / total)
         let mediaClip = mediaTimeline?.video.first { $0.sourceRange == segment }
+        let highlighted = mediaClip.map { $0.id == selectedScreenID } ?? (selectedSegment == segment)
         return HStack(spacing: 0) {
             ForEach(thumbnails.indices, id: \.self) { thumbnail in
                 Image(decorative: thumbnails[thumbnail], scale: 1)
@@ -3642,8 +3780,8 @@ struct VideoTrimControls: View {
         .background(DesignColors.inputBackground)
         .clipped()
         .overlay(RoundedRectangle(cornerRadius: 3)
-            .strokeBorder(selectedSegment == segment ? DesignColors.cameraTrack : DesignColors.accent,
-                          lineWidth: selectedSegment == segment ? 3 : 1.5))
+            .strokeBorder(highlighted ? DesignColors.cameraTrack : DesignColors.accent,
+                          lineWidth: highlighted ? 3 : 1.5))
         .overlay(alignment: .topTrailing) {
             if let mediaClip, mediaTimeline?.partner(of: mediaClip, on: .screen) != nil {
                 Image(systemName: "link").font(.system(size: 9, weight: .semibold))
@@ -3653,25 +3791,29 @@ struct VideoTrimControls: View {
             }
         }
         .overlay(alignment: .leading) {
-            if selectedSegment == segment, let mediaClip { screenClipHandle(mediaClip, beginning: true, scale: width / total) }
+            if highlighted, let mediaClip { screenClipHandle(mediaClip, beginning: true, scale: width / total) }
         }
         .overlay(alignment: .trailing) {
-            if selectedSegment == segment, let mediaClip { screenClipHandle(mediaClip, beginning: false, scale: width / total) }
+            if highlighted, let mediaClip { screenClipHandle(mediaClip, beginning: false, scale: width / total) }
         }
-        .opacity(movingSegment == index ? 0.5 : 1)
+        .opacity(movingSegment == index ? 0.7 : 1)
+        .offset(x: movingSegment == index ? screenDragOffset : 0)
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
             .onChanged { gesture in
-                selectedAudioID = nil
-                selectedSegment = segment
-                isVideoOverlaySelected = false
-                selectedVoiceOverID = nil
-                selectedZoomID = nil
-                focusedZoomID = nil
-                filmstripFocused = true
-                player.pause()
+                if !selectingScreen {
+                    selectingScreen = true
+                    selectedAudioID = nil
+                    selectedSegment = segment
+                    isVideoOverlaySelected = false
+                    selectedVoiceOverID = nil
+                    selectedZoomID = nil
+                    player.pause()
+                    focusTimeline()
+                }
                 if abs(gesture.translation.width) > 6 {
                     movingSegment = index
+                    screenDragOffset = gesture.translation.width
                     let seconds = max(0, min(total, (gesture.location.x - 12) / width * total))
                     moveDestination = segments.indices.first { seconds < segmentOffset($0 + 1) } ?? segments.count - 1
                 }
@@ -3686,6 +3828,8 @@ struct VideoTrimControls: View {
                 }
                 movingSegment = nil
                 moveDestination = nil
+                selectingScreen = false
+                screenDragOffset = 0
             })
         .contextMenu {
             if let mediaClip, let mediaTimeline {
@@ -3713,9 +3857,11 @@ struct VideoTrimControls: View {
         RoundedRectangle(cornerRadius: 2).fill(DesignColors.accent)
             .frame(width: 5, height: 26)
             .frame(width: 12, height: 42).contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 1)
-                .onChanged { _ in player.pause(); filmstripFocused = true }
-                .onEnded { trimMedia(clip.id, on: .screen, beginning: beginning, delta: $0.translation.width / scale) })
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    previewMediaTrim(clip.id, on: .screen, beginning: beginning, translation: value.translation.width, scale: scale)
+                }
+                .onEnded { _ in finishMediaTrim() })
             .localizedAccessibilityLabel(beginning ? "Trim screen section beginning" : "Trim screen section end")
             .accessibilityAdjustableAction { direction in
                 trimMedia(clip.id, on: .screen, beginning: beginning, delta: direction == .increment ? 1.0 / 30 : -1.0 / 30)
@@ -3733,16 +3879,22 @@ struct VideoTrimControls: View {
             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
                 .onChanged { gesture in
                     player.pause()
-                    if session != nil { return }
+                    if let session {
+                        let clip = isStart ? session.mediaTimeline.video.first : session.mediaTimeline.video.last
+                        if let clip {
+                            previewMediaTrim(clip.id, on: .screen, beginning: isStart,
+                                             translation: gesture.translation.width, scale: width / max(0.001, editedDuration))
+                        }
+                        return
+                    }
                     let originalSegments = (try? trim.segments(duration: mediaDuration)) ?? []
                     let originalDuration = originalSegments.reduce(0) { $0 + $1.duration.seconds }
                     let delta = gesture.translation.width / width * originalDuration
                     dragging = adjustedEdge(delta: delta, isStart: isStart, from: trim)
                 }
                 .onEnded { gesture in
-                    if let session, let clip = isStart ? session.mediaTimeline.video.first : session.mediaTimeline.video.last {
-                        trimMedia(clip.id, on: .screen, beginning: isStart, delta: gesture.translation.width / width * editedDuration)
-                    } else if let dragging { commit(dragging) }
+                    if session != nil { finishMediaTrim() }
+                    else if let dragging { commit(dragging) }
                     dragging = nil
                 })
             .localizedAccessibilityLabel(isStart ? "Trim start" : "Trim end")
@@ -4167,12 +4319,13 @@ private struct AppSettingsView: View {
     @State private var page: Page = .appearance
 
     private enum Page: String, CaseIterable {
-        case appearance = "Appearance", language = "Language", aiConnection = "AI Connection"
+        case appearance = "Appearance", language = "Language", updates = "Updates", aiConnection = "AI Connection"
         var symbol: String {
             switch self {
             case .appearance: return "circle.lefthalf.filled"
             case .language: return "globe"
             case .aiConnection: return "point.3.connected.trianglepath.dotted"
+            case .updates: return "arrow.triangle.2.circlepath"
             }
         }
     }
@@ -4234,6 +4387,8 @@ private struct AppSettingsView: View {
                                 .foregroundStyle(DesignColors.secondaryLabel)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                    } else if page == .updates {
+                        UpdateSettingsView(updates: AppState.shared.updates)
                     } else if page == .aiConnection {
                         AIConnectionSettingsView(connection: AppState.shared.editorConnection)
                     } else {
@@ -4299,6 +4454,50 @@ private struct AppSettingsView: View {
         .localizedAccessibilityLabel(option.title)
         .accessibilityAddTraits(appearance == option ? .isSelected : [])
         .accessibilityIdentifier("appearance-\(option.rawValue)")
+    }
+}
+
+private struct UpdateSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var updates: UpdateChecker
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Toggle("Automatically check for updates", isOn: $updates.automaticallyChecksForUpdates)
+                .accessibilityIdentifier("automaticUpdateChecks")
+            Toggle("Automatically download and install updates on quit", isOn: $updates.automaticallyDownloadsUpdates)
+                .accessibilityIdentifier("automaticUpdateDownloads")
+            Text("Updates install when you quit. Recording, media processing, and unsaved projects must finish first.")
+                .font(.system(size: 12))
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                Button("Check for Updates...") {
+                    Task { await updates.tick(manual: true) }
+                }
+                .buttonStyle(CompactActionButtonStyle(prominent: true))
+                .disabled(!updates.canCheckForUpdates)
+                .accessibilityIdentifier("checkForUpdates")
+                if updates.restartPending {
+                    Button("Install and Relaunch") {
+                        if updates.requestInstallationAfterSettingsClose() { dismiss() }
+                    }
+                        .buttonStyle(CompactActionButtonStyle())
+                        .accessibilityIdentifier("installAndRelaunch")
+                }
+            }
+            if let status = updates.status {
+                Text(LocalizedStringKey(status))
+                    .font(.system(size: 12))
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Automatic installation is optional. You can always check and install updates manually here.")
+                .font(.system(size: 12))
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 13))
     }
 }
 
@@ -4496,5 +4695,130 @@ private struct AppearanceThumbnail: View {
             .background(dark ? Color(white: 0.1) : Color.white)
         }
         .frame(width: 80, height: 50)
+    }
+}
+
+// Bare playback keys stay local to the editor and yield to text fields and sheets.
+enum EditorPlaybackShortcut: Equatable {
+    case togglePlayback, pause, play, reverse, start, end, deleteSelection
+    case step(direction: Int, seconds: Bool)
+
+    static func action(for event: NSEvent) -> Self? {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if modifiers.isEmpty {
+            if event.keyCode == 51 || event.keyCode == 117 { return .deleteSelection }
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case " ": return .togglePlayback
+            case "j": return .reverse
+            case "k": return .pause
+            case "l": return .play
+            default: break
+            }
+            if event.keyCode == 115 { return .start }
+            if event.keyCode == 119 { return .end }
+        }
+        if event.keyCode == 123 || event.keyCode == 124 {
+            if modifiers == .command { return event.keyCode == 123 ? .start : .end }
+            if modifiers.isEmpty || modifiers == .shift {
+                return .step(direction: event.keyCode == 123 ? -1 : 1, seconds: modifiers == .shift)
+            }
+        }
+        return nil
+    }
+}
+
+struct EditorPlaybackKeyboardMonitor: NSViewRepresentable {
+    @Environment(\.isEnabled) private var isEnabled
+    var enabled: Bool
+    var allowFrameStepping: Bool
+    var hasSelection: Bool
+    var focusRequest: Int
+    var action: (EditorPlaybackShortcut) -> Void
+
+    func makeNSView(context: Context) -> MonitorView { MonitorView() }
+    func updateNSView(_ view: MonitorView, context: Context) {
+        view.enabled = enabled && isEnabled
+        view.allowFrameStepping = allowFrameStepping
+        view.hasSelection = hasSelection
+        view.action = action
+        if view.focusRequest != focusRequest {
+            view.focusRequest = focusRequest
+            if view.enabled, let window = view.window, window.isKeyWindow,
+               window.attachedSheet == nil, NSApp.modalWindow == nil {
+                window.makeFirstResponder(view)
+            }
+        }
+    }
+    static func dismantleNSView(_ view: MonitorView, coordinator: ()) { view.stop() }
+
+    final class MonitorView: NSView {
+        var enabled = false
+        var allowFrameStepping = false
+        var hasSelection = false
+        var focusRequest = 0
+        override var acceptsFirstResponder: Bool { true }
+        var action: ((EditorPlaybackShortcut) -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            stop()
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.enabled, let window = self.window,
+                      event.window === window, window.isKeyWindow,
+                      window.attachedSheet == nil, NSApp.modalWindow == nil,
+                      let shortcut = EditorPlaybackShortcut.action(for: event),
+                      self.shouldHandle(shortcut, responder: window.firstResponder) else { return event }
+                if case .step = shortcut, !self.allowFrameStepping { return event }
+                // Arrow keys must retain their normal behavior for focused sliders.
+                if (event.keyCode == 123 || event.keyCode == 124),
+                   let responder = window.firstResponder as? NSView,
+                   responder.accessibilityRole() == .slider { return event }
+                if event.isARepeat, shortcut == .togglePlayback { return nil }
+                self.action?(shortcut)
+                return nil
+            }
+        }
+        func shouldHandle(_ shortcut: EditorPlaybackShortcut, responder: NSResponder?) -> Bool {
+            // Text editing always owns Delete, even while a strip remains selected.
+            guard !(responder is NSTextView), !(responder is NSTextField) else { return false }
+            if shortcut == .deleteSelection { return hasSelection }
+            return !(responder is NSControl)
+        }
+        func stop() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+        }
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    }
+}
+
+private struct EditorShortcutsView: View {
+    @Environment(\.dismiss) private var dismiss
+    private let shortcuts: [(String, String)] = [
+        ("Play / Pause", "Space"), ("Reverse / Pause / Play", "J / K / L"),
+        ("Previous / Next Frame", "← / →"), ("Seek One Second", "⇧← / ⇧→"),
+        ("Go to start / end", "⌘← / ⌘→"), ("Split at Playhead", "⌘B"),
+        ("Undo / Redo", "⌘Z / ⇧⌘Z"), ("Delete Selection", "Delete"),
+        ("Link / Unlink Audio", "⇧⌘L"), ("Zoom Timeline In / Out", "⌘= / ⌘−"),
+        ("Apply Changes", "⇧⌘Return"), ("Export Video…", "⌘E"),
+        ("Save Project…", "⇧⌘S")
+    ]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Editing shortcuts").font(.title2.bold())
+            ForEach(shortcuts, id: \.0) { title, keys in
+                HStack {
+                    Text(LocalizedStringKey(title))
+                    Spacer()
+                    Text(verbatim: keys).font(.system(.body, design: .monospaced))
+                }
+            }
+            Text("Playback keys are available while editing, outside text fields.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }
+        }
+        .padding(24).frame(width: 450)
     }
 }

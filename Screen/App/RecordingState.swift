@@ -303,6 +303,7 @@ final class RecordingState: ObservableObject {
             webcamShape: captureSettings?.webcamPiPShape ?? .circle,
             webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
             webcamSize: captureSettings?.webcamPiPSize ?? .medium,
+            cameraMirrored: captureSettings?.isCameraMirrored,
             faceBeautyAmount: captureSettings?.faceBeautyAmount,
             faceMakeup: captureSettings?.faceMakeup,
             videoOverlayURL: lastWebcamVideoURL,
@@ -327,7 +328,8 @@ final class RecordingState: ObservableObject {
                 keyframes = try await ClickZoomGenerator.generate(
                     from: mouseDataURL,
                     sourceVideoURL: videoURL,
-                    settings: .init(zoomLevel: settings.zoomLevel),
+                    settings: .init(zoomLevel: settings.zoomLevel,
+                                    transitionMotion: settings.zoomTransitionMotion ?? .smooth),
                     segments: settings.zoomSegments
                 )
             }
@@ -355,6 +357,7 @@ final class RecordingState: ObservableObject {
                 pipPosition: settings.webcamPosition,
                 pipSize: settings.webcamSize,
                 pipShape: settings.webcamShape,
+                cameraMirrored: settings.cameraMirrored ?? false,
                 cameraLayout: settings.cameraLayout,
                 cameraLayoutChanges: settings.cameraLayoutChanges,
                 faceBeautyAmount: settings.faceBeautyAmount ?? 0,
@@ -407,6 +410,7 @@ final class RecordingState: ObservableObject {
                 }
             }
 
+            processingStage = .processing
             let untrimmedURL = resultURL
             resultURL = try await settings.trim.export(source: untrimmedURL)
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,

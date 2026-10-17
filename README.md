@@ -4,11 +4,17 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.17 (build 19)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.18 (build 20)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.17-build19.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.18-build20.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.17
+## New in 0.1.18
+
+- Finish trimmed-recording audio processing without encoding the video a second time when audio levels are unchanged. This avoids the stalled processing path and preserves rendered video quality.
+- Show the processing stage after audio merging completes, so later work no longer stays labeled “Merging audio”.
+- Delete the selected timeline strip immediately, use smoother drag previews, and choose persisted zoom transition motion.
+
+## Included from 0.1.17
 
 - Clear obsolete and intermediate files from imported-video exports to reduce temporary disk use. Original media, the current result, Undo references, and saved projects are preserved.
 - Keep generated frames evenly spaced during long exports with many zooms, including imported videos with sparse frame timing.
@@ -74,7 +80,7 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Use editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
 | Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
-| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor; adjust zoom strength and focus for eligible recordings. |
+| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor; adjust zoom strength and focus for eligible recordings. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
 | Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop corners, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose built-in wallpapers, including Prism, Lagoon, Ember, and Midnight. Toggle the background for an original-size desktop canvas. |
@@ -149,7 +155,7 @@ This repository contains the native app sources, editable promo projects, public
 
 ## Build from source
 
-The 0.1.17 installer is published ahead of its app source changes. The published source currently builds 0.1.14.
+The release source builds ScreenTake 0.1.18 (build 20).
 
 On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
 

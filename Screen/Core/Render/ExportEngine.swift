@@ -36,6 +36,7 @@ final class ExportEngine: ObservableObject {
         var pipPosition: PiPPosition = .bottomRight
         var pipSize: PiPSize = .medium
         var pipShape: PiPShape = .circle
+        var cameraMirrored = false
         var cameraLayout = CameraLayoutSettings()
         var cameraLayoutChanges: [CameraLayoutChange] = []
         var faceBeautyAmount: Double = 0
@@ -104,8 +105,10 @@ final class ExportEngine: ObservableObject {
             } else {
                 try manager.moveItem(at: staged.outputURL, to: configuration.outputURL)
             }
+            await MainActor.run { self.progress = 1; self.isExporting = false }
             return configuration.outputURL
         } catch {
+            Log.export.error("Export failed: \(String(describing: error), privacy: .public)")
             await MainActor.run { self.isExporting = false }
             throw error
         }
@@ -341,7 +344,8 @@ final class ExportEngine: ObservableObject {
             var lastSourceImage: CIImage?
             let hasCursorAnimation = cursorCGImage != nil && !mousePositions.isEmpty
                 && !(hasCameraFrames && configuration.cameraCoversRecording(duration: duration, webcamRange: webcamRange))
-            let fillFrameInterval: TimeInterval = hasCursorAnimation ? 1.0 / 60.0 : 1.0 / 30.0
+            let fillFrameStep = CMTime(value: 1, timescale: hasCursorAnimation ? 60 : 30)
+            let fillFrameInterval = fillFrameStep.seconds
             var nextCursorFrameIndex: Int64 = 0
 
             /// Safely append a pixel buffer, ensuring strictly increasing PTS.
@@ -349,15 +353,34 @@ final class ExportEngine: ObservableObject {
             func safeAppend(_ buffer: CVPixelBuffer, at pts: CMTime) -> Bool {
                 guard !cancellation.isCancelled else { return false }
                 guard CMTimeCompare(pts, lastAppendedPTS) > 0 else { return false }
-                guard writer.status == .writing else { return false }
+                // One source sample can generate hundreds of animation frames.
+                // Recheck readiness for every generated frame, retaining this
+                // buffer until the encoder can accept it.
+                while !videoInput.isReadyForMoreMediaData {
+                    guard !cancellation.isCancelled else { return false }
+                    guard writer.status == .writing, reader.status != .failed else {
+                        cancellation.fail(writer.error ?? reader.error ?? ExportError.incompleteFrames)
+                        return false
+                    }
+                    Thread.sleep(forTimeInterval: 0.002)
+                }
+                guard writer.status == .writing else {
+                    cancellation.fail(writer.error ?? ExportError.incompleteFrames)
+                    return false
+                }
                 do {
+                    var appended = false
                     try ObjCExceptionCatcher.`try` {
-                        adaptor.append(buffer, withPresentationTime: pts)
+                        appended = adaptor.append(buffer, withPresentationTime: pts)
+                    }
+                    guard appended else {
+                        cancellation.fail(writer.error ?? ExportError.incompleteFrames)
+                        return false
                     }
                     lastAppendedPTS = pts
                     return true
                 } catch {
-                    Log.export.warning("safeAppend: ObjC exception caught at PTS \(CMTimeGetSeconds(pts)): \(error.localizedDescription)")
+                    cancellation.fail(error)
                     return false
                 }
             }
@@ -473,15 +496,11 @@ final class ExportEngine: ObservableObject {
                 return autoreleasepool {
                 // Skip if PTS would not be strictly increasing
                 guard CMTimeCompare(pts, lastAppendedPTS) > 0 else { return false }
-                guard writer.status == .writing else { return false }
-
-                // Wait for the encoder to be ready (backpressure)
-                var waitAttempts = 0
-                while !videoInput.isReadyForMoreMediaData && waitAttempts < 100 {
-                    Thread.sleep(forTimeInterval: 0.01)
-                    waitAttempts += 1
+                guard !cancellation.isCancelled else { return false }
+                guard writer.status == .writing else {
+                    cancellation.fail(writer.error ?? ExportError.incompleteFrames)
+                    return false
                 }
-                guard videoInput.isReadyForMoreMediaData else { return false }
 
                 if let webcamOutput = webcamReaderOutput {
                     while !webcamExhausted {
@@ -576,6 +595,7 @@ final class ExportEngine: ObservableObject {
                         webcamImage: webcamImage,
                         onto: frameImage,
                         settings: cameraLayout,
+                        mirrored: configuration.cameraMirrored,
                         faceFocus: faceTrack?.focus(at: cameraTime),
                         transition: cameraTransition,
                         beautyAmount: configuration.faceBeautyAmount, beautyTime: currentWebcamSampleTime ?? cameraTime, makeup: configuration.faceMakeup
@@ -592,7 +612,10 @@ final class ExportEngine: ObservableObject {
                         Thread.sleep(forTimeInterval: 0.01)
                     }
                 }
-                guard let outBuffer = outputBuffer else { return false }
+                guard let outBuffer = outputBuffer else {
+                    cancellation.fail(ExportError.incompleteFrames)
+                    return false
+                }
 
                 ciContext.render(frameImage, to: outBuffer)
 
@@ -614,11 +637,25 @@ final class ExportEngine: ObservableObject {
                 }
             }
 
+            let videoWakeup = DispatchSource.makeTimerSource(queue: videoQueue)
+            videoWakeup.schedule(deadline: .now(), repeating: .milliseconds(50))
+            videoWakeup.setEventHandler {
+                guard !videoFinished else { return }
+                guard cancellation.isCancelled || writer.status == .failed || reader.status == .failed else { return }
+                if !cancellation.isCancelled {
+                    cancellation.fail(writer.error ?? reader.error ?? ExportError.incompleteFrames)
+                }
+                videoFinished = true
+                videoWakeup.setEventHandler {}; videoWakeup.cancel()
+                group.leave()
+            }
+            videoWakeup.resume()
             videoInput.requestMediaDataWhenReady(on: videoQueue) { [weak self] in
                 guard !videoFinished else { return }
                 while videoInput.isReadyForMoreMediaData {
                     if cancellation.isCancelled {
                         videoFinished = true
+                        videoWakeup.setEventHandler {}; videoWakeup.cancel()
                         videoInput.markAsFinished()
                         group.leave()
                         return
@@ -626,26 +663,25 @@ final class ExportEngine: ObservableObject {
                     let shouldContinue = autoreleasepool { () -> Bool in
                     guard let sampleBuffer = readerOutput.copyNextSampleBuffer() else {
                         if let image = lastSourceImage, hasCursorAnimation || hasCameraFrames || phoneReader != nil || !keyframes.isEmpty {
-                            var fillTime = hasCursorAnimation
-                                ? Double(nextCursorFrameIndex) / 60
-                                : CMTimeGetSeconds(lastAppendedPTS) + fillFrameInterval
-                            while fillTime < totalSeconds && !cancellation.isCancelled {
-                                let fillPTS = hasCursorAnimation
-                                    ? CMTime(value: nextCursorFrameIndex, timescale: 60)
-                                    : CMTime(seconds: fillTime, preferredTimescale: 600)
+                            var fillPTS = hasCursorAnimation
+                                ? CMTime(value: nextCursorFrameIndex, timescale: 60)
+                                : CMTimeAdd(lastAppendedPTS, fillFrameStep)
+                            while fillPTS < duration && !cancellation.isCancelled {
+                                let fillTime = fillPTS.seconds
                                 if renderAndWrite(image: image, transform: camera(at: fillTime), at: fillPTS, time: fillTime) {
                                     framesWritten += 1
                                 }
                                 if hasCursorAnimation {
                                     nextCursorFrameIndex += 1
-                                    fillTime = Double(nextCursorFrameIndex) / 60
+                                    fillPTS = CMTime(value: nextCursorFrameIndex, timescale: 60)
                                 } else {
-                                    fillTime += fillFrameInterval
+                                    fillPTS = CMTimeAdd(fillPTS, fillFrameStep)
                                 }
                             }
                         }
                         withExtendedLifetime(webcamReader) {}
                         videoFinished = true
+                        videoWakeup.setEventHandler {}; videoWakeup.cancel()
                         videoInput.markAsFinished()
                         group.leave()
                         return false
@@ -653,6 +689,12 @@ final class ExportEngine: ObservableObject {
 
                     let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
                     let timeSeconds = CMTimeGetSeconds(pts)
+                    // Repeated timestamps do not represent another output frame.
+                    guard pts.isNumeric, timeSeconds.isFinite else {
+                        cancellation.fail(ExportError.incompleteFrames)
+                        return false
+                    }
+                    if !hasCursorAnimation, pts <= lastAppendedPTS { return true }
 
                     // Evaluate camera state at this frame's timestamp
                     let transform = camera(at: timeSeconds)
@@ -712,15 +754,18 @@ final class ExportEngine: ObservableObject {
                             if hasCursorAnimation || hasZoomActivity || hasCameraFrames || phoneReader != nil {
                                 // Generate fill frames at ~30fps through the gap
                                 var fillCount = 0
-                                var fillTime = lastAppendedSeconds + fillFrameInterval
-                                while fillTime < timeSeconds - fillFrameInterval * 0.5 && !cancellation.isCancelled {
+                                // Rational time steps avoid quantization jitter
+                                // and an extra near-end frame on long imports.
+                                var fillPTS = CMTimeAdd(lastAppendedPTS, fillFrameStep)
+                                let fillLimit = CMTimeSubtract(pts, CMTimeMultiplyByRatio(fillFrameStep, multiplier: 1, divisor: 2))
+                                while fillPTS < fillLimit && !cancellation.isCancelled {
+                                    let fillTime = fillPTS.seconds
                                     let fillTransform = camera(at: fillTime)
-                                    let fillPTS = CMTime(seconds: fillTime, preferredTimescale: 600)
                                     if renderAndWrite(image: prevImage, transform: fillTransform, at: fillPTS, time: fillTime) {
                                         framesWritten += 1
                                         fillCount += 1
                                     }
-                                    fillTime += fillFrameInterval
+                                    fillPTS = CMTimeAdd(fillPTS, fillFrameStep)
                                 }
                                 Log.export.info("VFR fill: \(fillCount) frames in \(String(format: "%.2f", lastAppendedSeconds))s→\(String(format: "%.2f", timeSeconds))s gap")
                             }
@@ -748,22 +793,43 @@ final class ExportEngine: ObservableObject {
                 let readerOut = pair.reader
                 let writerIn = pair.writer
                 var audioFinished = false
+                let audioWakeup = DispatchSource.makeTimerSource(queue: audioQueue)
+                audioWakeup.schedule(deadline: .now(), repeating: .milliseconds(50))
+                audioWakeup.setEventHandler {
+                    guard !audioFinished else { return }
+                    guard cancellation.isCancelled || writer.status == .failed || reader.status == .failed else { return }
+                    if !cancellation.isCancelled {
+                        cancellation.fail(writer.error ?? reader.error ?? ExportError.incompleteFrames)
+                    }
+                    audioFinished = true
+                    audioWakeup.setEventHandler {}; audioWakeup.cancel()
+                    group.leave()
+                }
+                audioWakeup.resume()
                 writerIn.requestMediaDataWhenReady(on: audioQueue) {
                     guard !audioFinished else { return }
                     while writerIn.isReadyForMoreMediaData {
                         if cancellation.isCancelled {
                             audioFinished = true
+                            audioWakeup.setEventHandler {}; audioWakeup.cancel()
                             writerIn.markAsFinished()
                             group.leave()
                             return
                         }
                         guard let sampleBuffer = readerOut.copyNextSampleBuffer() else {
                             audioFinished = true
+                            audioWakeup.setEventHandler {}; audioWakeup.cancel()
                             writerIn.markAsFinished()
                             group.leave()
                             return
                         }
-                        writerIn.append(sampleBuffer)
+                        guard writerIn.append(sampleBuffer) else {
+                            cancellation.fail(writer.error ?? ExportError.incompleteFrames)
+                            audioFinished = true
+                            audioWakeup.setEventHandler {}; audioWakeup.cancel()
+                            group.leave()
+                            return
+                        }
                     }
                 }
             }
@@ -772,15 +838,20 @@ final class ExportEngine: ObservableObject {
                 if cancellation.isCancelled {
                     reader.cancelReading()
                     writer.cancelWriting()
-                    continuation.resume(throwing: CancellationError())
+                    continuation.resume(throwing: cancellation.error ?? CancellationError())
+                    return
+                }
+                if reader.status == .failed {
+                    writer.cancelWriting()
+                    continuation.resume(throwing: reader.error ?? ExportError.readerSetupFailed)
                     return
                 }
                 writer.endSession(atSourceTime: duration)
                 writer.finishWriting {
-                    if let error = writer.error {
-                        continuation.resume(throwing: error)
-                    } else {
+                    if writer.status == .completed {
                         continuation.resume()
+                    } else {
+                        continuation.resume(throwing: writer.error ?? ExportError.incompleteFrames)
                     }
                 }
             }
@@ -793,8 +864,7 @@ final class ExportEngine: ObservableObject {
         guard framesWritten > 0, droppedFrameCount == 0 else { throw ExportError.incompleteFrames }
 
         await MainActor.run {
-            self.progress = 1.0
-            self.isExporting = false
+            self.progress = 0.99
         }
 
         Log.export.info("Export completed: \(configuration.outputURL.lastPathComponent), read=\(framesRead), written=\(framesWritten), dropped=\(droppedFrameCount)")
@@ -805,6 +875,13 @@ final class ExportEngine: ObservableObject {
 private final class ExportCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
+    private var failure: Error?
+    var error: Error? { lock.lock(); defer { lock.unlock() }; return failure }
+    func fail(_ error: Error) {
+        lock.lock(); defer { lock.unlock() }
+        if failure == nil { failure = error }
+        cancelled = true
+    }
     var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
     func cancel() { lock.lock(); cancelled = true; lock.unlock() }
 }

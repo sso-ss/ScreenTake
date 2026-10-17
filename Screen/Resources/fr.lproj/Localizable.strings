@@ -264,3 +264,39 @@
 "Face definition" = "Définition du visage";
 
 "Under-eye shadow" = "Ombre sous les yeux";
+
+"Mirror Camera" = "Inverser la caméra";
+"Flip the camera horizontally in preview and export." = "Inverse horizontalement la caméra dans l’aperçu et l’exportation.";
+"Editing shortcuts" = "Raccourcis de montage";
+"Play / Pause" = "Lecture / Pause";
+"Reverse / Pause / Play" = "Lecture arrière / Pause / Lecture";
+"Previous / Next Frame" = "Image précédente / suivante";
+"Seek One Second" = "Se déplacer d’une seconde";
+"Go to start / end" = "Aller au début / à la fin";
+"Split at Playhead" = "Scinder à la tête de lecture";
+"Undo / Redo" = "Annuler / Rétablir";
+"Delete Selection" = "Supprimer la sélection";
+"Link / Unlink Audio" = "Lier / Délier l’audio";
+"Zoom Timeline In / Out" = "Agrandir / Réduire la timeline";
+"Export Video…" = "Exporter la vidéo…";
+"Playback keys are available while editing, outside text fields." = "Les touches de lecture sont disponibles pendant le montage, hors des champs de texte.";
+
+// Automatic updates
+"Updates" = "Mises à jour";
+"Automatically check for updates" = "Rechercher automatiquement les mises à jour";
+"Automatically download and install updates on quit" = "Télécharger et installer automatiquement les mises à jour à la fermeture";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "Les mises à jour s’installent à la fermeture. Terminez l’enregistrement et le traitement des médias, puis enregistrez vos projets.";
+"Automatic installation is optional. You can always check and install updates manually here." = "L’installation automatique est facultative. Vous pouvez toujours rechercher et installer les mises à jour manuellement ici.";
+"Install and Relaunch" = "Installer et relancer";
+"ScreenTake is keeping your work safe" = "ScreenTake protège votre travail";
+"Finish recording before updating or quitting." = "Terminez l’enregistrement avant de mettre à jour ou de quitter.";
+"Wait for media processing to finish before updating or quitting." = "Attendez la fin du traitement des médias avant de mettre à jour ou de quitter.";
+"Close the capture controls before updating or quitting." = "Fermez les commandes de capture avant de mettre à jour ou de quitter.";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "Enregistrez votre projet avant d’installer la mise à jour ou de quitter. L’exportation d’une vidéo n’enregistre pas le projet modifiable.";
+"Complete permission setup before checking for updates." = "Terminez la configuration des autorisations avant de rechercher les mises à jour.";
+"You’re up to date." = "Vous utilisez la dernière version.";
+"Unable to check for updates. Try again later." = "Impossible de rechercher les mises à jour. Réessayez plus tard.";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "Impossible de démarrer le programme de mise à jour. Réinstallez la dernière version de ScreenTake.";
+
+"Zoom transition" = "Transition du zoom";
+"Zoom transition motion" = "Mouvement de la transition du zoom";

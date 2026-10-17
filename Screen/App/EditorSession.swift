@@ -86,6 +86,8 @@ final class EditorSession: ObservableObject {
     private var groupDepth = 0
     private var groupStart: VideoEditSettings?
     private var cancellables = Set<AnyCancellable>()
+    /// Only directories created by this session belong to the render pipeline.
+    private var exportDirectories = Set<URL>()
 
     init() {
         for publisher in [exportEngine.objectWillChange, voiceOverRecorder.objectWillChange,
@@ -209,6 +211,7 @@ final class EditorSession: ObservableObject {
         browserCropMessage = nil
         player = AVPlayer()
         synchronizeUnsavedWork()
+        cleanUpExports()
         schedulePreview()
         await waitForPreview()
         try Task.checkCancellation()
@@ -240,6 +243,7 @@ final class EditorSession: ObservableObject {
         groupStart = nil
         clearSelection()
         synchronizeUnsavedWork()
+        cleanUpExports(retaining: [])
     }
 
     /// Apply through the ordinary crop pipeline so preview, export, project save,
@@ -473,7 +477,11 @@ final class EditorSession: ObservableObject {
         isExporting = true
         appState?.isExportingVideo = true
         exportError = nil
-        defer { isExporting = false; appState?.isExportingVideo = false }
+        defer {
+            isExporting = false
+            appState?.isExportingVideo = false
+            cleanUpExports()
+        }
         do {
             let result: URL
             if editingRecording, let recording = appState?.recording {
@@ -482,15 +490,22 @@ final class EditorSession: ObservableObject {
                 guard let url = recording.lastRecordingURL else { throw SessionError.noVideo }
                 result = url
             } else {
-                let output = FileManager.default.temporaryDirectory.appendingPathComponent("Screen-layout-\(UUID().uuidString).mov")
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("ScreenTake-export-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                exportDirectories.insert(directory)
+                let output = directory.appendingPathComponent("rendered.mov")
                 let keyframes = settings.zoomEnabled && mouseURL != nil
                     ? try await ClickZoomGenerator.generate(from: mouseURL!, sourceVideoURL: sourceURL,
-                        settings: .init(zoomLevel: settings.zoomLevel), segments: settings.zoomSegments) : []
+                        settings: .init(zoomLevel: settings.zoomLevel,
+                                        transitionMotion: settings.zoomTransitionMotion ?? .smooth),
+                        segments: settings.zoomSegments) : []
                 var rendered = try await exportEngine.export(sourceURL: sourceURL, keyframes: keyframes, configuration: .init(
                     outputURL: output,
                     webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,
                     videoOverlayTiming: settings.videoOverlayTiming, videoOverlayTrim: settings.trim,
                     pipPosition: settings.webcamPosition, pipSize: settings.webcamSize, pipShape: settings.webcamShape,
+                    cameraMirrored: settings.cameraMirrored ?? false,
                     cameraLayout: settings.cameraLayout, cameraLayoutChanges: settings.cameraLayoutChanges,
                     faceBeautyAmount: settings.faceBeautyAmount ?? 0,
                     faceMakeup: settings.faceMakeup ?? .init(),
@@ -506,10 +521,12 @@ final class EditorSession: ObservableObject {
                                                        micAudioURL: nil, removeSourceAudio: false)
                 }
                 let trimmed = try await settings.trim.export(source: rendered)
+                if trimmed != rendered { try? FileManager.default.removeItem(at: rendered) }
                 result = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
                     originalVolume: settings.originalAudioVolume,
                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [], voiceOverVolume: settings.voiceOverVolume,
-                    recordedSource: audioURL, recordedClips: settings.recordedAudioClips)
+                    recordedSource: audioURL, recordedClips: settings.recordedAudioClips,
+                    outputDirectory: directory)
             }
             try Task.checkCancellation()
             videoURL = result
@@ -548,6 +565,9 @@ final class EditorSession: ObservableObject {
                 try await VideoFileStore.copy(from: source, to: destination)
             }
             videoURL = destination
+            // A chosen download destination belongs to the user, including an
+            // unusual destination inside a temporary render directory.
+            exportDirectories = exportDirectories.filter { !Self.contains(destination, in: $0) }
             videoWork.markDownloaded(edits: appliedEdits)
             synchronizeUnsavedWork()
         } catch {
@@ -589,10 +609,45 @@ final class EditorSession: ObservableObject {
         redoEdits = redoEdits.map(remap)
         restoring = false
         projectURL = destination
+        exportDirectories = exportDirectories.filter { !Self.contains(destination, in: $0) }
         projectName = project.name
         savedProjectRevision = project.revision
         schedulePreview()
         synchronizeUnsavedWork()
+        cleanUpExports()
+    }
+
+    private static func contains(_ file: URL, in directory: URL) -> Bool {
+        let folder = directory.standardizedFileURL.resolvingSymlinksInPath().path + "/"
+        return file.standardizedFileURL.resolvingSymlinksInPath().path.hasPrefix(folder)
+    }
+
+    /// Keep current media and Undo references; discard obsolete renders and
+    /// trim/audio intermediates after success, failure, replacement, or close.
+    private func cleanUpExports(retaining explicitMedia: [URL]? = nil) {
+        let media = explicitMedia ?? ([videoURL, sourceURL, audioURL, mouseURL]
+            + ([draft, appliedEdits] + undoEdits + redoEdits).flatMap {
+                [$0.videoOverlayURL, $0.phoneVideoURL] + $0.voiceOvers.map { Optional($0.url) }
+            }).compactMap { $0 }
+        let manager = FileManager.default
+        for directory in exportDirectories {
+            let retained = media.filter { Self.contains($0, in: directory) }
+            do {
+                if retained.isEmpty {
+                    try manager.removeItem(at: directory)
+                    exportDirectories.remove(directory)
+                } else {
+                    let paths = Set(retained.map { $0.standardizedFileURL.resolvingSymlinksInPath() })
+                    for file in try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+                        where !paths.contains(file.standardizedFileURL.resolvingSymlinksInPath())
+                            && !retained.contains(where: { Self.contains($0, in: file) }) {
+                        try manager.removeItem(at: file)
+                    }
+                }
+            } catch {
+                Log.export.warning("Could not clean up temporary export: \(error.localizedDescription, privacy: .public)")
+            }
+        }
     }
 
     enum SessionError: LocalizedError {

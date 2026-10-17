@@ -264,3 +264,39 @@
 "Face definition" = "臉部輪廓";
 
 "Under-eye shadow" = "下眼影";
+
+"Mirror Camera" = "鏡像攝影機";
+"Flip the camera horizontally in preview and export." = "在預覽和匯出中水平翻轉攝影機畫面。";
+"Editing shortcuts" = "編輯快捷鍵";
+"Play / Pause" = "播放 / 暫停";
+"Reverse / Pause / Play" = "倒放 / 暫停 / 播放";
+"Previous / Next Frame" = "上一格 / 下一格";
+"Seek One Second" = "移動一秒";
+"Go to start / end" = "跳到開頭 / 結尾";
+"Split at Playhead" = "在播放頭處分割";
+"Undo / Redo" = "復原 / 重做";
+"Delete Selection" = "刪除所選項目";
+"Link / Unlink Audio" = "連結 / 取消連結音訊";
+"Zoom Timeline In / Out" = "放大 / 縮小時間軸";
+"Export Video…" = "匯出影片…";
+"Playback keys are available while editing, outside text fields." = "編輯時，可在文字輸入框以外使用播放快捷鍵。";
+
+// Automatic updates
+"Updates" = "更新";
+"Automatically check for updates" = "自動檢查更新";
+"Automatically download and install updates on quit" = "結束時自動下載並安裝更新";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "更新會在結束時安裝。請先完成錄製和媒體處理，並儲存專案。";
+"Automatic installation is optional. You can always check and install updates manually here." = "自動安裝是選用功能。您隨時可以在此手動檢查並安裝更新。";
+"Install and Relaunch" = "安裝並重新啟動";
+"ScreenTake is keeping your work safe" = "ScreenTake 正在保護您的工作";
+"Finish recording before updating or quitting." = "更新或結束前請結束錄製。";
+"Wait for media processing to finish before updating or quitting." = "更新或結束前請等待媒體處理完成。";
+"Close the capture controls before updating or quitting." = "更新或結束前請關閉錄製控制項。";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "安裝更新或結束前請儲存專案。匯出影片不會儲存可編輯的專案。";
+"Complete permission setup before checking for updates." = "檢查更新前請完成權限設定。";
+"You’re up to date." = "已是最新版本。";
+"Unable to check for updates. Try again later." = "無法檢查更新。請稍後再試。";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "無法啟動更新程式。請重新安裝最新版 ScreenTake。";
+
+"Zoom transition" = "縮放轉場";
+"Zoom transition motion" = "縮放轉場動畫";

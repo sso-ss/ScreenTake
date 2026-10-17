@@ -146,7 +146,7 @@ final class LiveEditFrameRenderer {
                                                      changes: settings.cameraLayoutChanges)
             let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                            changes: settings.cameraLayoutChanges)
-            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
+            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout, mirrored: settings.cameraMirrored ?? false,
                                      faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
                                      beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
         }

@@ -47,13 +47,19 @@ final class WebcamCompositor {
         )
     }
 
+    static func mirrored(_ image: CIImage) -> CIImage {
+        image.transformed(by: CGAffineTransform(a: -1, b: 0, c: 0, d: 1,
+                                                tx: image.extent.minX + image.extent.maxX, ty: 0))
+    }
+
     func composite(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   mirrored: Bool = false,
                    faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil,
                    beautyAmount: Double = 0, beautyTime: Double = 0, makeup: FaceMakeupSettings = .init()) -> CIImage {
         compositeFiltered(webcamImage: filteredFrame(webcamImage, at: beautyTime, amount: beautyAmount, makeup: makeup),
-                          onto: screenImage, settings: settings, faceFocus: faceFocus, transition: transition)
+                          onto: screenImage, settings: settings, mirrored: mirrored, faceFocus: faceFocus, transition: transition)
     }
 
     /// A camera sample can span several 60fps output frames. Cache its pixels,
@@ -91,23 +97,25 @@ final class WebcamCompositor {
     /// Filter exactly once, before any crop, layout transition or shape mask.
     private func compositeFiltered(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   mirrored: Bool = false,
                    faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil) -> CIImage {
         if let transition {
             if transition.progress <= 0 {
-                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.from, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.from, mirrored: mirrored, faceFocus: faceFocus)
             }
             if transition.progress >= 1 {
-                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.to, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.to, mirrored: mirrored, faceFocus: faceFocus)
             }
-            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, faceFocus: faceFocus)
+            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, mirrored: mirrored, faceFocus: faceFocus)
         }
         let focus = settings.followFace ? faceFocus : nil
         if settings.layout == .fullScreen {
             let bounds = screenImage.extent
             let manualCrop = settings.crop(in: webcamImage.extent, output: bounds.size)
             let crop = focus?.crop(in: webcamImage.extent, fallback: manualCrop) ?? manualCrop
-            return webcamImage.cropped(to: crop)
+            let cropped = webcamImage.cropped(to: crop)
+            return (mirrored ? Self.mirrored(cropped) : cropped)
                 .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
                 .transformed(by: CGAffineTransform(scaleX: bounds.width / crop.width, y: bounds.height / crop.height))
                 .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY))
@@ -122,8 +130,8 @@ final class WebcamCompositor {
         let squareCrop = focus?.crop(in: webcamExtent, fallback: centeredCrop) ?? centeredCrop
 
         let scale = diameter / squareCrop.width
-        let scaled = webcamImage
-            .cropped(to: squareCrop)
+        let cropped = webcamImage.cropped(to: squareCrop)
+        let scaled = (mirrored ? Self.mirrored(cropped) : cropped)
             .transformed(by: CGAffineTransform(
                 translationX: -squareCrop.origin.x,
                 y: -squareCrop.origin.y
@@ -148,7 +156,7 @@ final class WebcamCompositor {
     }
 
     private func transitioning(webcamImage: CIImage, onto screenImage: CIImage,
-                               transition: CameraLayoutTransition, faceFocus: FaceTrackingTrack.Focus?) -> CIImage {
+                               transition: CameraLayoutTransition, mirrored: Bool, faceFocus: FaceTrackingTrack.Focus?) -> CIImage {
         let bounds = screenImage.extent
         let source = webcamImage.extent
         let overlay = CGRect(origin: pipOrigin, size: CGSize(width: diameter, height: diameter))
@@ -178,7 +186,8 @@ final class WebcamCompositor {
         let cropRect = CGRect(x: min(source.maxX - width, max(source.minX, mix(fromCrop.midX, toCrop.midX) - width / 2)),
                               y: min(source.maxY - height, max(source.minY, mix(fromCrop.midY, toCrop.midY) - height / 2)),
                               width: width, height: height)
-        let image = webcamImage.cropped(to: cropRect)
+        let cropped = webcamImage.cropped(to: cropRect)
+        let image = (mirrored ? Self.mirrored(cropped) : cropped)
             .transformed(by: CGAffineTransform(translationX: -cropRect.minX, y: -cropRect.minY))
             .transformed(by: CGAffineTransform(scaleX: rect.width / cropRect.width, y: rect.height / cropRect.height))
             .transformed(by: CGAffineTransform(translationX: rect.minX, y: rect.minY))

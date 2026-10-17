@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A1600000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1600000000000000000002 /* Sparkle */; };
 		FA1800000000000000000002 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000001 /* AppLanguage.swift */; };
 		FA1800000000000000000004 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000003 /* Localizable.strings */; };
 		E628721EA1354CAB8B49C5C0 /* HoverHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E628721EA1354CAB8B49C5C1 /* HoverHelp.swift */; };
@@ -210,6 +211,15 @@
 		DFA100000000000000000006 /* triangles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = triangles.json; sourceTree = "<group>"; };
 		DFA100000000000000000008 /* LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5A1600000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (5A1600000000000000000001 /* Sparkle in Frameworks */,);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		9A0061607EEC35AE1A7F740D /* ScreenTakeMCP */ = {
@@ -437,6 +447,7 @@
 			buildConfigurationList = 0DF509C277ADFC256C047756 /* Build configuration list for PBXNativeTarget "Screen" */;
 			buildPhases = (
 				E508B06A65FAE820B948BF41 /* Sources */,
+				5A1600000000000000000003 /* Frameworks */,
 				14EA0BF61BAE95C3DBD5997C /* Resources */,
 				ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */,
 			);
@@ -447,6 +458,7 @@
 			);
 			name = Screen;
 			packageProductDependencies = (
+				5A1600000000000000000002 /* Sparkle */,
 			);
 			productName = Screen;
 			productReference = B231EADCD2F77286BD0CDDF5 /* Screen.app */;
@@ -476,6 +488,7 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E2A4314D8A1E611AC80F3CCA /* Products */;
+			packageReferences = (5A1600000000000000000004 /* Sparkle */,);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -669,7 +682,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Screen Local Development";
+				CODE_SIGN_IDENTITY = "Developer ID Application: So Eun Ahn (43LSH32H5S)";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -727,7 +740,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Screen Local Development";
+				CODE_SIGN_IDENTITY = "Developer ID Application: So Eun Ahn (43LSH32H5S)";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -766,7 +779,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -779,7 +792,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.14;
+				MARKETING_VERSION = 0.1.18;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
@@ -794,7 +807,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screen/Info.plist;
@@ -806,7 +819,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.14;
+				MARKETING_VERSION = 0.1.18;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
@@ -845,6 +858,20 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+/* Begin XCRemoteSwiftPackageReference section */
+		5A1600000000000000000004 /* Sparkle */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {kind = exactVersion; version = 2.10.0;};
+		};
+/* End XCRemoteSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+		5A1600000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A1600000000000000000004 /* Sparkle */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F51C37BF0AC0A85D643C7393 /* Project object */;
 }

@@ -26,7 +26,7 @@ final class WebcamPiPOverlay {
         pipSize: PiPSize,
         shape: PiPShape,
         screenBounds: CGRect,
-        beautyAmount: Double = 0, makeup: FaceMakeupSettings = .init()
+        beautyAmount: Double = 0, makeup: FaceMakeupSettings = .init(), mirrored: Bool = false
     ) {
         hide()
         self.webcamRecorder = webcamRecorder
@@ -99,7 +99,7 @@ final class WebcamPiPOverlay {
         let renderer = CameraBeautyPreviewRenderer(layer: fLayer)
         renderer.setDisplayPixelSize(CGSize(width: fLayer.bounds.width * window.backingScaleFactor,
                                            height: fLayer.bounds.height * window.backingScaleFactor))
-        renderer.configure(recorder: webcamRecorder, amount: beautyAmount, makeup: makeup)
+        renderer.configure(recorder: webcamRecorder, amount: beautyAmount, makeup: makeup, mirrored: mirrored)
         beautyRenderer = renderer
     }
 

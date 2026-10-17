@@ -8,9 +8,10 @@ struct BeautyCameraFeedView: NSViewRepresentable {
     let recorder: WebcamRecorder
     let amount: Double
     var makeup: FaceMakeupSettings = .init()
+    var mirrored = false
 
     func makeNSView(context: Context) -> BeautyCameraNSView { BeautyCameraNSView() }
-    func updateNSView(_ view: BeautyCameraNSView, context: Context) { view.configure(recorder: recorder, amount: amount, makeup: makeup) }
+    func updateNSView(_ view: BeautyCameraNSView, context: Context) { view.configure(recorder: recorder, amount: amount, makeup: makeup, mirrored: mirrored) }
     static func dismantleNSView(_ view: BeautyCameraNSView, coordinator: ()) { view.stop() }
 }
 
@@ -35,9 +36,9 @@ final class BeautyCameraNSView: NSView {
         let scale = window?.backingScaleFactor ?? 2
         renderer?.setDisplayPixelSize(CGSize(width: bounds.width * scale, height: bounds.height * scale))
     }
-    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init()) {
+    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init(), mirrored: Bool = false) {
         if renderer == nil { renderer = CameraBeautyPreviewRenderer(layer: imageLayer) }
-        renderer?.configure(recorder: recorder, amount: amount, makeup: makeup)
+        renderer?.configure(recorder: recorder, amount: amount, makeup: makeup, mirrored: mirrored)
         updatePreviewSize()
     }
     func stop() { renderer?.stop(); renderer = nil }
@@ -48,6 +49,8 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
     private weak var recorder: WebcamRecorder?
     private var amount = 0.0
     private var makeup = FaceMakeupSettings()
+    private var mirrored = false
+    private var lastMirrored = false
     private var active = true
     private var displayPixelSize = CGSize(width: 360, height: 360)
     private var pendingImage: CGImage?
@@ -72,8 +75,8 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
         timer.resume()
     }
 
-    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init()) {
-        lock.withLock { self.recorder = recorder; self.amount = FaceBeautyFilter.clamped(amount); self.makeup = makeup.clamped }
+    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init(), mirrored: Bool = false) {
+        lock.withLock { self.recorder = recorder; self.amount = FaceBeautyFilter.clamped(amount); self.makeup = makeup.clamped; self.mirrored = mirrored }
     }
     func setDisplayPixelSize(_ size: CGSize) {
         lock.withLock { displayPixelSize = size }
@@ -96,17 +99,18 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
     deinit { timer?.cancel() }
 
     private func render() {
-        let (recorder, amount, makeup, active, displaySize) = lock.withLock { (self.recorder, self.amount, self.makeup, self.active, self.displayPixelSize) }
+        let (recorder, amount, makeup, mirrored, active, displaySize) = lock.withLock { (self.recorder, self.amount, self.makeup, self.mirrored, self.active, self.displayPixelSize) }
         guard active, let recorder, let frame = recorder.previewFrame else { return }
         if lastRecorder != ObjectIdentifier(recorder) { filter = FaceBeautyFilter(); lastTime = nil; lastRecorder = ObjectIdentifier(recorder) }
         let raw = CIImage(cvPixelBuffer: frame.buffer)
         let edge = Self.renderLongEdge(source: raw.extent.size, display: displaySize,
                                       beautyEnabled: amount > 0 || makeup.amount > 0)
-        guard lastTime != frame.time || lastAmount != amount || lastMakeup != makeup || lastRenderEdge != edge else { return }
-        lastTime = frame.time; lastAmount = amount; lastMakeup = makeup; lastRenderEdge = edge
+        guard lastTime != frame.time || lastAmount != amount || lastMakeup != makeup || lastRenderEdge != edge || lastMirrored != mirrored else { return }
+        lastTime = frame.time; lastAmount = amount; lastMakeup = makeup; lastRenderEdge = edge; lastMirrored = mirrored
         let scale = min(1, edge / max(raw.extent.width, raw.extent.height))
         let image = raw.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        let result = filter.render(image, at: frame.time, amount: amount, makeup: makeup)
+        let filtered = filter.render(image, at: frame.time, amount: amount, makeup: makeup)
+        let result = mirrored ? WebcamCompositor.mirrored(filtered) : filtered
         guard let rendered = context.createCGImage(result, from: result.extent) else { return }
         let schedule = lock.withLock { () -> Bool in
             guard self.active else { return false }

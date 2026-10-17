@@ -18,12 +18,14 @@ struct EditorEdits: Codable {
     var cursorScale: Double?
     var zoomEnabled: Bool?
     var zoomLevel: Double?
+    var zoomTransitionMotion: ZoomTransitionMotion?
     var zoomSegments: [ZoomSegment]?
     var restoreAutomaticZooms: Bool?
     var webcamEnabled: Bool?
     var webcamShape: PiPShape?
     var webcamPosition: PiPPosition?
     var webcamSize: PiPSize?
+    var cameraMirrored: Bool?
     var faceBeautyAmount: Double?
     var faceMakeup: FaceMakeupSettings?
     var videoOverlayURL: URL?
@@ -53,12 +55,14 @@ struct EditorEdits: Codable {
         if let cursorScale { settings.cursorScale = cursorScale }
         if let zoomEnabled { settings.zoomEnabled = zoomEnabled }
         if let zoomLevel { settings.zoomLevel = zoomLevel }
+        if let zoomTransitionMotion { settings.zoomTransitionMotion = zoomTransitionMotion }
         if let zoomSegments { settings.zoomSegments = zoomSegments }
         if restoreAutomaticZooms == true { settings.zoomSegments = nil }
         if let webcamEnabled { settings.webcamEnabled = webcamEnabled }
         if let webcamShape { settings.webcamShape = webcamShape }
         if let webcamPosition { settings.webcamPosition = webcamPosition }
         if let webcamSize { settings.webcamSize = webcamSize }
+        if let cameraMirrored { settings.cameraMirrored = cameraMirrored }
         if let faceBeautyAmount { settings.faceBeautyAmount = faceBeautyAmount }
         if let faceMakeup { settings.faceMakeup = faceMakeup }
         if let videoOverlayURL { settings.videoOverlayURL = videoOverlayURL }
