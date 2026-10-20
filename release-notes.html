@@ -3,18 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScreenTake 0.1.18 — Release notes</title>
+  <title>ScreenTake 0.1.19 — Release notes</title>
   <link rel="icon" href="assets/mark.svg?v=2">
-  <link rel="stylesheet" href="styles.css?v=38">
+  <link rel="stylesheet" href="styles.css?v=39">
 </head>
 <body>
   <main class="container section release-notes">
     <a href="index.html">← Back to ScreenTake</a>
-    <p class="eyebrow">BETA · BUILD 20</p>
-    <h1>ScreenTake 0.1.18</h1>
-    <p>Finish trimmed recordings faster and avoid the stalled final audio-processing path.</p>
+    <p class="eyebrow">BETA · BUILD 21</p>
+    <h1>ScreenTake 0.1.19</h1>
+    <p>Make the canvas your own with custom image backgrounds, four new silk wallpapers, and editable zoom regions.</p>
 
     <h2>What’s new</h2>
+    <ul>
+      <li>Upload, replace, or remove a custom background image. Saved projects embed the image, and previews, recordings, and exports share the same background.</li>
+      <li>Choose 16 wallpapers in a four-column grid of square thumbnails. New 4K Silk, Pastel, Breeze, and Mint presets share translucent folds in four palettes.</li>
+      <li>Draw, move, and resize manual zoom regions, including on imported videos and phone layouts.</li>
+      <li>Adjust phone corner rounding separately and use floating phone chrome.</li>
+    </ul>
+    <p>Verified custom background import, orientation, resizing, persistence, project portability, undo/redo, preview, and video export.</p>
+
+    <h2>Included from 0.1.18</h2>
     <ul>
       <li>Rebuild edited audio without encoding the finished video a second time when audio levels are unchanged. This avoids the stalled processing path and preserves rendered video quality.</li>
       <li>Show the processing stage after audio merging completes, so later work no longer stays labeled “Merging audio”.</li>
@@ -66,16 +75,15 @@
       <li>Preserve source resolution through screen exports and capture higher-quality camera footage for full-screen layouts.</li>
     </ul>
 
-    <a class="button primary" href="downloads/ScreenTake-0.1.18-build20.dmg" download>Download 0.1.18 for Apple Silicon</a>
-    <p><a href="downloads/ScreenTake-0.1.18-build20.dmg.sha256">SHA-256 checksum</a> · Beta build 20</p>
+    <a class="button primary" href="downloads/ScreenTake-0.1.19-build21.dmg" download>Download 0.1.19 for Apple Silicon</a>
+    <p><a href="downloads/ScreenTake-0.1.19-build21.dmg.sha256">SHA-256 checksum</a> · Beta build 21</p>
 
     <h2>Install</h2>
     <p>Requires an Apple Silicon Mac and macOS 13 or later. Save your work and quit ScreenTake. Open the DMG, drag ScreenTake into Applications, then reopen it. This one-time manual installation enables in-app updates. Use ScreenTake → Check for Updates… or enable automatic downloads and installation on quit in Settings → Updates.</p>
 
     <h2>Beta notes</h2>
     <p>The app and installer are signed with a Developer ID certificate, and Apple has notarized the installer. Make a short test recording and check your export before sharing. Smart zoom and device reliability are still being refined.</p>
-    <p>Face tracking follows one face. Long clips may take a moment to prepare, and tracking depends on a visible face. Saved .screentake projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.</p>
-    <p>The release source builds ScreenTake 0.1.18 (build 20).</p>
+    <p>Face tracking follows one face. Long clips may take a moment to prepare, and tracking depends on a visible face. Saved .screentake projects retain source media and capture data for later editing. Imported finished videos support manual zoom regions, but do not include original cursor capture data.</p>
     <p><a href="https://github.com/sso-ss/ScreenTake/issues">Report an issue</a></p>
   </main>
 </body>

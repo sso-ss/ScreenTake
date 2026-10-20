@@ -4,11 +4,18 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.18 (build 20)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.19 (build 21)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.18-build20.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.18
+## New in 0.1.19
+
+- Upload your own background image, replace or remove it, and keep it inside saved projects. The same image appears in previews, recordings, and exports.
+- Choose among 16 wallpapers in a four-column grid of square thumbnails. New 4K Silk, Pastel, Breeze, and Mint backgrounds share soft, translucent folds in four palettes.
+- Draw, move, and resize manual zoom regions, including on imported videos and phone layouts.
+- Adjust phone corner rounding separately and use floating phone chrome around your content.
+
+## Included from 0.1.18
 
 - Finish trimmed-recording audio processing without encoding the video a second time when audio levels are unchanged. This avoids the stalled processing path and preserves rendered video quality.
 - Show the processing stage after audio merging completes, so later work no longer stays labeled “Merging audio”.
@@ -56,6 +63,12 @@ Install 0.1.16 or later from the DMG once to enable the new updater. Builds thro
 - Choose a microphone above **Record Voiceover**, using the same saved device selection as the recording controls.
 - Preserve source resolution through screen exports and use higher-quality camera capture for full-screen layouts.
 
+## New backgrounds
+
+![Silk, Pastel, Breeze, and Mint wallpaper previews](website/assets/backgrounds-preview.png)
+
+Four palettes with the same soft silk folds. Choose a preset or upload your own image in the Canvas panel.
+
 ## See the app
 
 ### Edit and add your voice
@@ -80,10 +93,10 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Use editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
 | Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
-| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor; adjust zoom strength and focus for eligible recordings. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
+| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
 | Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
-| Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop corners, and crop phone content with Fit or Fill. |
-| Backgrounds | Choose built-in wallpapers, including Prism, Lagoon, Ember, and Midnight. Toggle the background for an original-size desktop canvas. |
+| Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop and phone corners separately, use floating phone chrome, and crop phone content with Fit or Fill. |
+| Backgrounds | Choose 16 built-in wallpapers, including 4K Silk, Pastel, Breeze, and Mint, in a four-column grid of square thumbnails. Upload, replace, or remove your own image; saved projects embed it. Toggle the background for an original-size desktop canvas. |
 | Preview and export | Preview edits immediately after recording; render effects when applying changes or exporting a MOV. Save a .screentake project to retain source media and edits. Recordings and editable source files stay on your Mac. |
 
 Select your microphone above **Record Voiceover** in the Audio panel. The selection is shared with the recording controls. **Default** follows your Mac’s default input. Preview sound is muted while recording. Takes keep their timeline positions when video clips change, so check narration alignment after rearranging your video.
@@ -141,7 +154,7 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 ## Current limitations and updates
 
 - Smart zoom and recording reliability are still being refined. Some devices may experience microphone stalls or a brief black frame at the start of the webcam overlay. Check the exported result.
-- Saved `.screentake` projects retain source media and capture data for later editing. Imported finished videos do not include the original cursor and zoom capture data.
+- Saved `.screentake` projects retain source media and capture data for later editing. Imported finished videos do not include original cursor capture data, but support manually placed zoom regions.
 - Editable source media uses local disk space. Save a `.screentake` project to continue editing later; a finished MOV does not preserve the complete editable project.
 - ScreenTake 0.1.16 and later check a signed update feed about once a day while the app is open and ready to use. Choose **ScreenTake → Check for Updates…** for an immediate check. Automatic download and installation on quit is optional in **Settings → Updates**. Earlier builds open GitHub Releases and need one manual installation of 0.1.16 or later.
 
@@ -155,7 +168,7 @@ This repository contains the native app sources, editable promo projects, public
 
 ## Build from source
 
-The release source builds ScreenTake 0.1.18 (build 20).
+The downloadable app version is listed above. Source builds use the version and features in the checked-out revision.
 
 On macOS with Xcode and the required Developer ID signing identity available, run `./Launch ScreenTake.command` from the repository root. The script builds and opens the current app with signing enabled. See [AGENTS.md](AGENTS.md) for signing requirements and [docs](docs) for implementation and validation notes.
 
