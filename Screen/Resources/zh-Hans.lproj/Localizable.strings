@@ -318,3 +318,20 @@
 "Area magnification" = "区域放大倍率";
 "Could not load this frame. Try another point in the video." = "无法加载此帧。请尝试视频中的其他位置。";
 "Starts at %.1fs · %.1f×" = "开始于 %.1f秒 · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "自定义背景";
+"Upload Image…" = "上传图片…";
+"Replace Image…" = "替换图片…";
+"Remove custom background" = "移除自定义背景";
+"Return to the selected preset background." = "返回所选的预设背景。";
+"Upload custom background image" = "上传自定义背景图片";
+"Choose an image to fill the canvas background." = "选择用于填充画布背景的图片。";
+"Choose Background Image" = "选择背景图片";
+"Choose Image" = "选择图片";
+"Could Not Import Background" = "无法导入背景";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "请选择有效的图片文件，例如 PNG、JPEG 或 HEIC。";
+"Silk" = "丝绸";
+"Pastel" = "粉彩";
+"Breeze" = "微风";
+"Mint" = "薄荷";

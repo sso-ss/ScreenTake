@@ -51,6 +51,7 @@ final class ExportEngine: ObservableObject {
         var canvasRatio: CanvasRatio = .original
         var deviceLayout: DeviceLayout = .desktop
         var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
+        var customBackgroundImage: Data?
         var desktopCornerRadius: Double = 0.025
         var phoneCornerRadius: Double?
         var phoneVideoURL: URL?
@@ -150,7 +151,7 @@ final class ExportEngine: ObservableObject {
             size: outputSize, frameRate: max(60, Double(sourceFrameRate)))
         let canvas = configuration.usesCanvas
             ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout,
-                               wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode,
+                               wallpaper: configuration.wallpaper, customBackgroundImage: configuration.customBackgroundImage, phoneContentMode: configuration.phoneContentMode,
                                desktopCornerRadius: CGFloat(configuration.desktopCornerRadius),
                                phoneCornerRadius: configuration.phoneCornerRadius.map { CGFloat($0) },
                                preserveSourcePixels: configuration.outputSize == nil && configuration.exportResolution == .preserveSource) : nil

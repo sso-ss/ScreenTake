@@ -98,7 +98,7 @@ final class LiveEditFrameRenderer {
         cursor = settings.showCursor ? CursorImageProvider.cgImage(width: 24 * settings.cursorScale, screenScale: 2, shape: settings.cursorShape) : nil
         canvas = settings.backgroundEnabled || settings.ratio != .original || settings.layout != .desktop
             ? CanvasCompositor(size: outputSize, sourceSize: cropRect.size, layout: settings.layout,
-                               wallpaper: settings.wallpaper, phoneContentMode: settings.phoneMode,
+                               wallpaper: settings.wallpaper, customBackgroundImage: settings.customBackgroundImage, phoneContentMode: settings.phoneMode,
                                desktopCornerRadius: CGFloat(settings.desktopCornerRadius),
                                phoneCornerRadius: settings.phoneCornerRadius.map { CGFloat($0) },
                                preserveSourcePixels: settings.exportResolution == .preserveSource) : nil
@@ -243,14 +243,14 @@ final class CanvasCompositor {
     private let desktopCornerRadius: CGFloat
     private let phoneCornerRadius: CGFloat?
 
-    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil, preserveSourcePixels: Bool = false) {
+    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data? = nil, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil, preserveSourcePixels: Bool = false) {
         self.layout = layout
         self.phoneContentMode = phoneContentMode
         self.desktopCornerRadius = min(0.5, max(0, desktopCornerRadius))
         self.phoneCornerRadius = phoneCornerRadius
         bounds = CGRect(origin: .zero, size: size)
         geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize, preserveSourcePixels: preserveSourcePixels)
-        background = Self.makeBackground(size: size, wallpaper: wallpaper)
+        background = Self.makeBackground(size: size, wallpaper: wallpaper, customBackgroundImage: customBackgroundImage)
         chrome = Self.makeChrome(size: size, geometry: geometry, layout: layout, desktopCornerRadius: self.desktopCornerRadius, phoneCornerRadius: phoneCornerRadius)
         phoneOverlay = Self.makePhoneOverlay(size: size, geometry: geometry, layout: layout)
     }
@@ -280,7 +280,7 @@ final class CanvasCompositor {
         return (phoneOverlay?.composited(over: result) ?? result).cropped(to: bounds)
     }
 
-    static func preview(size: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil) -> CGImage? {
+    static func preview(size: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data? = nil, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil) -> CGImage? {
         func sample(phone: Bool) -> CIImage {
             let size = phone ? (layout.isFoldablePhone ? layout.phoneFrameSize : CGSize(width: 390, height: 844)) : CGSize(width: 1440, height: 900)
             let context = context(size: size)
@@ -309,7 +309,7 @@ final class CanvasCompositor {
             return CIImage(cgImage: context.makeImage()!)
         }
         let primary = sample(phone: layout.isPhone)
-        let compositor = CanvasCompositor(size: size, sourceSize: primary.extent.size, layout: layout, wallpaper: wallpaper, desktopCornerRadius: desktopCornerRadius, phoneCornerRadius: phoneCornerRadius)
+        let compositor = CanvasCompositor(size: size, sourceSize: primary.extent.size, layout: layout, wallpaper: wallpaper, customBackgroundImage: customBackgroundImage, desktopCornerRadius: desktopCornerRadius, phoneCornerRadius: phoneCornerRadius)
         let image = compositor.composite(primary: primary, phone: sample(phone: true))
         return CIContext().createCGImage(image, from: image.extent)
     }
@@ -339,8 +339,12 @@ final class CanvasCompositor {
                   bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     }
 
-    private static func makeBackground(size: CGSize, wallpaper: BackgroundStyle.WallpaperPreset) -> CIImage {
+    private static func makeBackground(size: CGSize, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data?) -> CIImage {
         let rect = CGRect(origin: .zero, size: size)
+        if let customBackgroundImage, let image = CIImage(data: customBackgroundImage) {
+            return fitted(image, in: rect, mode: .fill)
+                .composited(over: CIImage(color: .black).cropped(to: rect))
+        }
         if let name = wallpaper.imageName, let image = NSImage(named: name),
            let bitmap = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let scale = max(size.width / CGFloat(bitmap.width), size.height / CGFloat(bitmap.height))

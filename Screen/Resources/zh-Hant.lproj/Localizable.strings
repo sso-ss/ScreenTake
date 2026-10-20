@@ -318,3 +318,20 @@
 "Area magnification" = "區域放大倍率";
 "Could not load this frame. Try another point in the video." = "無法載入此影格。請嘗試影片中的其他位置。";
 "Starts at %.1fs · %.1f×" = "開始於 %.1f秒 · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "自訂背景";
+"Upload Image…" = "上傳圖片…";
+"Replace Image…" = "更換圖片…";
+"Remove custom background" = "移除自訂背景";
+"Return to the selected preset background." = "返回所選的預設背景。";
+"Upload custom background image" = "上傳自訂背景圖片";
+"Choose an image to fill the canvas background." = "選擇用於填滿畫布背景的圖片。";
+"Choose Background Image" = "選擇背景圖片";
+"Choose Image" = "選擇圖片";
+"Could Not Import Background" = "無法匯入背景";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "請選擇有效的圖片檔案，例如 PNG、JPEG 或 HEIC。";
+"Silk" = "絲綢";
+"Pastel" = "粉彩";
+"Breeze" = "微風";
+"Mint" = "薄荷";

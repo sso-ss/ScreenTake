@@ -318,3 +318,20 @@
 "Area magnification" = "範囲の拡大率";
 "Could not load this frame. Try another point in the video." = "このフレームを読み込めませんでした。動画の別の位置をお試しください。";
 "Starts at %.1fs · %.1f×" = "開始 %.1f秒 · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "カスタム背景";
+"Upload Image…" = "画像をアップロード…";
+"Replace Image…" = "画像を変更…";
+"Remove custom background" = "カスタム背景を削除";
+"Return to the selected preset background." = "選択したプリセット背景に戻ります。";
+"Upload custom background image" = "カスタム背景画像をアップロード";
+"Choose an image to fill the canvas background." = "キャンバスの背景に使う画像を選択します。";
+"Choose Background Image" = "背景画像を選択";
+"Choose Image" = "画像を選択";
+"Could Not Import Background" = "背景を読み込めませんでした";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "PNG、JPEG、HEICなどの有効な画像ファイルを選択してください。";
+"Silk" = "シルク";
+"Pastel" = "パステル";
+"Breeze" = "そよ風";
+"Mint" = "ミント";

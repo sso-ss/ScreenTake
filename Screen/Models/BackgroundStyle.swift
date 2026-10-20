@@ -1,5 +1,36 @@
 import Foundation
 import SwiftUI
+import ImageIO
+import UniformTypeIdentifiers
+
+enum CustomBackgroundImage {
+    /// Decode off the main thread, apply photo orientation, and bound render memory.
+    static func load(from url: URL) throws -> Data {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 4096,
+                kCGImageSourceShouldCacheImmediately: true
+              ] as CFDictionary) else { throw ImportError.invalidImage }
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else {
+            throw ImportError.invalidImage
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { throw ImportError.invalidImage }
+        return data as Data
+    }
+
+    enum ImportError: LocalizedError {
+        case invalidImage
+        var errorDescription: String? {
+            AppLanguage.text("Choose a valid image file, such as PNG, JPEG, or HEIC.")
+        }
+    }
+}
 
 /// Background style for window-mode recordings
 enum BackgroundStyle: Codable, Equatable {
@@ -23,6 +54,10 @@ enum BackgroundStyle: Codable, Equatable {
         case lagoon
         case ember
         case midnight
+        case silk
+        case pastel
+        case breeze
+        case mint
 
         var displayName: String {
             rawValue.capitalized
@@ -30,7 +65,7 @@ enum BackgroundStyle: Codable, Equatable {
 
         var imageName: String? {
             switch self {
-            case .prism, .lagoon, .ember, .midnight:
+            case .prism, .lagoon, .ember, .midnight, .silk, .pastel, .breeze, .mint:
                 return "Wallpaper\(displayName)"
             default:
                 return nil
@@ -119,6 +154,30 @@ enum BackgroundStyle: Codable, Equatable {
                     GradientStop(color: CodableColor(hex: "#F17C70"), location: 0.52),
                     GradientStop(color: CodableColor(hex: "#FFD29A"), location: 0.76),
                     GradientStop(color: CodableColor(hex: "#67344E"), location: 1.0),
+                ]
+            case .pastel:
+                return [
+                    GradientStop(color: CodableColor(hex: "#F9D7FF"), location: 0),
+                    GradientStop(color: CodableColor(hex: "#EEE7FC"), location: 0.5),
+                    GradientStop(color: CodableColor(hex: "#A5DFFF"), location: 1),
+                ]
+            case .breeze:
+                return [
+                    GradientStop(color: CodableColor(hex: "#F0F6EB"), location: 0),
+                    GradientStop(color: CodableColor(hex: "#B8E6F5"), location: 0.5),
+                    GradientStop(color: CodableColor(hex: "#F2BFEA"), location: 1),
+                ]
+            case .mint:
+                return [
+                    GradientStop(color: CodableColor(hex: "#ABFFD7"), location: 0),
+                    GradientStop(color: CodableColor(hex: "#E9FFE5"), location: 0.5),
+                    GradientStop(color: CodableColor(hex: "#EDFFBC"), location: 1),
+                ]
+            case .silk:
+                return [
+                    GradientStop(color: CodableColor(hex: "#FDE1E7"), location: 0),
+                    GradientStop(color: CodableColor(hex: "#F6B1C4"), location: 0.5),
+                    GradientStop(color: CodableColor(hex: "#FFECEF"), location: 1),
                 ]
             case .midnight:
                 return [

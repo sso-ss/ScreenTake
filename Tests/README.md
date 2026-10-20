@@ -31,3 +31,5 @@ Build ScreenTake first to resolve Sparkle. The runner links the resolved framewo
 The zoom motion check verifies Smooth, Linear, Ease In, and Ease Out in actual preview and exported frames, automatic clicks and recorded zoom markers, Undo/Redo, project persistence, and compatibility with older projects.
 
 The zoom region check verifies box bounds and corner resizing, fixed focus with cursor data, imported portrait video without cursor data, cropped source coordinates, preview/export pixels at 2× and 6×, Undo/Redo, and project compatibility.
+
+`test_custom_background.swift` checks image import and orientation, large-image resizing, invalid files, persistent recording settings, older projects, Undo/Redo, portable project saving, centered Fill cropping, and matching backgrounds in preview and exported video.

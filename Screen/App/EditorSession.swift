@@ -511,7 +511,7 @@ final class EditorSession: ObservableObject {
                     faceMakeup: settings.faceMakeup ?? .init(),
                     mouseDataURL: mouseURL, cursorScale: settings.cursorScale, cursorShape: settings.cursorShape,
                     showCursor: settings.showCursor && mouseURL != nil, canvasRatio: settings.ratio, deviceLayout: settings.layout,
-                    wallpaper: settings.wallpaper, desktopCornerRadius: settings.desktopCornerRadius,
+                    wallpaper: settings.wallpaper, customBackgroundImage: settings.customBackgroundImage, desktopCornerRadius: settings.desktopCornerRadius,
                     phoneCornerRadius: settings.phoneCornerRadius,
                     phoneVideoURL: settings.phoneVideoURL,
                     preserveSourceAudio: settings.audioEnabled && audioURL == sourceURL, phoneCrop: settings.crop,

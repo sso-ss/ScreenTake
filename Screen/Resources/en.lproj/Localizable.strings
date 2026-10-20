@@ -318,3 +318,20 @@
 "Area magnification" = "Area magnification";
 "Could not load this frame. Try another point in the video." = "Could not load this frame. Try another point in the video.";
 "Starts at %.1fs · %.1f×" = "Starts at %.1fs · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "Custom Background";
+"Upload Image…" = "Upload Image…";
+"Replace Image…" = "Replace Image…";
+"Remove custom background" = "Remove custom background";
+"Return to the selected preset background." = "Return to the selected preset background.";
+"Upload custom background image" = "Upload custom background image";
+"Choose an image to fill the canvas background." = "Choose an image to fill the canvas background.";
+"Choose Background Image" = "Choose Background Image";
+"Choose Image" = "Choose Image";
+"Could Not Import Background" = "Could Not Import Background";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "Choose a valid image file, such as PNG, JPEG, or HEIC.";
+"Silk" = "Silk";
+"Pastel" = "Pastel";
+"Breeze" = "Breeze";
+"Mint" = "Mint";

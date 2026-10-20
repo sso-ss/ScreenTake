@@ -67,7 +67,7 @@ final class CaptureSettings: ObservableObject {
         phoneCrop = crop
     }
 
-    var usesCanvas: Bool { canvasRatio != .original || deviceLayout != .desktop }
+    var usesCanvas: Bool { canvasRatio != .original || deviceLayout != .desktop || customBackgroundImage != nil }
     var isLayoutReady: Bool { deviceLayout != .duo || phoneVideoURL != nil }
 
     // MARK: - Cursor
@@ -81,6 +81,12 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Background
 
     @AppStorage("backgroundWallpaper") var backgroundWallpaperRaw: String = "sonoma"
+    @AppStorage("customBackgroundImage") private var customBackgroundData: Data = Data()
+
+    var customBackgroundImage: Data? {
+        get { customBackgroundData.isEmpty ? nil : customBackgroundData }
+        set { customBackgroundData = newValue ?? Data() }
+    }
 
     // MARK: - Auto Zoom
 
@@ -162,7 +168,8 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Background Style
 
     var backgroundStyle: BackgroundStyle {
-        .wallpaper(selectedWallpaper)
+        if let customBackgroundImage { return .image(customBackgroundImage) }
+        return .wallpaper(selectedWallpaper)
     }
 
     // MARK: - Computed

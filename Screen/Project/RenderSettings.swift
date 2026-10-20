@@ -12,6 +12,8 @@ struct VideoEditSettings: Equatable, Codable {
     var ratio: CanvasRatio = .original
     var layout: DeviceLayout = .desktop
     var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
+    /// Embedded so custom backgrounds survive moving or reopening a project.
+    var customBackgroundImage: Data?
     var desktopCornerRadius: Double = 0.025
     /// Nil preserves the original device rounding in older projects.
     var phoneCornerRadius: Double?

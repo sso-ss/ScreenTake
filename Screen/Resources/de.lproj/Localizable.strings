@@ -318,3 +318,20 @@
 "Area magnification" = "Bereichsvergrößerung";
 "Could not load this frame. Try another point in the video." = "Dieses Bild konnte nicht geladen werden. Versuche eine andere Stelle im Video.";
 "Starts at %.1fs · %.1f×" = "Start bei %.1fs · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "Eigener Hintergrund";
+"Upload Image…" = "Bild hochladen…";
+"Replace Image…" = "Bild ersetzen…";
+"Remove custom background" = "Eigenen Hintergrund entfernen";
+"Return to the selected preset background." = "Zum ausgewählten Hintergrund zurückkehren.";
+"Upload custom background image" = "Eigenes Hintergrundbild hochladen";
+"Choose an image to fill the canvas background." = "Ein Bild für den Leinwandhintergrund auswählen.";
+"Choose Background Image" = "Hintergrundbild auswählen";
+"Choose Image" = "Bild auswählen";
+"Could Not Import Background" = "Hintergrund konnte nicht importiert werden";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "Wähle eine gültige Bilddatei wie PNG, JPEG oder HEIC.";
+"Silk" = "Seide";
+"Pastel" = "Pastell";
+"Breeze" = "Brise";
+"Mint" = "Minze";

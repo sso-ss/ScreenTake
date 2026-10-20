@@ -31,6 +31,8 @@ struct SettingsView: View {
 
     @ObservedObject var session: EditorSession = AppState.shared.editorSession
     @State private var isDragging = false
+    @State private var isImportingBackground = false
+    @State private var backgroundImportError: String?
     @State private var isCroppingScreen = false
     @State private var cropFrameTime = CMTime.zero
     @State private var selectedPanel: SettingsPanel = .canvas
@@ -264,6 +266,14 @@ struct SettingsView: View {
         } message: {
             Text(LocalizedStringKey(appState.recording.processingError ?? ""))
         }
+        .alert("Could Not Import Background", isPresented: Binding(
+            get: { backgroundImportError != nil },
+            set: { if !$0 { backgroundImportError = nil } }
+        )) {
+            Button("OK") { backgroundImportError = nil }
+        } message: {
+            Text(LocalizedStringKey(backgroundImportError ?? ""))
+        }
         .alert("Could Not Save Recording", isPresented: Binding(
             get: { session.saveError != nil },
             set: { if !$0 { session.saveError = nil } }
@@ -417,7 +427,7 @@ struct SettingsView: View {
 
                 // Mock recording preview — centered, fills available width
                 ZStack {
-                    if let image = CanvasCompositor.preview(size: CGSize(width: previewWidth * 2, height: previewHeight * 2), layout: appState.capture.deviceLayout, wallpaper: appState.capture.selectedWallpaper, desktopCornerRadius: CGFloat(appState.capture.desktopCornerRadius), phoneCornerRadius: appState.capture.phoneCornerRadius.map { CGFloat($0) }) {
+                    if let image = CanvasCompositor.preview(size: CGSize(width: previewWidth * 2, height: previewHeight * 2), layout: appState.capture.deviceLayout, wallpaper: appState.capture.selectedWallpaper, customBackgroundImage: appState.capture.customBackgroundImage, desktopCornerRadius: CGFloat(appState.capture.desktopCornerRadius), phoneCornerRadius: appState.capture.phoneCornerRadius.map { CGFloat($0) }) {
                         Image(decorative: image, scale: 2)
                             .resizable()
                             .frame(width: previewWidth, height: previewHeight)
@@ -1900,30 +1910,140 @@ struct SettingsView: View {
 
     // MARK: - Wallpaper Grid
 
-    private var wallpaperGrid: some View {
-        let columns = [
-            GridItem(.flexible(), spacing: Spacing.md),
-            GridItem(.flexible(), spacing: Spacing.md),
-            GridItem(.flexible(), spacing: Spacing.md),
-        ]
+    private var customBackgroundImage: Data? {
+        videoURL == nil ? appState.capture.customBackgroundImage : session.draft.customBackgroundImage
+    }
 
-        return LazyVGrid(columns: columns, spacing: Spacing.md) {
-            ForEach(BackgroundStyle.WallpaperPreset.allCases, id: \.self) { preset in
-                wallpaperTile(preset)
+    private func setCustomBackground(_ data: Data?) {
+        if videoURL == nil {
+            appState.capture.customBackgroundImage = data
+        } else {
+            var settings = session.draft
+            settings.customBackgroundImage = data
+            if data != nil { settings.backgroundEnabled = true }
+            session.draft = settings
+        }
+    }
+
+    private var wallpaperGrid: some View {
+        VStack(spacing: Spacing.md) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0), spacing: Spacing.md), count: 4), spacing: Spacing.md) {
+                ForEach(BackgroundStyle.WallpaperPreset.allCases, id: \.self) { preset in
+                    wallpaperTile(preset)
+                }
             }
+
+            if let data = customBackgroundImage, let image = NSImage(data: data) {
+                HStack(spacing: Spacing.md) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.sm))
+                        .overlay(RoundedRectangle(cornerRadius: CornerRadius.sm).stroke(DesignColors.accent, lineWidth: 2))
+                        .accessibilityHidden(true)
+                    Text("Custom Background")
+                        .font(Typography.caption)
+                        .foregroundColor(DesignColors.primaryLabel)
+                    Spacer(minLength: 0)
+                    Button {
+                        setCustomBackground(nil)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(DesignColors.secondaryLabel)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .localizedAccessibilityLabel("Remove custom background")
+                    .hoverHelp("Return to the selected preset background.")
+                }
+                .padding(Spacing.sm)
+                .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: CornerRadius.sm))
+            }
+
+            Button(action: importBackgroundImage) {
+                HStack(spacing: Spacing.sm) {
+                    if isImportingBackground {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "photo.badge.plus")
+                    }
+                    Text(LocalizedStringKey(customBackgroundImage == nil ? "Upload Image…" : "Replace Image…"))
+                        .lineLimit(1)
+                }
+                .font(Typography.caption)
+                .foregroundColor(DesignColors.primaryLabel)
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
+                .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: CornerRadius.sm))
+                .overlay(RoundedRectangle(cornerRadius: CornerRadius.sm).stroke(DesignColors.inputBorder, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .localizedAccessibilityLabel("Upload custom background image")
+            .hoverHelp(editBusyReason ?? "Choose an image to fill the canvas background.")
+        }
+        .disabled(isImportingBackground)
+    }
+
+    private func importBackgroundImage() {
+        guard !editsBusy, !isImportingBackground else { return }
+        let projectID = session.projectID
+        let sourceURL = session.sourceURL
+        let panel = NSOpenPanel()
+        panel.title = AppLanguage.text("Choose Background Image")
+        panel.prompt = AppLanguage.text("Choose Image")
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        isImportingBackground = true
+        videoPlayer?.pause()
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else {
+                isImportingBackground = false
+                return
+            }
+            Task { @MainActor in
+                defer { isImportingBackground = false }
+                do {
+                    let data = try await Task.detached(priority: .userInitiated) {
+                        try CustomBackgroundImage.load(from: url)
+                    }.value
+                    guard session.projectID == projectID, session.sourceURL == sourceURL, !editsBusy else { return }
+                    setCustomBackground(data)
+                } catch {
+                    backgroundImportError = error.localizedDescription
+                }
+            }
+        }
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            panel.begin(completionHandler: completion)
         }
     }
 
     private func wallpaperTile(_ preset: BackgroundStyle.WallpaperPreset) -> some View {
-        let isSelected = (videoURL == nil ? appState.capture.selectedWallpaper : session.draft.wallpaper) == preset
+        let isSelected = customBackgroundImage == nil && (videoURL == nil ? appState.capture.selectedWallpaper : session.draft.wallpaper) == preset
 
         return Button {
-            if videoURL == nil { appState.capture.selectedWallpaper = preset }
-            else { session.draft.wallpaper = preset }
+            if videoURL == nil {
+                appState.capture.selectedWallpaper = preset
+                appState.capture.customBackgroundImage = nil
+            } else {
+                var settings = session.draft
+                settings.wallpaper = preset
+                settings.customBackgroundImage = nil
+                session.draft = settings
+            }
         } label: {
             VStack(spacing: Spacing.sm) {
-                wallpaperPreview(preset)
-                    .frame(height: 48)
+                Color.clear
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay { wallpaperPreview(preset) }
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.sm))
                     .overlay(
                         RoundedRectangle(cornerRadius: CornerRadius.sm)

@@ -318,3 +318,20 @@
 "Area magnification" = "Ampliação da área";
 "Could not load this frame. Try another point in the video." = "Não foi possível carregar este quadro. Tente outro ponto do vídeo.";
 "Starts at %.1fs · %.1f×" = "Início em %.1fs · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "Fundo personalizado";
+"Upload Image…" = "Carregar imagem…";
+"Replace Image…" = "Substituir imagem…";
+"Remove custom background" = "Remover fundo personalizado";
+"Return to the selected preset background." = "Voltar ao fundo predefinido selecionado.";
+"Upload custom background image" = "Carregar imagem de fundo personalizada";
+"Choose an image to fill the canvas background." = "Escolha uma imagem para preencher o fundo da tela.";
+"Choose Background Image" = "Escolher imagem de fundo";
+"Choose Image" = "Escolher imagem";
+"Could Not Import Background" = "Não foi possível importar o fundo";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "Escolha um arquivo de imagem válido, como PNG, JPEG ou HEIC.";
+"Silk" = "Seda";
+"Pastel" = "Pastel";
+"Breeze" = "Brisa";
+"Mint" = "Menta";

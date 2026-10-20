@@ -45,7 +45,10 @@ struct EditorEdits: Codable {
         if let removeRanges { settings.trim.cuts += removeRanges }
         if let ratio { settings.ratio = ratio }
         if let layout { settings.layout = layout }
-        if let wallpaper { settings.wallpaper = wallpaper }
+        if let wallpaper {
+            settings.wallpaper = wallpaper
+            settings.customBackgroundImage = nil
+        }
         if let backgroundEnabled { settings.backgroundEnabled = backgroundEnabled }
         if let desktopCornerRadius { settings.desktopCornerRadius = desktopCornerRadius }
         if let phoneCornerRadius { settings.phoneCornerRadius = phoneCornerRadius }
