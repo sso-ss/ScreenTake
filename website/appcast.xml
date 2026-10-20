@@ -6,6 +6,18 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>ScreenTake</title>
         <item>
+            <title>0.1.20</title>
+            <pubDate>Tue, 20 Oct 2026 00:50:20 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.1.20</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.20</h2><ul><li>Add styled text overlays with presets, timing, positioning, rotation, and independent scale controls. Keep text in preview, exports, and editable projects.</li><li>Use consistent inspector controls and compact timeline tracks for text and narration.</li><li>Choose one camera presentation style and retain independent Zoom and Auto Zoom settings.</li><li>Control text overlays and camera styles through a connected AI client in the same editor, with shared Undo.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>]]></description>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg" length="37831661" type="application/octet-stream" sparkle:edSignature="6/qf4yr/fUHqcdkRQmMEpxDKJrOp2y6GDPoUUtgYcAT3nXhD7/kr/EcoFXT+C8PvSKJ0EVCPTUebk//KQ28sBg=="/>
+        </item>
+        <item>
             <title>0.1.19</title>
             <pubDate>Mon, 19 Oct 2026 21:52:00 -0700</pubDate>
             <link>https://sso-ss.github.io/ScreenTake/</link>
@@ -44,6 +56,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: V8GKqCiNdw2znejwz7Dh1TI8mwJ1YYRaRVTmwVHIbGh0lRfEmAqGoz8JfXojz5Dtd0xEizTFjPQaVIXWwBouCA==
-length: 4639
+edSignature: S1aFDYbMpCqKoexZBlPp+aFgOTJBO1JpLEuV3PVtWffE/1XmKCGm6/YZ6Lb8iRwXYRUxepNlwkJenRGUPh7pBg==
+length: 6118
 -->

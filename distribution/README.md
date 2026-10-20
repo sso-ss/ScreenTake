@@ -2,13 +2,21 @@
 
 <img src="../website/assets/app-icon.png" alt="ScreenTake app icon" width="96" height="96">
 
-ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
+ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, styled text, and voiceover narration.
 
-**Latest release: 0.1.19 (build 21)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.20 (build 22)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.19
+## New in 0.1.20
+
+- Add styled text overlays with presets, multiline text, timing, drag positioning, rotation, independent scale controls, backgrounds, and outlines. Text remains editable in saved projects and appears in previews and exports.
+- Work with consistent inspector controls and compact timeline tracks for text and narration.
+- Choose one camera presentation style and retain independent Zoom and Auto Zoom settings.
+- Use a connected AI client to edit text and camera styles through the local editor, with shared Undo.
+- Explore the redesigned website with interactive editor demos and clearer desktop and mobile text.
+
+## Included from 0.1.19
 
 - Upload your own background image, replace or remove it, and keep it inside saved projects. The same image appears in previews, recordings, and exports.
 - Choose among 16 wallpapers in a four-column grid of square thumbnails. New 4K Silk, Pastel, Breeze, and Mint backgrounds share soft, translucent folds in four palettes.
@@ -91,9 +99,10 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
 | Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Use editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
+| Text overlays | Add and edit multiline text, choose presets, set timing, drag its position, rotate and scale it, and style backgrounds and outlines. Preview, export, and save it in editable projects. |
 | Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
-| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. |
+| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
 | Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop and phone corners separately, use floating phone chrome, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose 16 built-in wallpapers, including 4K Silk, Pastel, Breeze, and Mint, in a four-column grid of square thumbnails. Upload, replace, or remove your own image; saved projects embed it. Toggle the background for an original-size desktop canvas. |
