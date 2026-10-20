@@ -47,6 +47,7 @@ final class CaptureSettings: ObservableObject {
 
     @AppStorage("canvasRatio") var canvasRatio: CanvasRatio = .original
     @AppStorage("desktopCornerRadius") var desktopCornerRadius: Double = 0.025
+    @AppStorage("phoneCornerRadius") var phoneCornerRadius: Double?
     @AppStorage("deviceLayout") private var deviceLayoutRaw: String = DeviceLayout.desktop.rawValue
     var deviceLayout: DeviceLayout {
         get { DeviceLayout.allCases.first { $0.rawValue == deviceLayoutRaw } ?? .desktop }

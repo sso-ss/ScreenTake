@@ -13,6 +13,8 @@ struct VideoEditSettings: Equatable, Codable {
     var layout: DeviceLayout = .desktop
     var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
     var desktopCornerRadius: Double = 0.025
+    /// Nil preserves the original device rounding in older projects.
+    var phoneCornerRadius: Double?
     var backgroundEnabled = true
     var crop = PhoneCrop()
     var phoneMode: PhoneContentMode = .fit
@@ -457,6 +459,10 @@ enum DeviceLayout: String, CaseIterable, Codable {
 
     var isFoldablePhone: Bool {
         self == .iPhoneDuoClosed || self == .iPhoneDuoUnfolded
+    }
+
+    var defaultPhoneCornerRadius: Double {
+        (isFoldablePhone ? 32.0 : 48.0) / 390
     }
 
     var phoneFrameSize: CGSize {

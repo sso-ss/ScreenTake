@@ -138,7 +138,7 @@ struct PhoneCropTests {
             precondition(middle.greenComponent > 0.7 && middle.redComponent < 0.2, "Crop retained excluded red borders")
             let edge = pixel(content.width > content.height
                 ? CGPoint(x: content.minX + 20, y: content.midY)
-                : CGPoint(x: content.midX, y: content.maxY - 20))
+                : CGPoint(x: content.midX + content.width * 0.3, y: content.maxY - 20))
             precondition(mode == .fill ? edge.greenComponent > 0.7 : edge.greenComponent < 0.2)
             let scale = mode == .fit ? min(content.width / sourceRect.width, content.height / sourceRect.height)
                                     : max(content.width / sourceRect.width, content.height / sourceRect.height)

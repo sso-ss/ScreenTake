@@ -317,7 +317,7 @@ struct SettingsView: View {
 
                 // Mock recording preview — centered, fills available width
                 ZStack {
-                    if let image = CanvasCompositor.preview(size: CGSize(width: previewWidth * 2, height: previewHeight * 2), layout: appState.capture.deviceLayout, wallpaper: appState.capture.selectedWallpaper, desktopCornerRadius: CGFloat(appState.capture.desktopCornerRadius)) {
+                    if let image = CanvasCompositor.preview(size: CGSize(width: previewWidth * 2, height: previewHeight * 2), layout: appState.capture.deviceLayout, wallpaper: appState.capture.selectedWallpaper, desktopCornerRadius: CGFloat(appState.capture.desktopCornerRadius), phoneCornerRadius: appState.capture.phoneCornerRadius.map { CGFloat($0) }) {
                         Image(decorative: image, scale: 2)
                             .resizable()
                             .frame(width: previewWidth, height: previewHeight)
@@ -620,7 +620,12 @@ struct SettingsView: View {
                     ratioPicker(selection: $session.draft.ratio)
                     deviceLayoutPicker(selection: $session.draft.layout)
                     if !session.draft.layout.isPhone {
-                        desktopCornerRadiusSlider(selection: $session.draft.desktopCornerRadius)
+                        canvasCornerRadiusSlider(selection: $session.draft.desktopCornerRadius)
+                    } else {
+                        canvasCornerRadiusSlider(selection: Binding(
+                            get: { session.draft.phoneCornerRadius ?? session.draft.layout.defaultPhoneCornerRadius },
+                            set: { session.draft.phoneCornerRadius = $0 }
+                        ))
                     }
                     if session.draft.layout.isPhone {
                         Picker("Content", selection: $session.draft.phoneMode) {
@@ -893,9 +898,14 @@ struct SettingsView: View {
                         set: { appState.capture.deviceLayout = $0 }
                     ))
                     if !appState.capture.deviceLayout.isPhone {
-                        desktopCornerRadiusSlider(selection: Binding(
+                        canvasCornerRadiusSlider(selection: Binding(
                             get: { appState.capture.desktopCornerRadius },
                             set: { appState.capture.desktopCornerRadius = $0 }
+                        ))
+                    } else {
+                        canvasCornerRadiusSlider(selection: Binding(
+                            get: { appState.capture.phoneCornerRadius ?? appState.capture.deviceLayout.defaultPhoneCornerRadius },
+                            set: { appState.capture.phoneCornerRadius = $0 }
                         ))
                     }
                     if appState.capture.deviceLayout.isPhone {
@@ -1576,7 +1586,7 @@ struct SettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func desktopCornerRadiusSlider(selection: Binding<Double>) -> some View {
+    private func canvasCornerRadiusSlider(selection: Binding<Double>) -> some View {
         let source = videoURL == nil
             ? (appState.capture.selectedTarget.map {
                 let configuration = CaptureConfiguration.forTarget($0)
@@ -1589,14 +1599,18 @@ struct SettingsView: View {
             ? appState.capture.exportResolution.size(source: source, ratio: ratio, layout: layout, usesCanvas: true)
             : session.draft.outputSize(source: source)
         let contentSource = videoURL == nil ? source : session.draft.crop.pixelRect(in: source).size
-        let content = CanvasGeometry(size: canvasSize, layout: layout, sourceSize: contentSource).desktop
+        let geometry = CanvasGeometry(size: canvasSize, layout: layout, sourceSize: contentSource)
+        let content = layout.isPhone
+            ? geometry.phone.map { CanvasGeometry.phoneScreen($0, layout: layout) }
+            : geometry.desktop
         let shortestSide = content.map { min($0.width, $0.height) } ?? 0
         let pixels = Int((shortestSide * selection.wrappedValue).rounded())
-        let maximumPixels = Int((shortestSide * 0.1).rounded())
+        let maximumPixels = Int((shortestSide * 0.2).rounded())
         let usesBackground = videoURL == nil || session.draft.backgroundEnabled || ratio != .original || layout != .desktop
         let help = editBusyReason ?? (!usesBackground
             ? "Turn on Background to adjust corner radius."
-            : shortestSide <= 0 ? "Choose a desktop layout with visible screen content to adjust corner radius."
+            : shortestSide <= 0 ? "Choose a layout with visible screen content to adjust corner radius."
+            : layout.isPhone ? "Round the phone screen and its frame together."
             : "Round the video corners inside the background.")
         return VStack(alignment: .leading, spacing: Spacing.labelToControl) {
             HStack {
@@ -1613,12 +1627,12 @@ struct SettingsView: View {
                     get: { pixels },
                     set: { requestedPixels in
                         guard shortestSide > 0 else { return }
-                        selection.wrappedValue = min(0.1, max(0, Double(requestedPixels) / Double(shortestSide)))
+                        selection.wrappedValue = min(0.2, max(0, Double(requestedPixels) / Double(shortestSide)))
                     }
                 ), range: 0...maximumPixels, unit: "px", label: "Corner radius in pixels", helpText: help)
                 .disabled(shortestSide <= 0)
             }
-            primarySlider(selection: selection, range: 0...0.1,
+            primarySlider(selection: selection, range: 0...0.2,
                           label: "Canvas content corner radius",
                           value: "\(pixels) pixels")
                 .hoverHelp(help)

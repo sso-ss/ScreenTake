@@ -49,6 +49,7 @@ enum MCPToolCatalog {
         "layout": choices("desktop", "iPhone", "duo", "iPhoneDuoClosed", "iPhoneDuoUnfolded"),
         "wallpaper": choices("sonoma", "aurora", "sunset", "ocean", "blossom", "nebula", "moss", "dusk", "prism", "lagoon", "ember", "midnight"),
         "backgroundEnabled": boolean, "desktopCornerRadius": number(0, 0.5),
+        "phoneCornerRadius": number(0, 0.2),
         "crop": object(["rect": array(array(number(0, 1), extra: ["minItems": 2, "maxItems": 2]),
                                        extra: ["minItems": 2, "maxItems": 2, "description": "CGRect encoded as [[x,y],[width,height]], normalized to source dimensions."])], required: ["rect"]),
         "phoneMode": choices("fit", "fill"), "phoneVideoURL": fileURL,

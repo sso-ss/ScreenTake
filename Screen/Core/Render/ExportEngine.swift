@@ -52,6 +52,7 @@ final class ExportEngine: ObservableObject {
         var deviceLayout: DeviceLayout = .desktop
         var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
         var desktopCornerRadius: Double = 0.025
+        var phoneCornerRadius: Double?
         var phoneVideoURL: URL?
         var preserveSourceAudio: Bool = false
         var phoneCrop: PhoneCrop = PhoneCrop()
@@ -151,6 +152,7 @@ final class ExportEngine: ObservableObject {
             ? CanvasCompositor(size: outputSize, sourceSize: sourceSize, layout: configuration.deviceLayout,
                                wallpaper: configuration.wallpaper, phoneContentMode: configuration.phoneContentMode,
                                desktopCornerRadius: CGFloat(configuration.desktopCornerRadius),
+                               phoneCornerRadius: configuration.phoneCornerRadius.map { CGFloat($0) },
                                preserveSourcePixels: configuration.outputSize == nil && configuration.exportResolution == .preserveSource) : nil
         var phoneReader: TimedVideoReader?
         if configuration.deviceLayout == .duo {

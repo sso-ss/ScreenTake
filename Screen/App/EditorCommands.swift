@@ -10,6 +10,7 @@ struct EditorEdits: Codable {
     var wallpaper: BackgroundStyle.WallpaperPreset?
     var backgroundEnabled: Bool?
     var desktopCornerRadius: Double?
+    var phoneCornerRadius: Double?
     var crop: PhoneCrop?
     var phoneMode: PhoneContentMode?
     var phoneVideoURL: URL?
@@ -47,6 +48,7 @@ struct EditorEdits: Codable {
         if let wallpaper { settings.wallpaper = wallpaper }
         if let backgroundEnabled { settings.backgroundEnabled = backgroundEnabled }
         if let desktopCornerRadius { settings.desktopCornerRadius = desktopCornerRadius }
+        if let phoneCornerRadius { settings.phoneCornerRadius = phoneCornerRadius }
         if let crop { settings.crop = crop }
         if let phoneMode { settings.phoneMode = phoneMode }
         if let phoneVideoURL { settings.phoneVideoURL = phoneVideoURL }
