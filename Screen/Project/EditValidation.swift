@@ -93,6 +93,15 @@ extension VideoEditSettings {
             try number(zoom.zoom, 1...10, "segment zoom")
             try number(zoom.centerX, 0...1, "zoom horizontal position")
             try number(zoom.centerY, 0...1, "zoom vertical position")
+            if let region = zoom.manualRegion {
+                let rect = region.rect
+                guard [rect.minX, rect.minY, rect.width, rect.height].allSatisfy({ $0.isFinite }),
+                      rect.width >= 0.125, rect.width <= 1,
+                      abs(rect.width - rect.height) < 0.000001,
+                      rect.minX >= 0, rect.minY >= 0, rect.maxX <= 1.000001, rect.maxY <= 1.000001 else {
+                    throw EditValidationError.invalid("Invalid zoom area.")
+                }
+            }
         }
         let sortedZooms = zooms.sorted { $0.start < $1.start }
         guard zip(sortedZooms, sortedZooms.dropFirst()).allSatisfy({ $0.end <= $1.start }) else {

@@ -185,14 +185,15 @@ enum ActionButtonSize {
 struct CompactActionButtonStyle: ButtonStyle {
     var prominent = false
     var size: ActionButtonSize = .compact
+    var iconOnly = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: size.fontSize, weight: .medium))
             .foregroundStyle(prominent ? Color.white : (configuration.role == .destructive ? DesignColors.error : DesignColors.primaryLabel))
-            .padding(.horizontal, size.horizontalPadding)
-            .frame(height: size.height)
+            .padding(.horizontal, iconOnly ? 0 : size.horizontalPadding)
+            .frame(width: iconOnly ? size.height : nil, height: size.height)
             .background(prominent ? DesignColors.accent : DesignColors.inputBackground,
                         in: RoundedRectangle(cornerRadius: CornerRadius.md))
             .contentShape(RoundedRectangle(cornerRadius: CornerRadius.md))

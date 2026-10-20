@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EA2000010000000000000002 /* ZoomRegionEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2000010000000000000001 /* ZoomRegionEditor.swift */; };
 		5A1600000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1600000000000000000002 /* Sparkle */; };
 		FA1800000000000000000002 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000001 /* AppLanguage.swift */; };
 		FA1800000000000000000004 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FA1800000000000000000003 /* Localizable.strings */; };
@@ -120,6 +121,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXFileReference section */
+		EA2000010000000000000001 /* ZoomRegionEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomRegionEditor.swift; sourceTree = "<group>"; };
 		FA1800000000000000000001 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		FA1800000000000000000010 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "en.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		FA1800000000000000000011 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ko"; path = "ko.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -370,6 +372,7 @@
 		A4F73924DD00AB0C1AEC6B58 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				EA2000010000000000000001 /* ZoomRegionEditor.swift */,
 				D450B289D9878B21F305AA05 /* AudioEditorViews.swift */,
 				DE5C1065339160BD6604FC0A /* ContentView.swift */,
 				57C5A0A8B7A778DD8A7D6094 /* MainWelcomeView.swift */,
@@ -581,6 +584,7 @@
 				F8E354585A461C4A650467E8 /* ScreenCaptureManager.swift in Sources */,
 				461300BA482E91AC77C2A2CE /* ScreenProject.swift in Sources */,
 				843A4D786F7EF47FDB0E7D94 /* SettingsView.swift in Sources */,
+				EA2000010000000000000002 /* ZoomRegionEditor.swift in Sources */,
 				1D9476D94B5DFE5BD72FFD43 /* SystemAudioWriter.swift in Sources */,
 				2B927A302EF179340B8A83F1 /* TransformApplicator.swift in Sources */,
 				C4291F8D475CFF15A41D3D30 /* UpdateChecker.swift in Sources */,

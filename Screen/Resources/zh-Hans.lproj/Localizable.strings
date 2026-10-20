@@ -300,3 +300,21 @@
 
 "Zoom transition" = "缩放过渡";
 "Zoom transition motion" = "缩放过渡动画";
+
+"Set Zoom Area" = "设置缩放区域";
+"Zoom Area" = "缩放区域";
+"Top" = "顶部";
+"Bottom" = "底部";
+"Loading zoom preview" = "正在加载缩放预览";
+"Drag in the zoom track to choose when to zoom, then set its area." = "在缩放轨道中拖动以选择缩放时间，然后设置区域。";
+"Selected zoom area" = "选定的缩放区域";
+"Drag to reposition the zoom area" = "拖动以移动缩放区域";
+"Left top zoom handle" = "缩放区域左上角控制点";
+"Right top zoom handle" = "缩放区域右上角控制点";
+"Left bottom zoom handle" = "缩放区域左下角控制点";
+"Right bottom zoom handle" = "缩放区域右下角控制点";
+"Preview Zoom" = "预览缩放";
+"Select Area" = "选择区域";
+"Area magnification" = "区域放大倍率";
+"Could not load this frame. Try another point in the video." = "无法加载此帧。请尝试视频中的其他位置。";
+"Starts at %.1fs · %.1f×" = "开始于 %.1f秒 · %.1f×";

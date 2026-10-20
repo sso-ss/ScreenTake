@@ -325,13 +325,13 @@ final class RecordingState: ObservableObject {
         do {
             let settings = edits ?? recordingEdits(for: videoURL, generateZoom: generateZoom)
             var keyframes: [CameraKeyframe] = []
-            if generateZoom, let mouseDataURL {
+            if generateZoom {
                 keyframes = try await ClickZoomGenerator.generate(
                     from: mouseDataURL,
                     sourceVideoURL: videoURL,
                     settings: .init(zoomLevel: settings.zoomLevel,
                                     transitionMotion: settings.zoomTransitionMotion ?? .smooth),
-                    segments: settings.zoomSegments
+                    segments: settings.zoomSegments, crop: settings.crop
                 )
             }
 

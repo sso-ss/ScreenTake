@@ -300,3 +300,21 @@
 
 "Zoom transition" = "Zoom transition";
 "Zoom transition motion" = "Zoom transition motion";
+
+"Set Zoom Area" = "Set Zoom Area";
+"Zoom Area" = "Zoom Area";
+"Top" = "Top";
+"Bottom" = "Bottom";
+"Loading zoom preview" = "Loading zoom preview";
+"Drag in the zoom track to choose when to zoom, then set its area." = "Drag in the zoom track to choose when to zoom, then set its area.";
+"Selected zoom area" = "Selected zoom area";
+"Drag to reposition the zoom area" = "Drag to reposition the zoom area";
+"Left top zoom handle" = "Left top zoom handle";
+"Right top zoom handle" = "Right top zoom handle";
+"Left bottom zoom handle" = "Left bottom zoom handle";
+"Right bottom zoom handle" = "Right bottom zoom handle";
+"Preview Zoom" = "Preview Zoom";
+"Select Area" = "Select Area";
+"Area magnification" = "Area magnification";
+"Could not load this frame. Try another point in the video." = "Could not load this frame. Try another point in the video.";
+"Starts at %.1fs · %.1f×" = "Starts at %.1fs · %.1f×";

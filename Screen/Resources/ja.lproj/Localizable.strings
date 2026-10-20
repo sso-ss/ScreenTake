@@ -300,3 +300,21 @@
 
 "Zoom transition" = "ズームトランジション";
 "Zoom transition motion" = "ズームトランジションの動き";
+
+"Set Zoom Area" = "拡大範囲を設定";
+"Zoom Area" = "拡大範囲";
+"Top" = "上部";
+"Bottom" = "下部";
+"Loading zoom preview" = "拡大プレビューを読み込み中";
+"Drag in the zoom track to choose when to zoom, then set its area." = "ズームトラックをドラッグして拡大する区間を選び、範囲を設定します。";
+"Selected zoom area" = "選択した拡大範囲";
+"Drag to reposition the zoom area" = "ドラッグして拡大範囲を移動";
+"Left top zoom handle" = "拡大範囲の左上ハンドル";
+"Right top zoom handle" = "拡大範囲の右上ハンドル";
+"Left bottom zoom handle" = "拡大範囲の左下ハンドル";
+"Right bottom zoom handle" = "拡大範囲の右下ハンドル";
+"Preview Zoom" = "ズームをプレビュー";
+"Select Area" = "範囲を選択";
+"Area magnification" = "範囲の拡大率";
+"Could not load this frame. Try another point in the video." = "このフレームを読み込めませんでした。動画の別の位置をお試しください。";
+"Starts at %.1fs · %.1f×" = "開始 %.1f秒 · %.1f×";

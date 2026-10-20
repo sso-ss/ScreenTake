@@ -13,6 +13,7 @@ python3 tools/run_swift_checks.py Tests/test_canvas_corners.swift
 python3 tools/run_swift_checks.py Tests/test_long_import_export.swift
 python3 tools/run_swift_checks.py Tests/test_timeline_interactions.swift
 python3 tools/run_swift_checks.py Tests/test_zoom_motion.swift
+python3 tools/run_swift_checks.py Tests/test_zoom_region.swift
 ```
 
 Bare filenames also work, and the runner defaults to `test_editor_session.swift` when no checks are specified. `--render-only` skips optional screenshot checks in checks that support it. Some checks require recording permissions, hardware, a supplied clip, or a separately built app module.
@@ -28,3 +29,5 @@ The MCP integration check runs `Tests/test_mcp_bridge.py` with its temporary hel
 Build ScreenTake first to resolve Sparkle. The runner links the resolved framework for updater checks. `test_updates.swift` covers persistent settings and badges, update safety policy, signed-feed configuration, and actual Objective-C delegate selectors. Installer integration tests use separate signed app copies and a localhost feed; see [distribution/UPDATES.md](../distribution/UPDATES.md).
 
 The zoom motion check verifies Smooth, Linear, Ease In, and Ease Out in actual preview and exported frames, automatic clicks and recorded zoom markers, Undo/Redo, project persistence, and compatibility with older projects.
+
+The zoom region check verifies box bounds and corner resizing, fixed focus with cursor data, imported portrait video without cursor data, cropped source coordinates, preview/export pixels at 2× and 6×, Undo/Redo, and project compatibility.

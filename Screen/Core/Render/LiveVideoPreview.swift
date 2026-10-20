@@ -45,13 +45,13 @@ enum LiveVideoPreview {
                                                 voiceOverVolume: request.settings.voiceOverVolume)
         let mouse = try request.mouse.map { try JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: Data(contentsOf: $0)) }
         let keyframes: [CameraKeyframe]
-        if request.settings.zoomEnabled, let mouseURL = request.mouse {
+        if request.settings.zoomEnabled {
             keyframes = try await ClickZoomGenerator.generate(
-                from: mouseURL,
+                from: request.mouse,
                 sourceVideoURL: request.source,
                 settings: .init(zoomLevel: request.settings.zoomLevel,
                                 transitionMotion: request.settings.zoomTransitionMotion ?? .smooth),
-                segments: request.settings.zoomSegments
+                segments: request.settings.zoomSegments, crop: request.settings.crop
             )
         } else { keyframes = [] }
         try Task.checkCancellation()

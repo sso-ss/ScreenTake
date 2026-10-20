@@ -321,6 +321,12 @@ struct ZoomSegment: Equatable, Identifiable, Codable {
     var centerX: Double
     var centerY: Double
     var followsCursor = true
+    /// Nil keeps older zoom sections on the global magnification and cursor focus.
+    var manualRegion: ZoomRegion?
+
+    func magnification(default zoomLevel: Double) -> Double {
+        manualRegion.map { Double($0.magnification) } ?? zoomLevel
+    }
 }
 
 struct PhoneCrop: Equatable, Codable {

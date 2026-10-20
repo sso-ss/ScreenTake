@@ -34,8 +34,10 @@ struct SettingsView: View {
     @State private var isCroppingScreen = false
     @State private var cropFrameTime = CMTime.zero
     @State private var selectedPanel: SettingsPanel = .canvas
-    @State private var focusFrame: CGImage?
-    @State private var editingZoomFocus = false
+    @State private var showsZoomRegion = false
+    @State private var previewsZoomRegion = false
+    @State private var adjustingZoomRegion = false
+    @State private var zoomRegionPreviewTask: Task<Void, Never>?
     @StateObject private var cameraPreview = CameraPreviewController()
     @StateObject private var cameraLayoutPlayback = TimelinePlayback()
     @State private var isShowingCameraPreview = false
@@ -71,12 +73,106 @@ struct SettingsView: View {
         (session.draft.zoomSegments ?? session.automaticZooms).first { $0.id == session.selectedZoomID }
     }
 
+    private var zoomMagnificationBinding: Binding<Double> {
+        Binding(get: { selectedZoom?.magnification(default: session.draft.zoomLevel) ?? session.draft.zoomLevel }, set: { value in
+            guard let segment = selectedZoom, let region = segment.manualRegion else {
+                session.draft.zoomLevel = value
+                return
+            }
+            let area = region.normalized.rect
+            let updated = ZoomRegion(zoom: value, center: CGPoint(x: area.midX, y: area.midY))
+            updateZoomRegion(updated, for: segment)
+        })
+    }
+
+    private func initialZoomRegion(for segment: ZoomSegment) -> ZoomRegion {
+        if let region = segment.manualRegion { return region }
+        let padding = session.zoomPadding
+        let scale = 1 - 2 * padding
+        let camera = CameraTransform(zoom: session.draft.zoomLevel,
+                                     centerX: padding + segment.centerX * scale,
+                                     centerY: padding + (1 - segment.centerY) * scale).clamped()
+        let crop = session.draft.crop.normalized
+        return ZoomRegion(zoom: camera.zoom,
+                          center: CGPoint(x: (camera.centerX - crop.minX) / crop.width,
+                                          y: (camera.centerY - crop.minY) / crop.height))
+    }
+
     private func updateZoomFocus(_ change: (inout ZoomSegment) -> Void) {
         guard let id = session.selectedZoomID else { return }
         var updated = session.draft.zoomSegments ?? session.automaticZooms
         guard let index = updated.firstIndex(where: { $0.id == id }) else { return }
+        updated[index].manualRegion = nil
         change(&updated[index])
         session.draft.zoomSegments = updated
+    }
+
+    private var zoomRegionTarget: ZoomSegment? {
+        if let selectedZoom { return selectedZoom }
+        guard let player = videoPlayer,
+              let timeline = try? session.draft.trim.timeline(duration: CMTime(seconds: sourceDuration, preferredTimescale: 60000)) else { return nil }
+        let time = timeline.sourceTime(at: player.currentTime()).seconds
+        guard time.isFinite, let clip = timeline.ranges.first(where: { time >= $0.start.seconds && time < $0.end.seconds }) else { return nil }
+        let existing = session.draft.zoomSegments ?? session.automaticZooms
+        if let active = existing.first(where: { time >= $0.start && time < $0.end }) { return active }
+        let previousEnd = existing.filter { $0.end <= time }.map(\.end).max() ?? clip.start.seconds
+        let nextStart = existing.filter { $0.start > time }.map(\.start).min() ?? clip.end.seconds
+        let end = min(clip.end.seconds, nextStart, time + 2)
+        let start = max(clip.start.seconds, previousEnd, min(time, end - 0.2))
+        guard end - start >= 0.1999 else { return nil }
+        return ZoomSegment(start: start, end: end, zoom: session.draft.zoomLevel,
+                           centerX: 0.5, centerY: 0.5, followsCursor: false)
+    }
+
+    private func beginZoomRegionEditing() {
+        guard !editsBusy, let target = zoomRegionTarget else { return }
+        videoPlayer?.pause()
+        let segment = commitZoomRegion(initialZoomRegion(for: target), to: target)
+        session.selectedZoomID = segment.id
+        selectedPanel = .cursor
+        previewsZoomRegion = false
+        showsZoomRegion = true
+        showZoomPreview(segment)
+    }
+
+    private func updateZoomRegion(_ region: ZoomRegion, for target: ZoomSegment) {
+        videoPlayer?.pause()
+        let segment = commitZoomRegion(region, to: target)
+        showZoomPreview(segment)
+    }
+
+    private func setAdjustingZoomRegion(_ adjusting: Bool) {
+        guard adjusting != adjustingZoomRegion else { return }
+        adjustingZoomRegion = adjusting
+        if adjusting { session.beginUndoGroup() }
+        else { session.endUndoGroup() }
+    }
+
+    private func showZoomPreview(_ segment: ZoomSegment) {
+        zoomRegionPreviewTask?.cancel()
+        zoomRegionPreviewTask = Task { @MainActor in
+            await session.waitForPreview()
+            guard !Task.isCancelled, session.selectedZoomID == segment.id, let player = videoPlayer,
+                  let timeline = session.renderedPreviewTimeline else { return }
+            let time = CMTime(seconds: min(segment.end - 0.01, segment.start + 0.65), preferredTimescale: 60000)
+            await player.seek(to: timeline.outputTime(at: time), toleranceBefore: .zero, toleranceAfter: .zero)
+        }
+    }
+
+    @discardableResult
+    private func commitZoomRegion(_ region: ZoomRegion, to target: ZoomSegment) -> ZoomSegment {
+        var segment = (session.draft.zoomSegments ?? session.automaticZooms).first { $0.id == target.id } ?? target
+        segment.manualRegion = region.normalized
+        segment.zoom = Double(region.magnification)
+        segment.followsCursor = false
+        var settings = session.draft
+        var segments = settings.zoomSegments ?? session.automaticZooms
+        if let index = segments.firstIndex(where: { $0.id == segment.id }) { segments[index] = segment }
+        else { segments.append(segment) }
+        settings.zoomEnabled = true
+        settings.zoomSegments = segments.sorted { $0.start < $1.start }
+        session.draft = settings
+        return segment
     }
 
     private var mainContent: some View {
@@ -186,7 +282,8 @@ struct SettingsView: View {
         }
         .onDisappear {
             cameraLayoutPlayback.detach()
-            if editingZoomFocus { session.endUndoGroup(); editingZoomFocus = false }
+            setAdjustingZoomRegion(false)
+            zoomRegionPreviewTask?.cancel()
             voiceOverRecorder.cancel()
             videoOverlayRecorder.cancel()
         }
@@ -210,6 +307,9 @@ struct SettingsView: View {
             if recording { stopCameraPreview() }
         }
         .onChange(of: videoURL) { url in
+            showsZoomRegion = false
+            previewsZoomRegion = false
+            zoomRegionPreviewTask?.cancel()
             if url != nil { stopCameraPreview() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openVideoFile)) { notification in
@@ -521,10 +621,19 @@ struct SettingsView: View {
                 }
                 .padding(Spacing.xl)
                 Divider()
-                ScrollView {
-                    editPanelContent
-                        .padding(Spacing.xl)
-                        .disabled(editsBusy && !voiceOverRecorder.isBusy && !videoOverlayRecorder.isBusy)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        editPanelContent
+                            .padding(Spacing.xl)
+                            .disabled(editsBusy && !voiceOverRecorder.isBusy && !videoOverlayRecorder.isBusy)
+                    }
+                    .onChange(of: showsZoomRegion) { expanded in
+                        if expanded {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                proxy.scrollTo("zoomAreaDisclosure", anchor: .top)
+                            }
+                        }
+                    }
                 }
                 Divider()
                 editActions
@@ -605,7 +714,7 @@ struct SettingsView: View {
         guard editing else { return true }
         switch panel {
         case .canvas: return true
-        case .cursor: return session.mouseURL != nil
+        case .cursor: return true
         case .camera, .audio: return true
         case .output: return true
         }
@@ -653,15 +762,29 @@ struct SettingsView: View {
                         cursorSizeSlider(selection: $session.draft.cursorScale)
                     }
                 }
+                .disabled(session.mouseURL == nil)
                 Divider()
                 settingsSection("Zoom") {
                     settingsToggle(icon: "plus.magnifyingglass", label: "Zoom", isOn: $session.draft.zoomEnabled)
                     if session.draft.zoomEnabled {
-                        zoomLevelSlider(selection: $session.draft.zoomLevel)
-                        zoomTransitionControls
-                        if let selectedZoom, session.mouseURL != nil {
+                        if !showsZoomRegion {
+                            zoomLevelSlider(selection: zoomMagnificationBinding,
+                                            range: selectedZoom?.manualRegion == nil ? 1.25...3 : 1...8)
+                        }
+                        if let selectedZoom {
                             zoomFocusControls(selectedZoom)
                         }
+                        if selectedZoom == nil {
+                            Button(action: beginZoomRegionEditing) {
+                                Label("Set Zoom Area", systemImage: "viewfinder")
+                            }
+                            .buttonStyle(CompactActionButtonStyle())
+                            .disabled(zoomRegionTarget == nil)
+                            Text("Drag in the zoom track to choose when to zoom, then set its area.")
+                                .font(Typography.caption)
+                                .foregroundStyle(DesignColors.secondaryLabel)
+                        }
+                        zoomTransitionControls
                     }
                 }
             case .camera:
@@ -776,10 +899,6 @@ struct SettingsView: View {
                     if let sourceVideoSize {
                         exportSizeDetails(settings: session.draft, source: sourceVideoSize)
                     }
-                    Text("Zoom enlarges part of the recording and may still soften fine detail.")
-                        .font(Typography.caption)
-                        .foregroundStyle(DesignColors.secondaryLabel)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -804,54 +923,32 @@ struct SettingsView: View {
     }
 
     private func zoomFocusControls(_ segment: ZoomSegment) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(LocalizedStringKey(String(format: AppLanguage.text("Zoom at %.1fs"), locale: AppLanguage.current.locale, segment.start)))
-                .foregroundStyle(DesignColors.primaryLabel)
-            if let focusFrame {
-                GeometryReader { geometry in
-                    let aspect = CGFloat(focusFrame.width) / CGFloat(focusFrame.height)
-                    let imageWidth = min(geometry.size.width, geometry.size.height * aspect)
-                    let imageHeight = imageWidth / aspect
-                    let padding = Double(session.zoomPadding)
-                    Image(decorative: focusFrame, scale: 1)
-                        .resizable().frame(width: imageWidth, height: imageHeight)
-                        .overlay {
-                            Image(systemName: "scope")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
-                                .shadow(color: .black, radius: 2)
-                                .position(x: imageWidth * (padding + (1 - 2 * padding) * segment.centerX),
-                                          y: imageHeight * (padding + (1 - 2 * padding) * segment.centerY))
-                        }
-                        .contentShape(Rectangle())
-                        .gesture(DragGesture(minimumDistance: 0)
-                            .onChanged { gesture in
-                                if !editingZoomFocus { session.beginUndoGroup(); editingZoomFocus = true }
-                                let contentScale = max(0.001, 1 - 2 * padding)
-                                let x = min(1, max(0, (gesture.location.x / imageWidth - padding) / contentScale))
-                                let y = min(1, max(0, (gesture.location.y / imageHeight - padding) / contentScale))
-                                updateZoomFocus { $0.centerX = x; $0.centerY = y; $0.followsCursor = false }
-                            }
-                            .onEnded { _ in session.endUndoGroup(); editingZoomFocus = false })
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                Button {
+                    if showsZoomRegion { showsZoomRegion = false }
+                    else { beginZoomRegionEditing() }
+                } label: {
+                    Label("Set Zoom Area", systemImage: "viewfinder")
                 }
-                .frame(height: 176)
-                .localizedAccessibilityLabel("Drag to position zoom focus")
+                .buttonStyle(CompactActionButtonStyle(prominent: showsZoomRegion))
+                .accessibilityIdentifier("editZoomArea")
+                if showsZoomRegion {
+                    ZoomRegionControls(
+                        region: Binding(get: { initialZoomRegion(for: selectedZoom ?? segment) },
+                                        set: { updateZoomRegion($0, for: segment) }),
+                        onEditingChanged: setAdjustingZoomRegion)
+                }
             }
-            Picker("Focus", selection: Binding(get: { segment.followsCursor }, set: { value in
-                updateZoomFocus { $0.followsCursor = value }
-            })) {
-                Text("Manual").tag(false)
-                Text("Follow Cursor").tag(true)
-            }.pickerStyle(.segmented)
-        }
-        .task(id: segment.id) {
-            focusFrame = nil
-            guard let source = layoutSourceURL else { return }
-            let generator = AVAssetImageGenerator(asset: AVURLAsset(url: source))
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 540, height: 300)
-            if let image = try? await generator.image(at: CMTime(seconds: min(sourceDuration, segment.start + 0.3), preferredTimescale: 60000)), !Task.isCancelled {
-                focusFrame = image.image
+            .id("zoomAreaDisclosure")
+            if session.mouseURL != nil {
+                Picker("Focus", selection: Binding(get: { segment.manualRegion == nil && segment.followsCursor }, set: { value in
+                    if !value { beginZoomRegionEditing() }
+                    else { showsZoomRegion = false; updateZoomFocus { $0.followsCursor = true } }
+                })) {
+                    Text("Manual").tag(false)
+                    Text("Follow Cursor").tag(true)
+                }.pickerStyle(.segmented)
             }
         }
     }
@@ -1459,19 +1556,8 @@ struct SettingsView: View {
 
     private func exportSizeDetails(settings: VideoEditSettings, source: CGSize) -> some View {
         let output = settings.outputSize(source: source)
-        let content = settings.crop.pixelRect(in: source).size
-        let scale = ExportResolution.contentScale(source: content, output: output, layout: settings.layout,
-                                                 usesCanvas: settings.usesCanvas, phoneMode: settings.phoneMode)
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("\(Int(output.width)) × \(Int(output.height)) pixels")
-                .font(Typography.body).monospacedDigit()
-            Text(LocalizedStringKey(scale < 0.999
-                 ? "Screen detail reduced to \(Int((scale * 100).rounded()))% of source size before zoom."
-                 : "Screen detail preserved before zoom."))
-                .font(Typography.caption)
-                .foregroundStyle(DesignColors.secondaryLabel)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        return Text("\(Int(output.width)) × \(Int(output.height)) pixels")
+            .font(Typography.body).monospacedDigit()
     }
 
     private func ratioPicker(selection: Binding<CanvasRatio>) -> some View {
@@ -1669,15 +1755,15 @@ struct SettingsView: View {
             .hoverHelp(editBusyReason)
     }
 
-    private func zoomLevelSlider(selection: Binding<Double>) -> some View {
+    private func zoomLevelSlider(selection: Binding<Double>, range: ClosedRange<Double> = 1.25...3) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: "minus.magnifyingglass")
                 .font(.system(size: 12))
                 .foregroundColor(DesignColors.tertiaryLabel)
 
-            Slider(value: selection, in: 1.25...3, step: 0.25)
-                .localizedAccessibilityLabel("Zoom magnification")
-                .localizedAccessibilityValue("\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))) times")
+            LineSlider(selection: selection, range: range, label: "Zoom magnification",
+                       value: "\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))) times",
+                       keyboardStep: 0.25, onEditingChanged: setAdjustingZoomRegion)
 
             Image(systemName: "plus.magnifyingglass")
                 .font(.system(size: 14))
@@ -1908,6 +1994,9 @@ struct SettingsView: View {
                     .lineLimit(1)
 
                 Spacer()
+
+                // Balance the Close button while keeping the title centered.
+                Color.clear.frame(width: 48, height: 1)
             }
             .padding(.horizontal, Spacing.lg)
             .frame(height: 36)
@@ -1922,6 +2011,25 @@ struct SettingsView: View {
                     isCroppingScreen = false
                 })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if showsZoomRegion, let segment = selectedZoom, let source = layoutSourceURL, let player = videoPlayer {
+                ZoomRegionEditor(sourceURL: source,
+                                 sourceTime: CMTime(seconds: min(segment.end - 0.01, segment.start + 0.65), preferredTimescale: 60000),
+                                 crop: session.draft.crop,
+                                 layout: session.draft.layout,
+                                 phoneMode: session.draft.phoneMode,
+                                 region: Binding(get: { initialZoomRegion(for: selectedZoom ?? segment) },
+                                                 set: { updateZoomRegion($0, for: segment) }),
+                                 player: player,
+                                 showsResult: previewsZoomRegion,
+                                 onTogglePreview: {
+                                     previewsZoomRegion.toggle()
+                                     if previewsZoomRegion { showZoomPreview(segment) }
+                                     else { videoPlayer?.pause() }
+                                 },
+                                 onClose: { showsZoomRegion = false },
+                                 onEditingChanged: setAdjustingZoomRegion)
+                    .id(segment.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let player = videoPlayer {
                 NativeVideoPlayerView(player: player, showsControls: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1930,6 +2038,7 @@ struct SettingsView: View {
                 Divider()
                 VideoTrimControls(trim: $session.draft.trim, zoomSegments: $session.draft.zoomSegments,
                                   zoomEnabled: session.draft.zoomEnabled, zoomLevel: session.draft.zoomLevel,
+                                  previewsZoomArea: showsZoomRegion,
                                   mouse: session.mouseURL,
                                   duration: sourceDuration, player: player, source: source,
                                   audio: hasEditableAudio ? previewAudioURL : nil,
@@ -1945,7 +2054,7 @@ struct SettingsView: View {
                                   cameraLayoutChanges: $session.draft.cameraLayoutChanges,
                                   isVideoOverlaySelected: $session.isVideoOverlaySelected,
                                   session: session)
-                    .disabled(editsBusy)
+                    .disabled(isCroppingScreen || isShowingSavePanel || session.isBusy)
                     .onChange(of: session.selectedRecordedAudioID) { id in
                         if id != nil { selectedPanel = .audio }
                     }
@@ -1953,7 +2062,12 @@ struct SettingsView: View {
                         if id != nil { selectedPanel = .audio }
                     }
                     .onChange(of: session.selectedZoomID) { id in
+                        setAdjustingZoomRegion(false)
+                        previewsZoomRegion = false
                         if id != nil { selectedPanel = .cursor }
+                        if showsZoomRegion, let selectedZoom {
+                            showZoomPreview(selectedZoom)
+                        }
                     }
                     .onChange(of: session.isVideoOverlaySelected) { selected in
                         if selected { selectedPanel = .camera }
@@ -2294,7 +2408,7 @@ struct InlineScreenCropEditor: View {
                 image = frame
             } catch is CancellationError {
             } catch {
-                self.error = "Could not load this frame. Cancel and try another point in the video."
+                self.error = "Could not load this frame. Try another point in the video."
             }
         }
     }
@@ -2564,13 +2678,14 @@ struct VideoTrimControls: View {
     @Binding var zoomPadding: CGFloat
     let zoomEnabled: Bool
     let zoomLevel: Double
+    let previewsZoomArea: Bool
     let mouse: URL?
     let duration: Double
     let player: AVPlayer
     let source: URL
     var audio: URL? = nil
     @MainActor init(trim: Binding<VideoTrim>, zoomSegments: Binding<[ZoomSegment]?> = .constant(nil),
-         zoomEnabled: Bool = false, zoomLevel: Double = 2, mouse: URL? = nil,
+         zoomEnabled: Bool = false, zoomLevel: Double = 2, previewsZoomArea: Bool = false, mouse: URL? = nil,
          duration: Double, player: AVPlayer, source: URL, audio: URL? = nil,
          voiceOvers: Binding<[VoiceOverClip]> = .constant([]), selectedVoiceOverID: Binding<UUID?> = .constant(nil),
          originalMuted: Bool = false, voiceOverMuted: Bool = false,
@@ -2601,6 +2716,7 @@ struct VideoTrimControls: View {
         _zoomPadding = zoomPadding
         self.zoomEnabled = zoomEnabled
         self.zoomLevel = zoomLevel
+        self.previewsZoomArea = previewsZoomArea
         self.mouse = mouse
         self.duration = duration
         self.player = player
@@ -2833,11 +2949,24 @@ struct VideoTrimControls: View {
 
     private func commitZooms(_ updated: [ZoomSegment]) {
         zoomDragOrigin = nil
-        guard updated != (zoomSegments ?? automaticZooms) else { draggingZooms = nil; return }
+        let latest = zoomSegments ?? automaticZooms
+        // Selecting a block can save the previous block's area during the same
+        // gesture. Apply timing changes to the latest metadata, not the snapshot
+        // captured before selection, so ending the gesture cannot undo that save.
+        let committed = updated.map { timing in
+            guard var segment = latest.first(where: { $0.id == timing.id }) else { return timing }
+            segment.start = timing.start
+            segment.end = timing.end
+            return segment
+        }.sorted { $0.start < $1.start }
+        guard committed != latest else { draggingZooms = nil; return }
         player.pause()
         hoveredZoomGapID = nil
+        session?.beginUndoGroup()
+        defer { session?.endUndoGroup() }
         if session == nil { zoomHistory.append(zoomSegments) }
-        zoomSegments = updated.sorted { $0.start < $1.start }
+        if !committed.isEmpty { session?.draft.zoomEnabled = true }
+        zoomSegments = committed
         draggingZooms = nil
     }
 
@@ -2891,7 +3020,7 @@ struct VideoTrimControls: View {
         guard start >= previous, end <= next, end - start >= 0.2,
               !existing.contains(where: { start < $0.end && end > $0.start }) else { return }
         let segment = ZoomSegment(start: start, end: end, zoom: zoomLevel,
-                                  centerX: 0.5, centerY: 0.5)
+                                  centerX: 0.5, centerY: 0.5, followsCursor: mouse != nil)
         commitZooms(existing + [segment])
         selectZoom(segment.id)
     }
@@ -3234,9 +3363,14 @@ struct VideoTrimControls: View {
         .task(id: "\(mouse?.path ?? "")-\(source.path)-\(zoomLevel)-\(duration)-\(zoomEnabled)") {
             automaticZoomsReady = false
             automaticZooms = []
-            guard zoomEnabled, let mouse, duration > 0,
+            zoomPadding = 0
+            guard zoomEnabled, duration > 0 else { return }
+            guard let mouse,
                   let data = try? Data(contentsOf: mouse),
-                let recording = try? JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: data) else { return }
+                let recording = try? JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: data) else {
+                automaticZoomsReady = true
+                return
+            }
             let padding = await ClickZoomGenerator.detectPaddingRatio(videoURL: source, recording: recording)
             guard !Task.isCancelled else { return }
             zoomPadding = padding
@@ -3457,7 +3591,7 @@ struct VideoTrimControls: View {
         .frame(minHeight: 28)
     }
 
-    private var videoLaneBottom: Double { zoomEnabled && mouse != nil ? 93 : 70 }
+    private var videoLaneBottom: Double { zoomEnabled ? 93 : 70 }
     private var audioLaneHeight: Double { (audio == nil ? 0 : 50) + (voiceOvers.isEmpty ? 0 : 50) }
     private var cameraLaneHeight: Double { videoOverlayURL == nil ? 0 : 50 }
     private var audioLaneTop: Double { videoLaneBottom + cameraLaneHeight }
@@ -3553,9 +3687,9 @@ struct VideoTrimControls: View {
             }
             ForEach(segments.indices, id: \.self) { index in
                 clipStrip(index: index, width: width, total: total)
-                    .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
+                    .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled ? 48 : 25)
             }
-            if zoomEnabled && mouse != nil { zoomLane(width: width, total: total) }
+            if zoomEnabled { zoomLane(width: width, total: total) }
             cameraLane(width: width, total: total)
             audioLanes(width: width, total: total)
             Rectangle().fill(.clear).contentShape(Rectangle())
@@ -3593,21 +3727,21 @@ struct VideoTrimControls: View {
                 .buttonStyle(.plain)
                 .localizedAccessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .hoverHelp("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
-                .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
+                .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: zoomEnabled ? 48 : 25)
                 }
                 }
             }
             if session == nil || selectedSegment == nil {
                 trimHandle(isStart: true, width: width)
-                    .offset(x: width * (mediaTimeline?.video.first?.start ?? 0) / total, y: zoomEnabled && mouse != nil ? 48 : 25)
+                    .offset(x: width * (mediaTimeline?.video.first?.start ?? 0) / total, y: zoomEnabled ? 48 : 25)
                 trimHandle(isStart: false, width: width)
-                    .offset(x: width * (mediaTimeline?.video.last?.end ?? total) / total + 12, y: zoomEnabled && mouse != nil ? 48 : 25)
+                    .offset(x: width * (mediaTimeline?.video.last?.end ?? total) / total + 12, y: zoomEnabled ? 48 : 25)
             }
             if let movingSegment, let moveDestination {
                 let boundary = segmentOffset(moveDestination + (moveDestination > movingSegment ? 1 : 0))
                 Rectangle().fill(DesignColors.cameraTrack)
                     .frame(width: 3, height: 48)
-                    .offset(x: 12 + width * boundary / total - 1.5, y: zoomEnabled && mouse != nil ? 45 : 22)
+                    .offset(x: 12 + width * boundary / total - 1.5, y: zoomEnabled ? 45 : 22)
                     .allowsHitTesting(false)
             }
             VStack(spacing: 0) {
@@ -3716,7 +3850,7 @@ struct VideoTrimControls: View {
                            outputStart: Double, sourceOffset: Double) -> some View {
         HStack(spacing: 0) {
             zoomEdge(segment, scale: scale, edge: -1)
-            Text(LocalizedStringKey(String(format: "%.1fx", zoomLevel)))
+            Text(LocalizedStringKey(String(format: "%.1fx", segment.magnification(default: zoomLevel))))
                 .font(.system(size: 9, weight: .semibold))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
@@ -3736,7 +3870,9 @@ struct VideoTrimControls: View {
                     .onEnded { gesture in
                         if let draggingZooms { commitZooms(draggingZooms) }
                         zoomDragOrigin = nil
-                        if abs(gesture.translation.width) < 0.5 { seek(source: segment.start) }
+                        if abs(gesture.translation.width) < 0.5 {
+                            seek(source: previewsZoomArea ? min(segment.end - 0.01, segment.start + 0.65) : segment.start)
+                        }
                     })
             zoomEdge(segment, scale: scale, edge: 1)
         }
@@ -3757,7 +3893,10 @@ struct VideoTrimControls: View {
             }.disabled(zoomSegments == nil || !automaticZoomsReady)
                 .hoverHelp(zoomSegments == nil ? "Automatic zooms are already in use." : !automaticZoomsReady ? "Wait for automatic zoom analysis to finish." : "Restore automatically detected zooms.")
         }
-        .hoverHelp("Drag to move zoom; drag ends to change duration")
+        .hoverHelp(String(format: AppLanguage.text("Starts at %.1fs · %.1f×"),
+                          locale: AppLanguage.current.locale, segment.start,
+                          segment.magnification(default: zoomLevel))
+                   + "\n" + AppLanguage.text("Drag to move zoom; drag ends to change duration"))
     }
 
     private func zoomEdge(_ segment: ZoomSegment, scale: Double, edge: Int) -> some View {
@@ -4250,7 +4389,7 @@ private final class CameraFeedNSView: NSView {
     }
 }
 
-private struct LineSlider: View {
+struct LineSlider: View {
     let selection: Binding<Double>
     let range: ClosedRange<Double>
     let label: String
@@ -4258,6 +4397,8 @@ private struct LineSlider: View {
     var thumbSize: CGFloat = 18
     var height: CGFloat = 32
     var keyboardStep: Double? = nil
+    var onEditingChanged: (Bool) -> Void = { _ in }
+    @State private var isDragging = false
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
@@ -4289,8 +4430,12 @@ private struct LineSlider: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
                         guard isEnabled, trackWidth > 0 else { return }
+                        if !isDragging { isDragging = true; onEditingChanged(true) }
                         let fraction = Double(min(1, max(0, (drag.location.x - thumbSize / 2) / trackWidth)))
                         selection.wrappedValue = range.lowerBound + fraction * (range.upperBound - range.lowerBound)
+                    }
+                    .onEnded { _ in
+                        if isDragging { isDragging = false; onEditingChanged(false) }
                     }
             )
             .accessibilityElement(children: .ignore)
@@ -4298,6 +4443,8 @@ private struct LineSlider: View {
             .localizedAccessibilityValue(value)
             .accessibilityAdjustableAction { direction in
                 guard isEnabled else { return }
+                onEditingChanged(true)
+                defer { onEditingChanged(false) }
                 let step = keyboardStep ?? (range.upperBound - range.lowerBound) / 100
                 switch direction {
                 case .increment:
@@ -4310,6 +4457,8 @@ private struct LineSlider: View {
             .focusable()
             .onMoveCommand { direction in
                 guard isEnabled else { return }
+                onEditingChanged(true)
+                defer { onEditingChanged(false) }
                 let step = keyboardStep ?? (range.upperBound - range.lowerBound) / 100
                 switch direction {
                 case .right, .up:
@@ -4321,6 +4470,9 @@ private struct LineSlider: View {
             }
         }
         .frame(height: height)
+        .onDisappear {
+            if isDragging { isDragging = false; onEditingChanged(false) }
+        }
     }
 }
 

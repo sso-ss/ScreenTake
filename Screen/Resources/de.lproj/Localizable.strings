@@ -300,3 +300,21 @@
 
 "Zoom transition" = "Zoomübergang";
 "Zoom transition motion" = "Bewegung des Zoomübergangs";
+
+"Set Zoom Area" = "Zoombereich festlegen";
+"Zoom Area" = "Zoombereich";
+"Top" = "Oben";
+"Bottom" = "Unten";
+"Loading zoom preview" = "Zoomvorschau wird geladen";
+"Drag in the zoom track to choose when to zoom, then set its area." = "Ziehe in der Zoomspur, um den Zeitraum zu wählen, und lege dann den Bereich fest.";
+"Selected zoom area" = "Ausgewählter Zoombereich";
+"Drag to reposition the zoom area" = "Ziehen, um den Zoombereich zu verschieben";
+"Left top zoom handle" = "Zoomgriff oben links";
+"Right top zoom handle" = "Zoomgriff oben rechts";
+"Left bottom zoom handle" = "Zoomgriff unten links";
+"Right bottom zoom handle" = "Zoomgriff unten rechts";
+"Preview Zoom" = "Zoom-Vorschau";
+"Select Area" = "Bereich auswählen";
+"Area magnification" = "Bereichsvergrößerung";
+"Could not load this frame. Try another point in the video." = "Dieses Bild konnte nicht geladen werden. Versuche eine andere Stelle im Video.";
+"Starts at %.1fs · %.1f×" = "Start bei %.1fs · %.1f×";

@@ -495,11 +495,11 @@ final class EditorSession: ObservableObject {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 exportDirectories.insert(directory)
                 let output = directory.appendingPathComponent("rendered.mov")
-                let keyframes = settings.zoomEnabled && mouseURL != nil
-                    ? try await ClickZoomGenerator.generate(from: mouseURL!, sourceVideoURL: sourceURL,
+                let keyframes = settings.zoomEnabled
+                    ? try await ClickZoomGenerator.generate(from: mouseURL, sourceVideoURL: sourceURL,
                         settings: .init(zoomLevel: settings.zoomLevel,
                                         transitionMotion: settings.zoomTransitionMotion ?? .smooth),
-                        segments: settings.zoomSegments) : []
+                        segments: settings.zoomSegments, crop: settings.crop) : []
                 var rendered = try await exportEngine.export(sourceURL: sourceURL, keyframes: keyframes, configuration: .init(
                     outputURL: output,
                     webcamVideoURL: settings.webcamEnabled ? settings.videoOverlayURL : nil,

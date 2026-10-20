@@ -300,3 +300,21 @@
 
 "Zoom transition" = "확대 전환";
 "Zoom transition motion" = "확대 전환 움직임";
+
+"Set Zoom Area" = "확대 영역 설정";
+"Zoom Area" = "확대 영역";
+"Top" = "상단";
+"Bottom" = "하단";
+"Loading zoom preview" = "확대 미리보기 불러오는 중";
+"Drag in the zoom track to choose when to zoom, then set its area." = "확대 트랙을 드래그해 확대할 구간을 지정한 다음 영역을 설정하세요.";
+"Selected zoom area" = "선택한 확대 영역";
+"Drag to reposition the zoom area" = "드래그하여 확대 영역 이동";
+"Left top zoom handle" = "확대 영역 왼쪽 위 조절점";
+"Right top zoom handle" = "확대 영역 오른쪽 위 조절점";
+"Left bottom zoom handle" = "확대 영역 왼쪽 아래 조절점";
+"Right bottom zoom handle" = "확대 영역 오른쪽 아래 조절점";
+"Preview Zoom" = "확대 미리보기";
+"Select Area" = "영역 선택";
+"Area magnification" = "영역 확대 배율";
+"Could not load this frame. Try another point in the video." = "이 프레임을 불러올 수 없습니다. 영상의 다른 지점을 선택해 주세요.";
+"Starts at %.1fs · %.1f×" = "시작 %.1f초 · %.1f×";

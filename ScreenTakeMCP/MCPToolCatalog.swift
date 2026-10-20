@@ -58,7 +58,10 @@ enum MCPToolCatalog {
         "zoomTransitionMotion": choices("smooth", "linear", "easeIn", "easeOut"),
         "zoomSegments": array(object([
             "id": uuid, "start": time, "end": time, "zoom": number(1, 10), "centerX": number(0, 1),
-            "centerY": number(0, 1), "followsCursor": boolean
+            "centerY": number(0, 1), "followsCursor": boolean,
+            "manualRegion": object(["rect": array(array(number(0, 1), extra: ["minItems": 2, "maxItems": 2]),
+                extra: ["minItems": 2, "maxItems": 2,
+                        "description": "Fixed zoom area within the cropped screen, [[x,y],[width,height]], top-left origin. Width equals height, 0.125 through 1. Overrides global zoom and cursor following."])], required: ["rect"])
         ], required: ["id", "start", "end", "zoom", "centerX", "centerY", "followsCursor"])),
         "restoreAutomaticZooms": boolean,
         "webcamEnabled": boolean, "cameraMirrored": boolean, "webcamShape": choices("circle", "roundedSquare"),

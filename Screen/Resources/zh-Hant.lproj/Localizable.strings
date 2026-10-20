@@ -300,3 +300,21 @@
 
 "Zoom transition" = "縮放轉場";
 "Zoom transition motion" = "縮放轉場動畫";
+
+"Set Zoom Area" = "設定縮放區域";
+"Zoom Area" = "縮放區域";
+"Top" = "頂部";
+"Bottom" = "底部";
+"Loading zoom preview" = "正在載入縮放預覽";
+"Drag in the zoom track to choose when to zoom, then set its area." = "在縮放軌道中拖曳以選擇縮放時間，然後設定區域。";
+"Selected zoom area" = "選取的縮放區域";
+"Drag to reposition the zoom area" = "拖曳以移動縮放區域";
+"Left top zoom handle" = "縮放區域左上角控制點";
+"Right top zoom handle" = "縮放區域右上角控制點";
+"Left bottom zoom handle" = "縮放區域左下角控制點";
+"Right bottom zoom handle" = "縮放區域右下角控制點";
+"Preview Zoom" = "預覽縮放";
+"Select Area" = "選擇區域";
+"Area magnification" = "區域放大倍率";
+"Could not load this frame. Try another point in the video." = "無法載入此影格。請嘗試影片中的其他位置。";
+"Starts at %.1fs · %.1f×" = "開始於 %.1f秒 · %.1f×";
