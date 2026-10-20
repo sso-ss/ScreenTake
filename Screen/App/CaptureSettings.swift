@@ -90,6 +90,7 @@ final class CaptureSettings: ObservableObject {
 
     // MARK: - Auto Zoom
 
+    @AppStorage("captureZoomEnabled") var zoomEnabled: Bool = true
     @AppStorage("autoZoomEnabled") var autoZoomEnabled: Bool = false
 
     // MARK: - Webcam
@@ -131,6 +132,22 @@ final class CaptureSettings: ObservableObject {
             objectWillChange.send()
             savedFaceMakeup = data
         }
+    }
+
+    @AppStorage("cameraEffectSelection") private var savedCameraEffectSelection: Data = Data()
+    var cameraEffectsEnabled: Bool { faceBeautyAmount > 0 || faceMakeup.amount > 0 }
+    var cameraEffectSelection: CameraEffectSelection {
+        .current(preferred: try? JSONDecoder().decode(CameraEffectSelection.self, from: savedCameraEffectSelection),
+                 natural: faceBeautyAmount, makeup: faceMakeup)
+    }
+
+    func setCameraEffect(_ selection: CameraEffectSelection, enabled: Bool) {
+        let selection = selection.clamped
+        let amounts = selection.amounts(enabled: enabled, makeup: faceMakeup)
+        objectWillChange.send()
+        if let data = try? JSONEncoder().encode(selection) { savedCameraEffectSelection = data }
+        faceBeautyAmount = amounts.natural
+        faceMakeup = amounts.makeup
     }
 
     var webcamPiPPosition: PiPPosition {

@@ -35,15 +35,17 @@ struct EditorTakeRow: View {
         HStack {
             Button(action: select) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(verbatim: title).font(.body).foregroundStyle(.primary)
+                    Text(verbatim: title).font(Typography.caption).foregroundStyle(DesignColors.primaryLabel)
                         .lineLimit(1).truncationMode(.middle)
                     Text(LocalizedStringKey(String(format: "%.1fs – %.1fs", start, end)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
-                .background(isSelected ? Color.accentColor.opacity(0.18) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 5))
+                .padding(Spacing.md)
+                .background(isSelected ? DesignColors.accent.opacity(0.12) : DesignColors.inputBackground,
+                            in: RoundedRectangle(cornerRadius: CornerRadius.md))
+                .overlay(RoundedRectangle(cornerRadius: CornerRadius.md)
+                    .strokeBorder(isSelected ? DesignColors.accent : .clear))
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -68,15 +70,16 @@ struct EditorAudioPanel: View {
     let importAudio: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            Text("Voiceover")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DesignColors.primaryLabel)
-            VStack(alignment: .leading, spacing: Spacing.featureGap) {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            InspectorTitle(title: "Audio")
+            InspectorSection(title: "Record Voiceover") {
                 recordingControls
-                audioControls
             }
+            audioControls
         }
+        .font(Typography.body)
+        .foregroundStyle(DesignColors.primaryLabel)
+        .tint(DesignColors.accent)
     }
 
     private var recordingControls: some View {
@@ -125,42 +128,39 @@ struct EditorAudioPanel: View {
         VStack(alignment: .leading, spacing: Spacing.featureGap) {
             if hasOriginalAudio {
                 Divider()
-                volumeControl("Original Audio", enabled: $settings.audioEnabled, volume: $settings.originalAudioVolume)
+                InspectorSection(title: "Original Audio", isOn: $settings.audioEnabled) {
+                    volumeControl("Original Audio", volume: $settings.originalAudioVolume)
+                }
             }
             if !settings.voiceOvers.isEmpty {
                 Divider()
-                volumeControl("Voiceover", enabled: $settings.voiceOverEnabled, volume: $settings.voiceOverVolume)
-                ForEach(settings.voiceOvers) { clip in
-                    EditorTakeRow(title: "Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)",
-                                  start: clip.start, end: clip.end, isSelected: selectedClip == clip.id,
-                                  removeLabel: "Remove voiceover take", select: { selectedClip = clip.id }, remove: {
-                        settings.voiceOvers.removeAll { $0.id == clip.id }
-                        if selectedClip == clip.id { selectedClip = nil }
-                    }, disabledReason: recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : nil)
+                InspectorSection(title: "Voiceover", isOn: $settings.voiceOverEnabled) {
+                    volumeControl("Voiceover", volume: $settings.voiceOverVolume)
+                    ForEach(settings.voiceOvers) { clip in
+                        EditorTakeRow(title: "Take \((settings.voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1)",
+                                      start: clip.start, end: clip.end, isSelected: selectedClip == clip.id,
+                                      removeLabel: "Remove voiceover take", select: { selectedClip = clip.id }, remove: {
+                            settings.voiceOvers.removeAll { $0.id == clip.id }
+                            if selectedClip == clip.id { selectedClip = nil }
+                        }, disabledReason: recorder.isBusy ? "Finish or cancel the voiceover recording before editing its takes." : nil)
+                    }
+                    if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
+                        clipControls(index)
+                    }
+                    Text("Drag a take to move it; drag its edges to trim. Voiceovers keep their timeline positions when video clips change.")
+                        .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                 }
-                if let id = selectedClip, let index = settings.voiceOvers.firstIndex(where: { $0.id == id }) {
-                    clipControls(index)
-                }
-                Text("Drag a take to move it; drag its edges to trim. Voiceovers keep their timeline positions when video clips change.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .disabled(recorder.isBusy)
     }
 
-    private func volumeControl(_ title: String, enabled: Binding<Bool>, volume: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(title, isOn: enabled)
-                .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : nil)
-            HStack {
-                Image(systemName: enabled.wrappedValue ? "speaker.wave.2" : "speaker.slash")
-                Slider(value: volume, in: 0...1).localizedAccessibilityLabel("\(title) volume")
-                Text("\(Int(volume.wrappedValue * 100))%")
-                    .font(.system(size: 12)).monospacedDigit().lineLimit(1)
-                    .fixedSize().frame(width: 36, alignment: .trailing)
-            }.disabled(!enabled.wrappedValue)
-            .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : !enabled.wrappedValue ? "Turn on \(title) to adjust its volume." : "Adjust \(title) volume.")
+    private func volumeControl(_ title: String, volume: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Volume").font(Typography.body)
+            SliderValueControl(selection: volume, range: 0...1, label: "\(title) volume", multiplier: 100, unit: "%")
         }
+        .hoverHelp(recorder.isBusy ? "Finish or cancel the voiceover recording before changing audio settings." : "Adjust \(title) volume.")
     }
 
     private func clipControls(_ index: Int) -> some View {
@@ -245,6 +245,37 @@ struct AudioWaveformStrip: View {
     }
 }
 
+/// Display-only packing keeps take order and bindings stable when clips move between rows.
+struct VoiceOverTimelineLayout {
+    let rowIndices: [UUID: Int]
+    let rowCount: Int
+
+    init(clips: [VoiceOverClip], duration: Double) {
+        let ordered = clips.enumerated()
+            .filter { $0.element.start < duration && $0.element.end > 0 }
+            .sorted {
+                $0.element.start == $1.element.start
+                    ? $0.offset < $1.offset
+                    : $0.element.start < $1.element.start
+            }
+        var rowEnds: [Double] = []
+        var rowIndices: [UUID: Int] = [:]
+        for (_, clip) in ordered {
+            if let row = rowEnds.firstIndex(where: { $0 <= clip.start + 0.000001 }) {
+                rowEnds[row] = clip.end
+                rowIndices[clip.id] = row
+            } else {
+                rowIndices[clip.id] = rowEnds.count
+                rowEnds.append(clip.end)
+            }
+        }
+        self.rowIndices = rowIndices
+        rowCount = rowEnds.count
+    }
+
+    var height: Double { Double(rowCount) * TimelineMetrics.audioRowHeight }
+}
+
 struct VoiceOverTimelineClip: View {
     @Binding var clip: VoiceOverClip
     @Binding var selected: UUID?
@@ -262,7 +293,7 @@ struct VoiceOverTimelineClip: View {
     var body: some View {
         AudioWaveformStrip(url: clip.url, title: "Take \(number)", color: .purple, muted: muted,
                            duration: visibleDuration, sourceStart: displayedClip.sourceStart)
-            .frame(width: max(2, visibleDuration * scale), height: 44)
+            .frame(width: max(2, visibleDuration * scale), height: TimelineMetrics.audioClipHeight)
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(selected == clip.id ? Color.white : Color.purple.opacity(0.5), lineWidth: 1))
             .contentShape(Rectangle())
             .gesture(drag(edge: 0))
@@ -280,7 +311,7 @@ struct VoiceOverTimelineClip: View {
 
     private func handle(edge: Int) -> some View {
         RoundedRectangle(cornerRadius: 1).fill(.white.opacity(0.7)).frame(width: 2, height: 16)
-            .frame(width: 8, height: 44).contentShape(Rectangle())
+            .frame(width: 8, height: TimelineMetrics.audioClipHeight).contentShape(Rectangle())
             .gesture(drag(edge: edge))
             .localizedAccessibilityLabel(edge < 0 ? "Trim voiceover beginning" : "Trim voiceover end")
             .accessibilityAdjustableAction { direction in

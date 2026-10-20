@@ -40,6 +40,23 @@ enum MCPToolCatalog {
         "transitionMotion": choices("smooth", "linear", "easeIn", "easeOut")
     ], extra: ["description": "Replaces camera framing; omitted members use native defaults."])
 
+    static let textColor: Schema = ["type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"]
+    static let textOverlay = object([
+        "id": uuid, "text": ["type": "string", "maxLength": 10000], "start": number(0, 86400), "duration": number(0.05, 86400),
+        "fontName": ["type": "string", "maxLength": 200], "fontSize": number(8, 240),
+        "bold": boolean, "italic": boolean, "underline": boolean,
+        "letterCase": choices("Original", "UPPERCASE", "lowercase", "Title Case"), "color": textColor,
+        "characterSpacing": number(-10, 50), "lineSpacing": number(0, 100),
+        "alignment": choices("Left", "Center", "Right"), "boxWidth": number(0.1, 1),
+        "scale": number(0.1, 3), "uniformScale": boolean, "scaleY": number(0.1, 3),
+        "x": number(0, 1), "y": number(0, 1), "rotation": number(-180, 180), "opacity": number(0, 1),
+        "strokeEnabled": boolean, "strokeColor": textColor, "strokeWidth": number(0, 20),
+        "backgroundEnabled": boolean, "backgroundStyle": choices("Block", "Per Line"), "backgroundColor": textColor,
+        "backgroundOpacity": number(0, 1), "backgroundRadius": number(0, 100),
+        "paddingX": number(0, 200), "paddingY": number(0, 200),
+        "backgroundOffsetX": number(-200, 200), "backgroundOffsetY": number(-200, 200)
+    ], required: ["id", "text", "start", "duration"], extra: ["description": "Text in edited-video seconds. x/y are the text center on the output canvas, normalized from top-left; size/spacing use a 1080-point canvas height. Omitted appearance fields use native defaults (System 64, centered white text). Preserve complete existing objects when editing; omitted fields reset to defaults."])
+
     static let edits = object([
         "trim": object(["start": time, "end": ["type": ["number", "null"], "minimum": 0], "cuts": array(cut),
                         "splits": array(time), "clipOrder": array(exactRange)],
@@ -54,7 +71,7 @@ enum MCPToolCatalog {
                                        extra: ["minItems": 2, "maxItems": 2, "description": "CGRect encoded as [[x,y],[width,height]], normalized to source dimensions."])], required: ["rect"]),
         "phoneMode": choices("fit", "fill"), "phoneVideoURL": fileURL,
         "showCursor": boolean, "cursorShape": choices("arrow", "hand", "circle"), "cursorScale": number(0.5, 3),
-        "zoomEnabled": boolean, "zoomLevel": number(1, 10),
+        "zoomEnabled": ["type": "boolean", "description": "Editor Zoom master. Automatic generation uses zoomSegments omitted/nil; [] disables automatic sections. Capture Auto Zoom is a separate capture preference, not an editor setting."], "zoomLevel": number(1, 10),
         "zoomTransitionMotion": choices("smooth", "linear", "easeIn", "easeOut"),
         "zoomSegments": array(object([
             "id": uuid, "start": time, "end": time, "zoom": number(1, 10), "centerX": number(0, 1),
@@ -68,6 +85,9 @@ enum MCPToolCatalog {
         "webcamPosition": choices("topLeft", "topCenter", "topRight", "middleLeft", "center", "middleRight", "bottomLeft", "bottomCenter", "bottomRight"),
         "webcamSize": choices("small", "medium", "large"), "videoOverlayURL": fileURL, "cameraLayout": camera,
         "faceBeautyAmount": number(0, 1),
+        "cameraEffectSelection": object(["style": choices("natural", "peachMakeup"), "intensity": number(0.05, 1)],
+            required: ["style", "intensity"], extra: ["description": "Exclusive camera style and remembered intensity. Preserves on/off state unless cameraEffectsEnabled is supplied. Overrides legacy faceBeautyAmount/faceMakeup.amount in the same batch."]),
+        "cameraEffectsEnabled": ["type": "boolean", "description": "Enable the selected camera style, or disable it while remembering the style, intensity and makeup component settings."],
         "faceMakeup": object([
             "amount": number(0, 1), "lashes": number(0, 1), "brows": number(0, 1), "blush": number(0, 1),
             "lips": number(0, 1), "eyeshadow": number(0, 1), "underEyeShadow": number(0, 1), "aegyo": number(0, 1),
@@ -79,6 +99,7 @@ enum MCPToolCatalog {
             "id": uuid, "url": fileURL, "start": time, "sourceStart": time,
             "duration": number(0, extra: ["exclusiveMinimum": 0]), "sourceDuration": number(0, extra: ["exclusiveMinimum": 0])
         ], required: ["id", "url", "start", "sourceStart", "duration", "sourceDuration"])),
+        "textOverlays": array(textOverlay, extra: ["maxItems": 100, "description": "Replaces all text layers in back-to-front order. Preserve existing IDs/objects when adding or editing; [] removes all text. Timeline rows are packed automatically and are not persisted settings."]),
         "audioEnabled": boolean, "originalAudioVolume": number(0, 1), "voiceOverEnabled": boolean, "voiceOverVolume": number(0, 1),
         "exportResolution": choices("preserveSource", "uhd4k", "fhd1080")
     ], extra: ["minProperties": 1, "description": "Partial settings batch, committed as one undo operation. Omitted top-level fields stay unchanged. Arrays replace their previous values except removeRanges. Read get_project for current values."])

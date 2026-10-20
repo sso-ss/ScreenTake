@@ -174,6 +174,16 @@ enum ControlMetrics {
     static let mediumActionHeight: CGFloat = 32
 }
 
+enum TimelineMetrics {
+    static let maximumTrackHeight: Double = 240
+    static let textClipHeight: Double = 28
+    static let textRowSpacing: Double = 4
+    static var textRowHeight: Double { textClipHeight + textRowSpacing }
+    static let audioClipHeight: Double = 44
+    static let audioRowSpacing: Double = 6
+    static var audioRowHeight: Double { audioClipHeight + audioRowSpacing }
+}
+
 enum ActionButtonSize {
     case compact, medium
 
@@ -222,6 +232,217 @@ enum WindowChrome {
     // Shadow
     static let shadowRadius: CGFloat = 60
     static let shadowOpacity: Double = 0.35
+}
+
+// MARK: - Inspector Layout
+
+struct InspectorTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(LocalizedStringKey(title))
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(DesignColors.primaryLabel)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Expansion and enablement are independent: switching a feature off keeps its
+/// expanded controls visible so users can still see the available settings.
+struct InspectorSection<Content: View>: View {
+    let title: String
+    var isOn: Binding<Bool>? = nil
+    var collapsible = true
+    @ViewBuilder var content: () -> Content
+    @State private var isExpanded: Bool
+
+    init(title: String, isOn: Binding<Bool>? = nil, collapsible: Bool = true,
+         initiallyExpanded: Bool? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.isOn = isOn
+        self.collapsible = collapsible
+        self.content = content
+        _isExpanded = State(initialValue: initiallyExpanded ?? (isOn?.wrappedValue ?? true))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            HStack(spacing: Spacing.md) {
+                if collapsible {
+                    Button {
+                        isExpanded.toggle()
+                    } label: {
+                        HStack(spacing: Spacing.md) {
+                            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .frame(width: 10)
+                                .accessibilityHidden(true)
+                            sectionLabel
+                            Spacer(minLength: 0)
+                        }
+                        .frame(minHeight: ControlMetrics.actionHeight)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .localizedAccessibilityLabel(title)
+                    .localizedAccessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                } else {
+                    sectionLabel
+                    Spacer(minLength: 0)
+                }
+                if let isOn {
+                    Toggle("", isOn: isOn)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .localizedAccessibilityLabel(title)
+                }
+            }
+            .frame(minHeight: ControlMetrics.actionHeight)
+            if !collapsible || isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.featureGap) {
+                    content()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .disabled(isOn?.wrappedValue == false)
+                .foregroundStyle(isOn?.wrappedValue == false ? DesignColors.secondaryLabel : DesignColors.primaryLabel)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isOn?.wrappedValue) { enabled in
+            if enabled == true { isExpanded = true }
+        }
+    }
+
+    private var sectionLabel: some View {
+        Text(LocalizedStringKey(title))
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(DesignColors.secondaryLabel)
+    }
+}
+
+struct InspectorToggle: View {
+    let title: String
+    let isOn: Binding<Bool>
+    var isProcessing = false
+
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            Text(LocalizedStringKey(title))
+                .font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
+            if isProcessing {
+                ProgressView().controlSize(.small)
+                    .localizedAccessibilityLabel("Preparing face tracking")
+                    .accessibilityIdentifier("faceTrackingProgress")
+            }
+            Spacer(minLength: Spacing.md)
+            Toggle("", isOn: isOn)
+                .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                .localizedAccessibilityLabel(title)
+        }
+        .frame(minHeight: ControlMetrics.actionHeight)
+    }
+}
+
+/// Shared slider and editable value used by every inspector and timeline control.
+struct SliderValueControl: View {
+    let selection: Binding<Double>
+    let range: ClosedRange<Double>
+    let label: String
+    var multiplier: Double = 1
+    var unit = ""
+    var decimals = 0
+    var keyboardStep: Double? = nil
+    var onEditingChanged: (Bool) -> Void = { _ in }
+
+    var body: some View {
+        HStack(spacing: Spacing.lg) {
+            LineSlider(selection: selection, range: range, label: label,
+                       value: "\(SliderValueInput.formatted(selection.wrappedValue * multiplier, decimals: decimals))\(unit)",
+                       thumbSize: 20, height: 28, keyboardStep: keyboardStep,
+                       onEditingChanged: onEditingChanged)
+            SliderValueInput(selection: selection, range: range, label: label,
+                             multiplier: multiplier, unit: unit, decimals: decimals,
+                             onEditingChanged: onEditingChanged)
+        }
+        .frame(minHeight: 28)
+    }
+}
+
+struct SliderValueInput: View {
+    let selection: Binding<Double>
+    let range: ClosedRange<Double>
+    let label: String
+    var multiplier: Double = 1
+    var unit = ""
+    var decimals = 0
+    var onEditingChanged: (Bool) -> Void = { _ in }
+    @State private var draft = ""
+    @FocusState private var isFocused: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if isEnabled {
+                TextField(label, text: $draft)
+                    .textFieldStyle(.plain).multilineTextAlignment(.trailing)
+                    .focused($isFocused).localizedAccessibilityLabel(label)
+                    .onSubmit { commit(); isFocused = false }
+                    .onExitCommand { reset(); isFocused = false }
+            } else {
+                Text(Self.formatted(selection.wrappedValue * multiplier, decimals: decimals))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .localizedAccessibilityLabel(label)
+            }
+            if !unit.isEmpty {
+                Text(verbatim: unit).foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize().accessibilityHidden(true)
+            }
+        }
+        .font(.system(size: 12)).monospacedDigit()
+        .foregroundStyle(isEnabled ? DesignColors.primaryLabel : DesignColors.secondaryLabel)
+        .padding(.horizontal, 8)
+        .frame(width: unit.isEmpty ? 56 : 72, height: 28)
+        .background(DesignColors.inputBackground, in: RoundedRectangle(cornerRadius: CornerRadius.md))
+        .overlay(RoundedRectangle(cornerRadius: CornerRadius.md)
+            .strokeBorder(isFocused ? DesignColors.accent : .clear, lineWidth: 1))
+        .localizedAccessibilityValue("\(draft)\(unit)")
+        .onAppear { reset() }
+        .onChange(of: selection.wrappedValue) { _ in if !isFocused { reset() } }
+        .onChange(of: isFocused) { focused in if !focused { commit() } }
+    }
+
+    static func formatted(_ value: Double, decimals: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = AppLanguage.current.locale
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = decimals
+        return formatter.string(from: NSNumber(value: value)) ?? "0"
+    }
+
+    private func reset() { draft = Self.formatted(selection.wrappedValue * multiplier, decimals: decimals) }
+
+    private func commit() {
+        let formatter = NumberFormatter()
+        formatter.locale = AppLanguage.current.locale
+        formatter.numberStyle = .decimal
+        formatter.isLenient = false
+        let input = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Parse the entire input; invalid edits restore the previous value.
+        let separator = formatter.decimalSeparator ?? "."
+        let pattern = "^[+-]?[0-9]*(?:" + NSRegularExpression.escapedPattern(for: separator) + "[0-9]*)?$"
+        guard input.range(of: pattern, options: .regularExpression) != nil,
+              input.contains(where: { $0.isNumber }),
+              let number = formatter.number(from: input)?.doubleValue, number.isFinite, multiplier > 0 else { reset(); return }
+        let rounded = (number * pow(10, Double(decimals))).rounded() / pow(10, Double(decimals))
+        let result = min(range.upperBound, max(range.lowerBound, rounded / multiplier))
+        if result != selection.wrappedValue {
+            onEditingChanged(true)
+            selection.wrappedValue = result
+            onEditingChanged(false)
+        }
+        reset()
+    }
 }
 
 // MARK: - Color Extension

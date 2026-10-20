@@ -107,17 +107,12 @@ struct ZoomRegionControls: View {
                 }
             }
             HStack(spacing: Spacing.lg) {
-                LineSlider(selection: Binding(get: { Double(region.magnification) }, set: { value in
+                SliderValueControl(selection: Binding(get: { Double(region.magnification) }, set: { value in
                     let area = region.normalized.rect
                     region = ZoomRegion(zoom: value, center: CGPoint(x: area.midX, y: area.midY))
                 }), range: 1...8, label: "Area magnification",
-                           value: String(format: "%.1f×", Double(region.magnification)),
-                           onEditingChanged: onEditingChanged)
+                           unit: "×", decimals: 2, onEditingChanged: onEditingChanged)
                 .accessibilityIdentifier("zoomAreaMagnification")
-                Text(String(format: "%.1f×", Double(region.magnification)))
-                    .font(Typography.monoSmall)
-                    .monospacedDigit()
-                    .frame(width: 42, alignment: .trailing)
             }
         }
         .padding(Spacing.lg)

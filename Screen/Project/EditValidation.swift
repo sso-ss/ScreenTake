@@ -2,6 +2,11 @@ import Foundation
 
 extension VideoEditSettings {
     func validate(duration: Double) throws {
+        let texts = textOverlays ?? []
+        guard texts.count <= 100, Set(texts.map(\.id)).count == texts.count else {
+            throw EditValidationError.invalid("Invalid text layer identifiers or too many text layers.")
+        }
+        for text in texts { try text.validate() }
         _ = try trim.timeRange(duration: EditorAudio.time(duration))
         let timeline = try trim.timeline(duration: EditorAudio.time(duration))
         guard timeline.duration.seconds.isFinite, timeline.duration.seconds > 0,
@@ -59,6 +64,7 @@ extension VideoEditSettings {
         try number(originalAudioVolume, 0...1, "original audio volume")
         try number(voiceOverVolume, 0...1, "voiceover volume")
         if let faceBeautyAmount { try number(faceBeautyAmount, 0...1, "beauty intensity") }
+        if let cameraEffectSelection { try number(cameraEffectSelection.intensity, 0.05...1, "camera effect intensity") }
         if let faceMakeup {
             for value in faceMakeup.values { try number(value, 0...1, "makeup intensity") }
         }

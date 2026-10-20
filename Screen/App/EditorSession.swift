@@ -51,6 +51,7 @@ final class EditorSession: ObservableObject {
 
     // Selection belongs to the session so it survives recreation of the editor view.
     @Published var selectedVoiceOverID: UUID?
+    @Published var selectedTextID: UUID?
     @Published var selectedZoomID: UUID?
     @Published var isVideoOverlaySelected = false
     @Published var selectedSegment: CMTimeRange?
@@ -393,6 +394,7 @@ final class EditorSession: ObservableObject {
     }
 
     private func clearSelection() {
+        selectedTextID = nil
         selectedVoiceOverID = nil
         selectedRecordedAudioID = nil
         selectedZoomID = nil
@@ -521,7 +523,11 @@ final class EditorSession: ObservableObject {
                     rendered = try await MediaMuxer.mux(videoURL: rendered, systemAudioURL: audioURL,
                                                        micAudioURL: nil, removeSourceAudio: false)
                 }
-                let trimmed = try await settings.trim.export(source: rendered)
+                let texts = settings.textOverlays ?? []
+                let textRenderer = TextOverlayRenderer(overlays: texts, size: settings.outputSize(source: sourceVideoSize ?? .zero))
+                let trimmed = try await settings.trim.export(source: rendered, frameFilter: texts.isEmpty ? nil : { image, time in
+                    textRenderer.composite(over: image, at: time)
+                })
                 if trimmed != rendered { try? FileManager.default.removeItem(at: rendered) }
                 result = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,
                     originalVolume: settings.originalAudioVolume,

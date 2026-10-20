@@ -306,11 +306,11 @@ struct VideoTrim: Equatable, Codable {
                            end: stop >= seconds ? duration : CMTime(seconds: stop, preferredTimescale: 60000))
     }
 
-    func export(source: URL) async throws -> URL {
+    func export(source: URL, frameFilter: ((CIImage, Double) -> CIImage)? = nil) async throws -> URL {
         let asset = AVURLAsset(url: source)
         let duration = try await asset.load(.duration)
         let timeline = try timeline(duration: duration)
-        guard timeline.hasGaps || timeline.ranges.count != 1 || timeline.ranges[0] != CMTimeRange(start: .zero, duration: duration) else { return source }
+        guard frameFilter != nil || timeline.hasGaps || timeline.ranges.count != 1 || timeline.ranges[0] != CMTimeRange(start: .zero, duration: duration) else { return source }
         let composition = AVMutableComposition()
         for sourceTrack in try await asset.load(.tracks) where sourceTrack.mediaType == .video || sourceTrack.mediaType == .audio {
             guard let track = composition.addMutableTrack(withMediaType: sourceTrack.mediaType, preferredTrackID: kCMPersistentTrackID_Invalid) else {
@@ -323,7 +323,7 @@ struct VideoTrim: Equatable, Codable {
         }
         try timeline.apply(to: composition, sourceDuration: duration)
         try await timeline.fillVideoGaps(in: composition)
-        guard let exporter = AVAssetExportSession(asset: composition, presetName: timeline.hasGaps ? AVAssetExportPresetHighestQuality : AVAssetExportPresetPassthrough) else {
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: timeline.hasGaps || frameFilter != nil ? AVAssetExportPresetHighestQuality : AVAssetExportPresetPassthrough) else {
             throw VideoTrimError.exportFailed
         }
         let output = source.deletingLastPathComponent()
@@ -331,13 +331,20 @@ struct VideoTrim: Equatable, Codable {
         exporter.outputURL = output
         exporter.outputFileType = .mov
         exporter.timeRange = CMTimeRange(start: .zero, duration: timeline.duration)
-        if timeline.hasGaps {
+        if timeline.hasGaps || frameFilter != nil {
             let context = CIContext()
-            exporter.videoComposition = AVMutableVideoComposition(asset: composition) { request in
+            let filters = AVMutableVideoComposition(asset: composition) { request in
                 let image = timeline.sourceTime(at: request.compositionTime).isNumeric
                     ? request.sourceImage : CIImage(color: .black).cropped(to: request.sourceImage.extent)
-                request.finish(with: image, context: context)
+                request.finish(with: frameFilter?(image, request.compositionTime.seconds) ?? image, context: context)
             }
+            if frameFilter != nil {
+                // Sparse recordings and held black gap frames still need samples
+                // at text boundaries, independently of the source track cadence.
+                filters.sourceTrackIDForFrameTiming = kCMPersistentTrackID_Invalid
+                filters.frameDuration = CMTime(value: 1, timescale: 60)
+            }
+            exporter.videoComposition = filters
         }
         await exporter.export()
         guard exporter.status == .completed else {

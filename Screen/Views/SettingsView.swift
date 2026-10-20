@@ -7,6 +7,7 @@ private enum SettingsPanel: String, CaseIterable {
     case canvas = "Canvas"
     case cursor = "Cursor"
     case camera = "Camera"
+    case text = "Text"
     case audio = "Audio"
     case output = "Output"
 
@@ -15,6 +16,7 @@ private enum SettingsPanel: String, CaseIterable {
         case .canvas: return "rectangle.inset.filled"
         case .cursor: return "cursorarrow"
         case .camera: return "video.fill"
+        case .text: return "textformat"
         case .audio: return "waveform"
         case .output: return "square.and.arrow.up"
         }
@@ -726,16 +728,20 @@ struct SettingsView: View {
         case .canvas: return true
         case .cursor: return true
         case .camera, .audio: return true
+        case .text: return true
         case .output: return true
         }
     }
 
     @ViewBuilder
     private var editPanelContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxl) {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            if selectedPanel != .text && selectedPanel != .audio {
+                InspectorTitle(title: selectedPanel.rawValue)
+            }
             switch selectedPanel {
             case .canvas:
-                settingsSection("Canvas") {
+                settingsSection("Layout") {
                     ratioPicker(selection: $session.draft.ratio)
                     deviceLayoutPicker(selection: $session.draft.layout)
                     if !session.draft.layout.isPhone {
@@ -756,27 +762,19 @@ struct SettingsView: View {
                     browserToolbarCropControl
                 }
                 Divider()
-                settingsSection("Background") {
-                    if session.draft.ratio == .original && session.draft.layout == .desktop {
-                        settingsToggle(icon: "photo", label: "Background", isOn: $session.draft.backgroundEnabled)
-                    }
-                    if session.draft.backgroundEnabled || session.draft.ratio != .original || session.draft.layout != .desktop {
-                        wallpaperGrid
-                    }
+                settingsSection("Background", isOn: session.draft.ratio == .original && session.draft.layout == .desktop
+                                ? $session.draft.backgroundEnabled : nil) {
+                    wallpaperGrid
                 }
             case .cursor:
-                settingsSection("Cursor") {
-                    settingsToggle(icon: "cursorarrow", label: "Show Cursor", isOn: $session.draft.showCursor)
-                    if session.draft.showCursor {
-                        cursorShapePicker(selection: $session.draft.cursorShape)
-                        cursorSizeSlider(selection: $session.draft.cursorScale)
-                    }
+                settingsSection("Show Cursor", isOn: $session.draft.showCursor) {
+                    cursorShapePicker(selection: $session.draft.cursorShape)
+                    cursorSizeSlider(selection: $session.draft.cursorScale)
                 }
                 .disabled(session.mouseURL == nil)
                 Divider()
-                settingsSection("Zoom") {
-                    settingsToggle(icon: "plus.magnifyingglass", label: "Zoom", isOn: $session.draft.zoomEnabled)
-                    if session.draft.zoomEnabled {
+                settingsSection("Zoom", isOn: $session.draft.zoomEnabled) {
+                    Group {
                         if !showsZoomRegion {
                             zoomLevelSlider(selection: zoomMagnificationBinding,
                                             range: selectedZoom?.manualRegion == nil ? 1.25...3 : 1...8)
@@ -798,15 +796,7 @@ struct SettingsView: View {
                     }
                 }
             case .camera:
-                settingsSection("Camera") {
-                    settingsToggle(icon: "arrow.left.and.right", label: "Mirror Camera", isOn: Binding(
-                        get: { session.draft.cameraMirrored ?? false },
-                        set: { session.draft.cameraMirrored = $0 }
-                    ))
-                    .hoverHelp("Flip the camera horizontally in preview and export.")
-                    beautyControls(amount: Binding(get: { sessionBeautyAmount }, set: { session.draft.faceBeautyAmount = $0 }))
-                    makeupControls(settings: Binding(get: { session.draft.faceMakeup ?? .init() }, set: { session.draft.faceMakeup = $0 }))
-                        .disabled(videoOverlayRecorder.isBusy)
+                settingsSection("Camera Source") {
                     VStack(alignment: .leading, spacing: Spacing.labelToControl) {
                         Text("Place the playhead, then record a camera take while your video plays.")
                             .font(Typography.caption)
@@ -875,24 +865,33 @@ struct SettingsView: View {
                         .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before replacing its video." : overlay.lastPathComponent)
                         .accessibilityIdentifier("cameraTakeRow")
                         .disabled(videoOverlayRecorder.isBusy)
-                        settingsToggle(icon: "video.fill", label: "Show Camera", isOn: $session.draft.webcamEnabled)
-                            .disabled(videoOverlayRecorder.isBusy)
-                            .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before changing its visibility." : nil)
-                        if session.draft.webcamEnabled {
-                            Group {
-                                cameraLayoutControls
-                                if currentCameraLayout.layout == .overlay {
-                                    webcamShapePicker(selection: $session.draft.webcamShape)
-                                    webcamPositionPicker(selection: $session.draft.webcamPosition)
-                                    webcamSizePicker(selection: $session.draft.webcamSize)
-                                } else {
-                                    cameraFramingControls
-                                }
-                            }.disabled(videoOverlayRecorder.isBusy)
-                                .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before editing its appearance." : nil)
-                        }
                     }
                 }
+                if editableVideoOverlayURL != nil {
+                    Divider()
+                    settingsSection("Show Camera", isOn: $session.draft.webcamEnabled) {
+                        settingsToggle(label: "Mirror Camera", isOn: Binding(
+                            get: { session.draft.cameraMirrored ?? false },
+                            set: { session.draft.cameraMirrored = $0 }
+                        ))
+                        .hoverHelp("Flip the camera horizontally in preview and export.")
+                        cameraLayoutControls
+                        if currentCameraLayout.layout == .overlay {
+                            webcamShapePicker(selection: $session.draft.webcamShape)
+                            webcamPositionPicker(selection: $session.draft.webcamPosition)
+                            webcamSizePicker(selection: $session.draft.webcamSize)
+                        } else {
+                            cameraFramingControls
+                        }
+                    }
+                    .disabled(videoOverlayRecorder.isBusy)
+                    .hoverHelp(videoOverlayRecorder.isBusy ? "Finish or cancel the camera recording before editing its appearance." : nil)
+                }
+                Divider()
+                cameraEffectsControls
+                    .disabled(videoOverlayRecorder.isBusy)
+            case .text:
+                TextEditorPanel(session: session)
             case .audio:
                 EditorAudioPanel(settings: $session.draft, selectedClip: $session.selectedVoiceOverID,
                                  recorder: voiceOverRecorder,
@@ -904,7 +903,7 @@ struct SettingsView: View {
                                  hasOriginalAudio: hasEditableAudio,
                                  startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
             case .output:
-                settingsSection("Output") {
+                settingsSection("Export") {
                     exportResolutionPicker(selection: $session.draft.exportResolution)
                     if let sourceVideoSize {
                         exportSizeDetails(settings: session.draft, source: sourceVideoSize)
@@ -912,6 +911,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .font(Typography.body)
+        .foregroundStyle(DesignColors.primaryLabel)
     }
 
     private var zoomTransitionControls: some View {
@@ -992,10 +993,15 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var capturePanelContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxl) {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            if selectedPanel != .text && selectedPanel != .audio {
+                InspectorTitle(title: selectedPanel.rawValue)
+            }
             switch selectedPanel {
+            case .text:
+                TextEditorPanel(session: session)
             case .canvas:
-                settingsSection("Canvas") {
+                settingsSection("Layout") {
                     ratioPicker(selection: Binding(
                         get: { appState.capture.canvasRatio },
                         set: { appState.capture.canvasRatio = $0 }
@@ -1030,53 +1036,52 @@ struct SettingsView: View {
                 Divider()
                 settingsSection("Background") { wallpaperGrid }
             case .cursor:
-                settingsSection("Cursor") {
-                    settingsToggle(icon: "cursorarrow", label: "Show Cursor", isOn: Binding(
-                        get: { appState.capture.showCursor },
-                        set: { appState.capture.showCursor = $0 }
+                settingsSection("Show Cursor", isOn: Binding(
+                    get: { appState.capture.showCursor },
+                    set: { appState.capture.showCursor = $0 }
+                )) {
+                    cursorShapePicker(selection: Binding(
+                        get: { appState.capture.cursorShape },
+                        set: { appState.capture.cursorShape = $0 }
                     ))
-                    if appState.capture.showCursor {
-                        cursorShapePicker(selection: Binding(
-                            get: { appState.capture.cursorShape },
-                            set: { appState.capture.cursorShape = $0 }
-                        ))
-                        cursorSizeSlider(selection: Binding(
-                            get: { appState.capture.cursorScale },
-                            set: { appState.capture.cursorScale = $0 }
-                        ))
-                    }
-                    settingsToggle(icon: "circle.circle", label: "Highlight Clicks", isOn: Binding(
-                        get: { appState.capture.highlightClicks },
-                        set: { appState.capture.highlightClicks = $0 }
+                    cursorSizeSlider(selection: Binding(
+                        get: { appState.capture.cursorScale },
+                        set: { appState.capture.cursorScale = $0 }
                     ))
-                    if appState.capture.highlightClicks {
-                        clickHighlightColorPicker(selection: Binding(
-                            get: { appState.capture.clickHighlightColor },
-                            set: { appState.capture.clickHighlightColor = $0 }
-                        ))
-                    }
                 }
                 Divider()
-                settingsSection("Zoom") {
-                    settingsToggle(icon: "plus.magnifyingglass", label: "Auto Zoom", isOn: Binding(
+                settingsSection("Highlight Clicks", isOn: Binding(
+                    get: { appState.capture.highlightClicks },
+                    set: { appState.capture.highlightClicks = $0 }
+                )) {
+                    clickHighlightColorPicker(selection: Binding(
+                        get: { appState.capture.clickHighlightColor },
+                        set: { appState.capture.clickHighlightColor = $0 }
+                    ))
+                }
+                Divider()
+                settingsSection("Zoom", isOn: Binding(
+                    get: { appState.capture.zoomEnabled },
+                    set: { appState.capture.zoomEnabled = $0 }
+                )) {
+                    settingsToggle(label: "Auto Zoom", isOn: Binding(
                         get: { appState.capture.autoZoomEnabled },
                         set: { appState.capture.autoZoomEnabled = $0 }
                     ))
                 }
             case .camera:
-                settingsSection("Camera") {
-                    settingsToggle(icon: "video.fill", label: "Webcam Overlay", isOn: Binding(
-                        get: { appState.capture.isWebcamEnabled },
-                        set: { appState.capture.isWebcamEnabled = $0 }
-                    ))
-                    if appState.capture.isWebcamEnabled {
+                settingsSection("Webcam Overlay", isOn: Binding(
+                    get: { appState.capture.isWebcamEnabled },
+                    set: { appState.capture.isWebcamEnabled = $0 }
+                )) {
+                    Group {
                         Text(LocalizedStringKey(appState.capture.isMicrophoneEnabled
                              ? "Microphone is on. Manage it in Audio."
                              : "Microphone is off. Manage it in Audio."))
                             .font(Typography.caption)
                             .foregroundStyle(DesignColors.secondaryLabel)
                         webcamDevicePicker
-                        settingsToggle(icon: "arrow.left.and.right", label: "Mirror Camera", isOn: Binding(
+                        settingsToggle(label: "Mirror Camera", isOn: Binding(
                             get: { appState.capture.isCameraMirrored },
                             set: { appState.capture.isCameraMirrored = $0 }
                         ))
@@ -1093,9 +1098,8 @@ struct SettingsView: View {
                             get: { appState.capture.webcamPiPSize },
                             set: { appState.capture.webcamPiPSize = $0 }
                         ))
-                        beautyControls(amount: Binding(get: { appState.capture.faceBeautyAmount },
-                                                       set: { appState.capture.faceBeautyAmount = $0 }))
-                        makeupControls(settings: Binding(get: { appState.capture.faceMakeup }, set: { appState.capture.faceMakeup = $0 }))
+                        Divider()
+                        cameraEffectsControls
                         Divider()
                         Button {
                             if isShowingCameraPreview {
@@ -1132,19 +1136,20 @@ struct SettingsView: View {
                     }
                 }
             case .audio:
-                settingsSection("Audio") {
-                    settingsToggle(icon: "mic.fill", label: "Microphone", isOn: Binding(
-                        get: { appState.capture.isMicrophoneEnabled },
-                        set: { appState.capture.isMicrophoneEnabled = $0 }
-                    ))
-                    if appState.capture.isMicrophoneEnabled { microphonePicker }
-                    settingsToggle(icon: "speaker.wave.2.fill", label: "System Audio", isOn: Binding(
-                        get: { appState.capture.isSystemAudioEnabled },
-                        set: { appState.capture.isSystemAudioEnabled = $0 }
-                    ))
+                InspectorTitle(title: "Audio")
+                settingsSection("Microphone", isOn: Binding(
+                    get: { appState.capture.isMicrophoneEnabled },
+                    set: { appState.capture.isMicrophoneEnabled = $0 }
+                )) {
+                    microphonePicker
                 }
+                Divider()
+                settingsToggle(label: "System Audio", isOn: Binding(
+                    get: { appState.capture.isSystemAudioEnabled },
+                    set: { appState.capture.isSystemAudioEnabled = $0 }
+                ))
             case .output:
-                settingsSection("Output") {
+                settingsSection("Export") {
                     frameRatePicker
                     exportResolutionPicker(selection: Binding(
                         get: { appState.capture.exportResolution },
@@ -1163,6 +1168,9 @@ struct SettingsView: View {
                 }
             }
         }
+        .font(Typography.body)
+        .foregroundStyle(DesignColors.primaryLabel)
+        .tint(DesignColors.accent)
         .disabled(isExporting || isSaving || appState.isRecording || appState.recording.processingStage != nil)
     }
 
@@ -1184,74 +1192,38 @@ struct SettingsView: View {
 
     private var sessionBeautyAmount: Double { FaceBeautyFilter.clamped(session.draft.faceBeautyAmount ?? 0) }
 
-    private func beautyControls(amount: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            settingsToggle(icon: "sparkles", label: "Natural", isOn: Binding(
-                get: { amount.wrappedValue > 0 },
-                set: { amount.wrappedValue = $0 ? 0.5 : 0 }
-            ))
-            .accessibilityIdentifier("faceBeautyEnabled")
-            if amount.wrappedValue > 0 {
-                HStack {
-                    Text("Intensity").font(Typography.caption)
-                    Spacer()
-                    Text(amount.wrappedValue, format: .percent.precision(.fractionLength(0)))
-                        .font(Typography.caption).monospacedDigit().foregroundStyle(DesignColors.secondaryLabel)
-                }
-                primarySlider(selection: amount, range: 0.05...1, label: "Beauty intensity",
-                              value: "\(Int(amount.wrappedValue * 100))%")
-                    .accessibilityIdentifier("faceBeautyIntensity")
-                Text("Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost.")
-                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private var currentCameraEffect: CameraEffectSelection {
+        videoURL == nil ? appState.capture.cameraEffectSelection : session.draft.resolvedCameraEffectSelection
+    }
+
+    private var cameraEffectsEnabled: Bool {
+        videoURL == nil ? appState.capture.cameraEffectsEnabled : session.draft.cameraEffectsEnabled
+    }
+
+    private func updateCameraEffect(_ selection: CameraEffectSelection, enabled: Bool) {
+        if videoURL == nil {
+            appState.capture.setCameraEffect(selection, enabled: enabled)
+        } else {
+            var settings = session.draft
+            settings.setCameraEffect(selection, enabled: enabled)
+            session.draft = settings
         }
     }
 
-    private func makeupControls(settings: Binding<FaceMakeupSettings>) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            settingsToggle(icon: "paintbrush.pointed", label: "Peach Makeup", isOn: Binding(
-                get: { settings.wrappedValue.amount > 0 },
-                set: { settings.wrappedValue.amount = $0 ? 0.7 : 0 }
-            ))
-            .accessibilityIdentifier("faceMakeupEnabled")
-            if settings.wrappedValue.amount > 0 {
-                makeupSlider("Intensity", key: \.amount, settings: settings, minimum: 0.05)
-                DisclosureGroup("Customize makeup") {
-                    VStack(spacing: Spacing.labelToControl) {
-                        makeupSlider("Skin & fine lines", key: \.skin, settings: settings)
-                        makeupSlider("Face definition", key: \.definition, settings: settings)
-                        makeupSlider("Eyelashes", key: \.lashes, settings: settings)
-                        makeupSlider("Eyebrows", key: \.brows, settings: settings)
-                        makeupSlider("Peach blush", key: \.blush, settings: settings)
-                        makeupSlider("Overlined lips", key: \.lips, settings: settings)
-                        makeupSlider("Eyeshadow", key: \.eyeshadow, settings: settings)
-                        makeupSlider("Under-eye shadow", key: \.underEyeShadow, settings: settings)
-                        makeupSlider("Under-eye fullness · 애굣살", key: \.aegyo, settings: settings)
-                        makeupSlider("Nose & chin contour", key: \.contour, settings: settings)
-                        makeupSlider("Shorter face", key: \.shortening, settings: settings)
-                    }.padding(.top, Spacing.labelToControl)
-                }
-                Text("Soft peach makeup that follows your face. Face shortening eases off as you turn sideways.")
-                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var cameraEffectsControls: some View {
+        CameraEffectsControls(isOn: Binding(
+            get: { cameraEffectsEnabled },
+            set: { updateCameraEffect(currentCameraEffect, enabled: $0) }
+        ), selection: Binding(
+            get: { currentCameraEffect },
+            set: { updateCameraEffect($0, enabled: cameraEffectsEnabled) }
+        ), makeup: Binding(
+            get: { videoURL == nil ? appState.capture.faceMakeup : session.draft.faceMakeup ?? .init() },
+            set: { value in
+                if videoURL == nil { appState.capture.faceMakeup = value }
+                else { session.draft.faceMakeup = value }
             }
-        }
-    }
-
-    private func makeupSlider(_ title: String, key: WritableKeyPath<FaceMakeupSettings, Double>,
-                              settings: Binding<FaceMakeupSettings>, minimum: Double = 0) -> some View {
-        let value = Binding(get: { settings.wrappedValue[keyPath: key] }, set: { settings.wrappedValue[keyPath: key] = $0 })
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(LocalizedStringKey(title)).font(Typography.caption)
-                Spacer()
-                Text(value.wrappedValue, format: .percent.precision(.fractionLength(0)))
-                    .font(Typography.caption).monospacedDigit().foregroundStyle(DesignColors.secondaryLabel)
-            }
-            primarySlider(selection: value, range: minimum...1, label: title,
-                          value: "\(Int(value.wrappedValue * 100))%")
-        }
+        ))
     }
 
     private var currentCameraLayout: CameraLayoutSettings {
@@ -1272,7 +1244,7 @@ struct SettingsView: View {
 
     private var cameraLayoutControls: some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            cameraSettingLabel("Layout", symbol: "rectangle.on.rectangle")
+            cameraSettingLabel("Layout")
             Picker("Camera layout", selection: Binding(
                 get: { currentCameraLayout.layout },
                 set: { layout in updateCameraLayout { $0.layout = layout } }
@@ -1284,7 +1256,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("cameraLayout")
             cameraTransitionControls
-            settingsToggle(icon: "viewfinder", label: "Follow face", isOn: Binding(
+            settingsToggle(label: "Follow face", isOn: Binding(
                 get: { currentCameraLayout.followFace },
                 set: { enabled in updateCameraLayout { $0.followFace = enabled } }
             ), isProcessing: currentCameraLayout.followFace && session.isPreparingFaceTracking)
@@ -1305,67 +1277,53 @@ struct SettingsView: View {
     }
 
     private var cameraTransitionControls: some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            settingsToggle(icon: "arrow.up.left.and.arrow.down.right", label: "Smooth Transition", isOn: Binding(
-                get: { canTransitionCameraSection && currentCameraLayout.smoothTransition },
-                set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
-            ), disabledReason: !canTransitionCameraSection
-                ? (cameraLayoutChangeIndex == nil
-                    ? (session.draft.cameraLayoutChanges.isEmpty
-                        ? "Split the camera clip, then change the next section’s layout or framing to enable Smooth Transition."
-                        : "Select a later camera section. Smooth Transition applies at its start, from the previous section.")
-                    : "Change this camera section’s layout or framing to enable Smooth Transition.")
-                : nil)
-            .accessibilityIdentifier("cameraSmoothTransition")
-            if canTransitionCameraSection && currentCameraLayout.smoothTransition {
-                VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-                    HStack {
-                        cameraSettingLabel("Duration", symbol: "clock")
-                        Spacer()
-                        Text(LocalizedStringKey(String(format: "%.2g s", currentCameraLayout.clampedTransitionDuration)))
-                            .font(Typography.caption).monospacedDigit()
-                            .foregroundStyle(DesignColors.secondaryLabel)
-                    }
-                    primarySlider(selection: Binding(
-                        get: { currentCameraLayout.clampedTransitionDuration },
-                        set: { value in updateCameraLayout { $0.transitionDuration = (value * 100).rounded() / 100 } }
-                    ), range: 0.1...2, label: "Camera transition duration",
-                       value: String(format: "%.2g seconds", currentCameraLayout.clampedTransitionDuration))
-                    .accessibilityIdentifier("cameraTransitionDuration")
-                }
-                VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-                    cameraSettingLabel("Motion", symbol: "waveform.path")
-                    Picker("Transition motion", selection: Binding(
-                        get: { currentCameraLayout.transitionMotion },
-                        set: { motion in updateCameraLayout { $0.transitionMotion = motion } }
-                    )) {
-                        ForEach(CameraTransitionMotion.allCases, id: \.self) { motion in
-                            Text(LocalizedStringKey(motion.displayName)).tag(motion)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("cameraTransitionMotion")
-                }
-                Text("Applies at the start of this camera section. Short sections use a shorter transition.")
-                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
-                    .fixedSize(horizontal: false, vertical: true)
+        settingsSection("Smooth Transition", isOn: Binding(
+            get: { canTransitionCameraSection && currentCameraLayout.smoothTransition },
+            set: { enabled in updateCameraLayout { $0.smoothTransition = enabled } }
+        )) {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                cameraSettingLabel("Duration")
+                primarySlider(selection: Binding(
+                    get: { currentCameraLayout.clampedTransitionDuration },
+                    set: { value in updateCameraLayout { $0.transitionDuration = (value * 100).rounded() / 100 } }
+                ), range: 0.1...2, label: "Camera transition duration",
+                   unit: "s", decimals: 2)
+                .accessibilityIdentifier("cameraTransitionDuration")
             }
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                cameraSettingLabel("Motion")
+                Picker("Transition motion", selection: Binding(
+                    get: { currentCameraLayout.transitionMotion },
+                    set: { motion in updateCameraLayout { $0.transitionMotion = motion } }
+                )) {
+                    ForEach(CameraTransitionMotion.allCases, id: \.self) { motion in
+                        Text(LocalizedStringKey(motion.displayName)).tag(motion)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("cameraTransitionMotion")
+            }
+            Text("Applies at the start of this camera section. Short sections use a shorter transition.")
+                .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .disabled(!canTransitionCameraSection)
+        .hoverHelp(!canTransitionCameraSection
+            ? (cameraLayoutChangeIndex == nil
+                ? (session.draft.cameraLayoutChanges.isEmpty
+                    ? "Split the camera clip, then change the next section’s layout or framing to enable Smooth Transition."
+                    : "Select a later camera section. Smooth Transition applies at its start, from the previous section.")
+                : "Change this camera section’s layout or framing to enable Smooth Transition.")
+            : nil)
+        .accessibilityIdentifier("cameraSmoothTransition")
     }
 
-    private func cameraSettingLabel(_ title: String, symbol: String) -> some View {
-        HStack {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(DesignColors.secondaryLabel)
-                .frame(width: 20)
-                .accessibilityHidden(true)
-            Text(LocalizedStringKey(title))
-                .font(Typography.body)
-                .foregroundStyle(DesignColors.primaryLabel)
-        }
+    private func cameraSettingLabel(_ title: String) -> some View {
+        Text(LocalizedStringKey(title))
+            .font(Typography.body)
+            .foregroundStyle(DesignColors.primaryLabel)
     }
 
     private func cameraFramingBinding(_ keyPath: WritableKeyPath<CameraLayoutSettings, Double>) -> Binding<Double> {
@@ -1376,21 +1334,14 @@ struct SettingsView: View {
     private var cameraFramingControls: some View {
         VStack(alignment: .leading, spacing: Spacing.featureGap) {
             VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-                HStack {
-                    cameraSettingLabel("Zoom", symbol: "plus.magnifyingglass")
-                    Spacer()
-                    NumericSettingInput(value: Binding(
-                        get: { Int((currentCameraLayout.zoom * 100).rounded()) },
-                        set: { value in updateCameraLayout { $0.zoom = Double(value) / 100 } }
-                    ), range: 100...300, unit: "%", label: "Camera zoom in percent")
-                }
+                cameraSettingLabel("Zoom")
                 primarySlider(selection: cameraFramingBinding(\.zoom), range: 1...3,
-                              label: "Camera zoom", value: "\(Int((currentCameraLayout.zoom * 100).rounded()))%")
+                              label: "Camera zoom", multiplier: 100, unit: "%")
             }
-            cameraFramingSlider("Horizontal Framing", symbol: "arrow.left.and.right", keyPath: \.centerX)
+            cameraFramingSlider("Horizontal Framing", keyPath: \.centerX)
                 .disabled(currentCameraLayout.followFace)
                 .hoverHelp(editBusyReason ?? (currentCameraLayout.followFace ? "Turn off Follow face to adjust framing manually." : "Adjust camera framing."))
-            cameraFramingSlider("Vertical Framing", symbol: "arrow.up.and.down", keyPath: \.centerY)
+            cameraFramingSlider("Vertical Framing", keyPath: \.centerY)
                 .disabled(currentCameraLayout.followFace)
                 .hoverHelp(editBusyReason ?? (currentCameraLayout.followFace ? "Turn off Follow face to adjust framing manually." : "Adjust camera framing."))
             Button {
@@ -1402,37 +1353,22 @@ struct SettingsView: View {
         }
     }
 
-    private func cameraFramingSlider(_ title: String, symbol: String,
+    private func cameraFramingSlider(_ title: String,
                                      keyPath: WritableKeyPath<CameraLayoutSettings, Double>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            cameraSettingLabel(title, symbol: symbol)
+            cameraSettingLabel(title)
             primarySlider(selection: cameraFramingBinding(keyPath), range: 0...1,
                           label: "Camera \(title.lowercased())",
-                          value: "\(Int((currentCameraLayout[keyPath: keyPath] * 100).rounded()))%")
+                          multiplier: 100, unit: "%")
         }
     }
 
     private var browserToolbarCropControl: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Toggle(isOn: Binding(
+            settingsToggle(label: "Hide Browser Toolbar", isOn: Binding(
                 get: { session.draft.isBrowserToolbarHidden || session.isDetectingBrowser },
                 set: { hidden in Task { await session.setBrowserToolbarHidden(hidden) } }
-            )) {
-                HStack {
-                    Image(systemName: "rectangle.topthird.inset.filled")
-                        .font(.system(size: 13))
-                        .foregroundColor(DesignColors.secondaryLabel)
-                        .frame(width: 20)
-                        .accessibilityHidden(true)
-                    Text("Hide Browser Toolbar")
-                        .font(Typography.body)
-                        .foregroundColor(DesignColors.primaryLabel)
-                    Spacer()
-                }
-            }
-            .toggleStyle(.switch)
-            .tint(DesignColors.accent)
-            .frame(minHeight: ControlMetrics.actionHeight)
+            ))
             .disabled(phoneCropSource == nil || !previewReady || editsBusy)
             .hoverHelp(cropDisabledReason ?? (session.draft.isBrowserToolbarHidden
                 ? "Turn off to restore your previous crop."
@@ -1471,7 +1407,7 @@ struct SettingsView: View {
     }
 
     private func deviceLayoutPicker(selection: Binding<DeviceLayout>) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm) {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)], spacing: Spacing.md) {
             ForEach(DeviceLayout.allCases, id: \.self) { layout in
                 Button {
                     selection.wrappedValue = layout
@@ -1484,9 +1420,9 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 58)
-                    .background(selection.wrappedValue == layout ? DesignColors.accent.opacity(0.25) : DesignColors.controlBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == layout ? DesignColors.accent : .clear, lineWidth: 1))
+                    .background(selection.wrappedValue == layout ? DesignColors.accent.opacity(0.25) : DesignColors.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg))
+                    .overlay(RoundedRectangle(cornerRadius: CornerRadius.lg).stroke(selection.wrappedValue == layout ? DesignColors.accent : .clear, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .hoverHelp(editBusyReason)
@@ -1509,9 +1445,9 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(selection.wrappedValue == shape ? DesignColors.accent.opacity(0.25) : DesignColors.controlBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
+                    .background(selection.wrappedValue == shape ? DesignColors.accent.opacity(0.25) : DesignColors.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg))
+                    .overlay(RoundedRectangle(cornerRadius: CornerRadius.lg).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .hoverHelp(editBusyReason)
@@ -1572,16 +1508,7 @@ struct SettingsView: View {
 
     private func ratioPicker(selection: Binding<CanvasRatio>) -> some View {
         HStack(spacing: Spacing.labelToControl) {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "aspectratio")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text("Ratio")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-            }
+            Text("Ratio").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             Picker("Ratio", selection: selection) {
                 ForEach(CanvasRatio.allCases, id: \.self) { Text(LocalizedStringKey($0.displayName)).tag($0) }
             }
@@ -1590,59 +1517,16 @@ struct SettingsView: View {
         }
     }
 
-    private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            Text(LocalizedStringKey(title))
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(DesignColors.primaryLabel)
-
-            VStack(alignment: .leading, spacing: Spacing.featureGap) {
-                content()
-            }
-        }
+    private func settingsSection<Content: View>(_ title: String, isOn: Binding<Bool>? = nil,
+                                               @ViewBuilder content: @escaping () -> Content) -> some View {
+        InspectorSection(title: title, isOn: isOn, content: content)
     }
 
-    private func settingsToggle(icon: String, label: String, isOn: Binding<Bool>,
+    private func settingsToggle(label: String, isOn: Binding<Bool>,
                                 isProcessing: Bool = false, disabledReason: String? = nil) -> some View {
-        Button { isOn.wrappedValue.toggle() } label: {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                Text(LocalizedStringKey(label))
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-                if isProcessing {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-                        .frame(width: 16, height: 16)
-                        .localizedAccessibilityLabel("Preparing face tracking")
-                        .accessibilityIdentifier("faceTrackingProgress")
-                }
-                Spacer()
-                ZStack {
-                    Capsule()
-                        .fill(isOn.wrappedValue ? DesignColors.accent : DesignColors.inputBorder)
-                        .frame(width: 34, height: 20)
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 16, height: 16)
-                        .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
-                        .offset(x: isOn.wrappedValue ? 7 : -7)
-                }
-                .animation(.easeInOut(duration: 0.15), value: isOn.wrappedValue)
-            }
-            .frame(minHeight: ControlMetrics.actionHeight)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .localizedAccessibilityLabel(label)
-        .localizedAccessibilityValue(isOn.wrappedValue ? "On" : "Off")
-        .accessibilityAddTraits(.isButton)
-        .disabled(disabledReason != nil)
-        .hoverHelp(editBusyReason ?? disabledReason)
+        InspectorToggle(title: label, isOn: isOn, isProcessing: isProcessing)
+            .disabled(disabledReason != nil)
+            .hoverHelp(editBusyReason ?? disabledReason)
     }
 
     private var microphonePicker: some View {
@@ -1654,18 +1538,7 @@ struct SettingsView: View {
 
     private var frameRatePicker: some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "speedometer")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-
-                Text("Frame Rate")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-
-                Spacer()
-            }
+            Text("Frame Rate").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
 
             Picker("Frame Rate", selection: Binding(
                 get: { appState.capture.captureFrameRate },
@@ -1700,8 +1573,6 @@ struct SettingsView: View {
             ? geometry.phone.map { CanvasGeometry.phoneScreen($0, layout: layout) }
             : geometry.desktop
         let shortestSide = content.map { min($0.width, $0.height) } ?? 0
-        let pixels = Int((shortestSide * selection.wrappedValue).rounded())
-        let maximumPixels = Int((shortestSide * 0.2).rounded())
         let usesBackground = videoURL == nil || session.draft.backgroundEnabled || ratio != .original || layout != .desktop
         let help = editBusyReason ?? (!usesBackground
             ? "Turn on Background to adjust corner radius."
@@ -1709,88 +1580,46 @@ struct SettingsView: View {
             : layout.isPhone ? "Round the phone screen and its frame together."
             : "Round the video corners inside the background.")
         return VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "rectangle.roundedtop")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text("Corners")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-                Spacer()
-                NumericSettingInput(value: Binding(
-                    get: { pixels },
-                    set: { requestedPixels in
-                        guard shortestSide > 0 else { return }
-                        selection.wrappedValue = min(0.2, max(0, Double(requestedPixels) / Double(shortestSide)))
-                    }
-                ), range: 0...maximumPixels, unit: "px", label: "Corner radius in pixels", helpText: help)
-                .disabled(shortestSide <= 0)
-            }
+            Text("Corners").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             primarySlider(selection: selection, range: 0...0.2,
                           label: "Canvas content corner radius",
-                          value: "\(pixels) pixels")
+                          multiplier: max(1, shortestSide), unit: "px")
                 .hoverHelp(help)
         }
         .disabled(!usesBackground || shortestSide <= 0)
-        .opacity(usesBackground ? 1 : 0.45)
     }
 
     private func cursorSizeSlider(selection: Binding<Double>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text("Size")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-                Spacer()
-                NumericSettingInput(value: Binding(
-                    get: { Int((selection.wrappedValue * 100).rounded()) },
-                    set: { selection.wrappedValue = Double($0) / 100 }
-                ), range: 50...300, unit: "%", label: "Pointer size in percent")
-            }
+            Text("Size").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             primarySlider(selection: selection, range: 0.5...3.0,
                           label: "Cursor size",
-                          value: "\(Int((selection.wrappedValue * 100).rounded()))%")
+                          multiplier: 100, unit: "%")
         }
     }
 
-    private func primarySlider(selection: Binding<Double>, range: ClosedRange<Double>, label: String, value: String) -> some View {
-        LineSlider(selection: selection, range: range, label: label, value: value)
+    private func primarySlider(selection: Binding<Double>, range: ClosedRange<Double>, label: String,
+                               multiplier: Double = 1, unit: String = "", decimals: Int = 0) -> some View {
+        SliderValueControl(selection: selection, range: range, label: label,
+                           multiplier: multiplier, unit: unit, decimals: decimals)
             .hoverHelp(editBusyReason)
     }
 
     private func zoomLevelSlider(selection: Binding<Double>, range: ClosedRange<Double> = 1.25...3) -> some View {
-        HStack(spacing: Spacing.md) {
-            Image(systemName: "minus.magnifyingglass")
-                .font(.system(size: 12))
-                .foregroundColor(DesignColors.tertiaryLabel)
-
-            LineSlider(selection: selection, range: range, label: "Zoom magnification",
-                       value: "\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))) times",
-                       keyboardStep: 0.25, onEditingChanged: setAdjustingZoomRegion)
-
-            Image(systemName: "plus.magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundColor(DesignColors.secondaryLabel)
-
-            Text("\(selection.wrappedValue.formatted(.number.precision(.fractionLength(0...2))))×")
-                .font(Typography.monoSmall)
-                .foregroundColor(DesignColors.secondaryLabel)
-                .frame(width: 36, alignment: .trailing)
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Magnification").font(Typography.body)
+            SliderValueControl(selection: selection, range: range, label: "Zoom magnification",
+                               unit: "×", decimals: 2, keyboardStep: 0.25,
+                               onEditingChanged: setAdjustingZoomRegion)
         }
     }
 
     // MARK: - Webcam Controls
 
     private var webcamDevicePicker: some View {
-        HStack {
-            Picker("", selection: Binding(
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Camera device").font(Typography.body)
+            Picker("Camera device", selection: Binding(
                 get: { appState.capture.selectedWebcamDeviceID },
                 set: { appState.capture.selectedWebcamDeviceID = $0 }
             )) {
@@ -1806,16 +1635,7 @@ struct SettingsView: View {
 
     private func webcamShapePicker(selection: Binding<PiPShape>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "circle.square")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text("Shape")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-            }
+            Text("Shape").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             HStack(spacing: Spacing.sm) {
                 ForEach(PiPShape.allCases, id: \.self) { shape in
                     Button {
@@ -1832,9 +1652,9 @@ struct SettingsView: View {
                         .frame(width: 18, height: 18)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
-                        .background(selection.wrappedValue == shape ? DesignColors.accent.opacity(0.25) : DesignColors.controlBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
+                        .background(selection.wrappedValue == shape ? DesignColors.accent.opacity(0.25) : DesignColors.inputBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg))
+                        .overlay(RoundedRectangle(cornerRadius: CornerRadius.lg).stroke(selection.wrappedValue == shape ? DesignColors.accent : .clear, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     .hoverHelp(editBusyReason)
@@ -1847,16 +1667,7 @@ struct SettingsView: View {
 
     private func webcamPositionPicker(selection: Binding<PiPPosition>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "square.dashed.inset.filled")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text("Position")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-            }
+            Text("Position").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 3), spacing: 0) {
                 ForEach(PiPPosition.allCases, id: \.self) { position in
                     Button {
@@ -1880,23 +1691,13 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(5)
-            .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(DesignColors.inputBorder, lineWidth: 1))
+            .background(DesignColors.inputBackground, in: RoundedRectangle(cornerRadius: CornerRadius.lg))
         }
     }
 
     private func webcamSizePicker(selection: Binding<PiPSize>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            HStack {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 13))
-                    .foregroundColor(DesignColors.secondaryLabel)
-                    .frame(width: 20)
-                Text("Size")
-                    .font(Typography.body)
-                    .foregroundColor(DesignColors.primaryLabel)
-                Spacer()
-            }
+            Text("Size").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             Picker("Size", selection: selection) {
                 ForEach(PiPSize.allCases, id: \.self) { size in
                     Text(LocalizedStringKey(size.displayName)).tag(size)
@@ -2153,6 +1954,9 @@ struct SettingsView: View {
             } else if let player = videoPlayer {
                 NativeVideoPlayerView(player: player, showsControls: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay {
+                        TextCanvasOverlay(session: session, isEnabled: !editsBusy)
+                    }
             }
             if sourceDuration > 0, let player = videoPlayer, let source = layoutSourceURL {
                 Divider()
@@ -2180,6 +1984,9 @@ struct SettingsView: View {
                     }
                     .onChange(of: session.selectedVoiceOverID) { id in
                         if id != nil { selectedPanel = .audio }
+                    }
+                    .onChange(of: session.selectedTextID) { id in
+                        if id != nil { selectedPanel = .text }
                     }
                     .onChange(of: session.selectedZoomID) { id in
                         setAdjustingZoomRegion(false)
@@ -2911,6 +2718,7 @@ struct VideoTrimControls: View {
     }
 
     private func selectAudio(_ clip: MediaTimelineClip) {
+        session?.selectedTextID = nil
         player.pause()
         selectedAudioID = clip.id
         selectedSegment = mediaTimeline?.partner(of: clip, on: .audio)?.sourceRange
@@ -3092,7 +2900,10 @@ struct VideoTrimControls: View {
 
     private func deleteTimelineSelection() {
         guard session?.isBusy != true else { return }
-        if selectedMedia != nil {
+        if let id = session?.selectedTextID {
+            session?.draft.textOverlays?.removeAll { $0.id == id }
+            session?.selectedTextID = nil
+        } else if selectedMedia != nil {
             deleteSelectedMedia()
         } else if isVideoOverlaySelected {
             removeVideoOverlay()
@@ -3124,6 +2935,7 @@ struct VideoTrimControls: View {
     }
 
     private func selectZoom(_ id: UUID) {
+        session?.selectedTextID = nil
         selectedAudioID = nil
         isVideoOverlaySelected = false
         selectedVoiceOverID = nil
@@ -3189,6 +3001,7 @@ struct VideoTrimControls: View {
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
     private var canSplit: Bool {
+        guard session?.selectedTextID == nil else { return false }
         if isVideoOverlaySelected { return cameraSplit != nil }
         if var mediaTimeline {
             let track: LinkedMediaTimeline.Track = selectedAudioID == nil ? .screen : .audio
@@ -3379,10 +3192,11 @@ struct VideoTrimControls: View {
                 toolbar(expanded: geometry.size.width > 650, seconds: playbackSeconds, isPlaying: isPlaying)
             }.frame(height: 32)
             GeometryReader { geometry in
-                ScrollView(.horizontal) {
+                ScrollView([.horizontal, .vertical]) {
                     filmstrip(width: max(1, geometry.size.width - 24) * zoom, seconds: playbackSeconds)
                 }
-            }.frame(height: timelineHeight + 14)
+                .accessibilityIdentifier("timelineTracks")
+            }.frame(height: min(timelineHeight + 14, TimelineMetrics.maximumTrackHeight))
             if silence.analyzing || !silence.suggestions.isEmpty || silence.message != nil {
                 silenceReviewBar
             }
@@ -3395,7 +3209,7 @@ struct VideoTrimControls: View {
         .focused($filmstripFocused)
         .background(EditorPlaybackKeyboardMonitor(enabled: session?.isBusy != true,
                                                    allowFrameStepping: filmstripFocused || focusedZoomID != nil,
-                                                   hasSelection: selectedMedia != nil || isVideoOverlaySelected || selectedVoiceOverID != nil || selectedZoomID != nil,
+                                                   hasSelection: selectedMedia != nil || isVideoOverlaySelected || selectedVoiceOverID != nil || selectedZoomID != nil || session?.selectedTextID != nil,
                                                    focusRequest: keyboardFocusRequest) { shortcut in
             switch shortcut {
             case .deleteSelection: deleteTimelineSelection()
@@ -3464,13 +3278,13 @@ struct VideoTrimControls: View {
             redoHistory = redoHistory.compactMap(\.withoutCamera)
         }
         .onChange(of: selectedVoiceOverID) { id in
-            if id != nil { isVideoOverlaySelected = false; selectedAudioID = nil; selectedSegment = nil }
+            if id != nil { session?.selectedTextID = nil; isVideoOverlaySelected = false; selectedAudioID = nil; selectedSegment = nil }
         }
         .onChange(of: selectedZoomID) { id in
-            if id != nil { selectedAudioID = nil; selectedSegment = nil }
+            if id != nil { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
         .onChange(of: isVideoOverlaySelected) { selected in
-            if selected { selectedAudioID = nil; selectedSegment = nil }
+            if selected { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
         .task(id: videoOverlayURL) {
             cameraDuration = 0
@@ -3605,9 +3419,9 @@ struct VideoTrimControls: View {
                     .disabled(zoom <= 1)
                     .modifier(TimelineTooltip(text: zoom <= 1 ? "The timeline is already fully zoomed out" : "Zoom timeline out"))
                 if expanded {
-                    LineSlider(selection: $zoom, range: 1...8, label: "Timeline zoom",
-                               value: String(format: "%.2f×", zoom), thumbSize: 14, height: 24, keyboardStep: 0.25)
-                        .frame(width: 80)
+                    SliderValueControl(selection: $zoom, range: 1...8, label: "Timeline zoom",
+                                       unit: "×", decimals: 2, keyboardStep: 0.25)
+                        .frame(width: 150)
                 }
                 icon("plus", "Zoom timeline in · ⌘=") { zoom = min(8, zoom + 1) }
                     .keyboardShortcut("=", modifiers: .command)
@@ -3711,13 +3525,24 @@ struct VideoTrimControls: View {
         .frame(minHeight: 28)
     }
 
-    private var videoLaneBottom: Double { zoomEnabled ? 93 : 70 }
-    private var audioLaneHeight: Double { (audio == nil ? 0 : 50) + (voiceOvers.isEmpty ? 0 : 50) }
+    private var textLaneTop: Double { zoomEnabled ? 48 : 25 }
+    private var screenLaneTop: Double { textLaneTop + textLaneHeight }
+    private var videoLaneBottom: Double { screenLaneTop + 45 }
+    private var originalAudioLaneHeight: Double { audio == nil ? 0 : TimelineMetrics.audioRowHeight }
+    private var voiceOverTimelineLayout: VoiceOverTimelineLayout {
+        VoiceOverTimelineLayout(clips: voiceOvers, duration: editedDuration)
+    }
+    private var audioLaneHeight: Double { originalAudioLaneHeight + voiceOverTimelineLayout.height }
     private var cameraLaneHeight: Double { videoOverlayURL == nil ? 0 : 50 }
+    private var textTimelineLayout: TextTimelineLayout {
+        TextTimelineLayout(overlays: session?.draft.textOverlays ?? [], duration: editedDuration)
+    }
+    private var textLaneHeight: Double { textTimelineLayout.height }
     private var audioLaneTop: Double { videoLaneBottom + cameraLaneHeight }
     private var timelineHeight: Double { audioLaneTop + audioLaneHeight }
 
     private func selectVideoOverlay() {
+        session?.selectedTextID = nil
         selectedAudioID = nil
         player.pause()
         selectedSegment = nil
@@ -3774,18 +3599,20 @@ struct VideoTrimControls: View {
         } else if let audio {
             AudioWaveformStrip(url: audio, title: "Original audio", color: .teal, muted: originalMuted,
                                duration: total, timeline: timeline)
-                .frame(width: width, height: 44)
+                .frame(width: width, height: TimelineMetrics.audioClipHeight)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 0).onChanged { seekOutput($0.location.x / width * total) })
                 .offset(x: 12, y: audioLaneTop)
         }
+        let layout = VoiceOverTimelineLayout(clips: voiceOvers, duration: total)
         ForEach($voiceOvers) { $clip in
-            if clip.start < total {
+            if let row = layout.rowIndices[clip.id] {
                 VoiceOverTimelineClip(clip: $clip, selected: $selectedVoiceOverID,
                                       total: total, scale: width / total, muted: voiceOverMuted,
                                       number: (voiceOvers.firstIndex(where: { $0.id == clip.id }) ?? 0) + 1,
-                                      pause: { player.pause(); selectedAudioID = nil; selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false; focusTimeline() })
-                    .offset(x: 12 + width * clip.start / total, y: audioLaneTop + (audio == nil ? 0 : 50))
+                                      pause: { player.pause(); session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil; selectedZoomID = nil; isVideoOverlaySelected = false; focusTimeline() })
+                    .offset(x: 12 + width * clip.start / total,
+                            y: audioLaneTop + originalAudioLaneHeight + Double(row) * TimelineMetrics.audioRowHeight)
             }
         }
     }
@@ -3807,11 +3634,15 @@ struct VideoTrimControls: View {
             }
             ForEach(segments.indices, id: \.self) { index in
                 clipStrip(index: index, width: width, total: total)
-                    .offset(x: width * segmentOffset(index) / total + 12, y: zoomEnabled ? 48 : 25)
+                    .offset(x: width * segmentOffset(index) / total + 12, y: screenLaneTop)
             }
             if zoomEnabled { zoomLane(width: width, total: total) }
             cameraLane(width: width, total: total)
             audioLanes(width: width, total: total)
+            if let session, textLaneHeight > 0 {
+                TextTimelineLanes(session: session, layout: textTimelineLayout, width: width, total: total, focus: focusTimeline)
+                    .offset(x: 12, y: textLaneTop)
+            }
             Rectangle().fill(.clear).contentShape(Rectangle())
                 .frame(width: width, height: 24).offset(x: 12)
                 .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
@@ -3847,21 +3678,21 @@ struct VideoTrimControls: View {
                 .buttonStyle(.plain)
                 .localizedAccessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .hoverHelp("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
-                .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: zoomEnabled ? 48 : 25)
+                .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: screenLaneTop)
                 }
                 }
             }
             if session == nil || selectedSegment == nil {
                 trimHandle(isStart: true, width: width)
-                    .offset(x: width * (mediaTimeline?.video.first?.start ?? 0) / total, y: zoomEnabled ? 48 : 25)
+                    .offset(x: width * (mediaTimeline?.video.first?.start ?? 0) / total, y: screenLaneTop)
                 trimHandle(isStart: false, width: width)
-                    .offset(x: width * (mediaTimeline?.video.last?.end ?? total) / total + 12, y: zoomEnabled ? 48 : 25)
+                    .offset(x: width * (mediaTimeline?.video.last?.end ?? total) / total + 12, y: screenLaneTop)
             }
             if let movingSegment, let moveDestination {
                 let boundary = segmentOffset(moveDestination + (moveDestination > movingSegment ? 1 : 0))
                 Rectangle().fill(DesignColors.cameraTrack)
                     .frame(width: 3, height: 48)
-                    .offset(x: 12 + width * boundary / total - 1.5, y: zoomEnabled ? 45 : 22)
+                    .offset(x: 12 + width * boundary / total - 1.5, y: screenLaneTop - 3)
                     .allowsHitTesting(false)
             }
             VStack(spacing: 0) {
@@ -4075,6 +3906,7 @@ struct VideoTrimControls: View {
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("trimTimeline"))
             .onChanged { gesture in
                 if !selectingScreen {
+                    session?.selectedTextID = nil
                     selectingScreen = true
                     selectedAudioID = nil
                     selectedSegment = segment
@@ -4415,63 +4247,6 @@ private struct CameraFeedView: NSViewRepresentable {
     }
 }
 
-private struct NumericSettingInput: View {
-    @Binding var value: Int
-    let range: ClosedRange<Int>
-    let unit: String
-    let label: String
-    var helpText: String? = nil
-    @State private var draft = ""
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            TextField(String(range.lowerBound), text: $draft)
-                .textFieldStyle(.plain)
-                .multilineTextAlignment(.trailing)
-                .focused($isFocused)
-                .localizedAccessibilityLabel(label)
-                .onSubmit {
-                    commit()
-                    isFocused = false
-                }
-                .onExitCommand {
-                    draft = String(value)
-                    isFocused = false
-                }
-            Text(LocalizedStringKey(unit))
-                .foregroundColor(DesignColors.secondaryLabel)
-        }
-        .font(Typography.monoSmall)
-        .foregroundColor(DesignColors.primaryLabel)
-        .padding(.horizontal, 8)
-        .frame(width: 76, height: 32)
-        .background(DesignColors.controlBackground, in: RoundedRectangle(cornerRadius: CornerRadius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.md)
-                .stroke(isFocused ? DesignColors.accent : DesignColors.inputBorder, lineWidth: 1)
-        )
-        .hoverHelp(helpText ?? "\(label): \(range.lowerBound)–\(range.upperBound)\(unit). Press Return to apply.")
-        .onAppear { draft = String(value) }
-        .onChange(of: value) { newValue in
-            if !isFocused { draft = String(newValue) }
-        }
-        .onChange(of: isFocused) { focused in
-            if !focused { commit() }
-        }
-    }
-
-    private func commit() {
-        if let requested = Int(draft.trimmingCharacters(in: .whitespacesAndNewlines)) {
-            let clamped = min(range.upperBound, max(range.lowerBound, requested))
-            value = clamped
-            draft = String(clamped)
-        } else {
-            draft = String(value)
-        }
-    }
-}
-
 private final class CameraFeedNSView: NSView {
     let previewLayer = AVCaptureVideoPreviewLayer()
     private var rotationAngle: CGFloat = 0
@@ -4509,6 +4284,65 @@ private final class CameraFeedNSView: NSView {
     }
 }
 
+struct CameraEffectsControls: View {
+    @Binding var isOn: Bool
+    @Binding var selection: CameraEffectSelection
+    @Binding var makeup: FaceMakeupSettings
+    var initiallyExpanded: Bool? = nil
+
+    var body: some View {
+        InspectorSection(title: "Camera Effects", isOn: $isOn, initiallyExpanded: initiallyExpanded) {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                Text("Style").font(Typography.body)
+                Picker("Camera effect style", selection: $selection.style) {
+                    ForEach(CameraEffectStyle.allCases, id: \.self) { style in
+                        Text(LocalizedStringKey(style.displayName)).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .accessibilityIdentifier("cameraEffectStyle")
+            }
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                Text("Intensity").font(Typography.body)
+                SliderValueControl(selection: $selection.intensity, range: 0.05...1,
+                                   label: "Camera effect intensity", multiplier: 100, unit: "%")
+                    .accessibilityIdentifier("cameraEffectIntensity")
+            }
+            if selection.style == .peachMakeup {
+                InspectorSection(title: "Customize makeup", initiallyExpanded: false) {
+                    makeupSlider("Skin & fine lines", key: \.skin)
+                    makeupSlider("Face definition", key: \.definition)
+                    makeupSlider("Eyelashes", key: \.lashes)
+                    makeupSlider("Eyebrows", key: \.brows)
+                    makeupSlider("Peach blush", key: \.blush)
+                    makeupSlider("Overlined lips", key: \.lips)
+                    makeupSlider("Eyeshadow", key: \.eyeshadow)
+                    makeupSlider("Under-eye shadow", key: \.underEyeShadow)
+                    makeupSlider("Under-eye fullness · 애굣살", key: \.aegyo)
+                    makeupSlider("Nose & chin contour", key: \.contour)
+                    makeupSlider("Shorter face", key: \.shortening)
+                }
+            }
+            Text(LocalizedStringKey(selection.style == .natural
+                 ? "Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost."
+                 : "Soft peach makeup that follows your face. Face shortening eases off as you turn sideways."))
+                .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .tint(DesignColors.accent)
+        .accessibilityIdentifier("cameraEffects")
+    }
+
+    private func makeupSlider(_ title: String, key: WritableKeyPath<FaceMakeupSettings, Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text(LocalizedStringKey(title)).font(Typography.body)
+            SliderValueControl(selection: Binding(
+                get: { makeup[keyPath: key] }, set: { makeup[keyPath: key] = $0 }
+            ), range: 0...1, label: title, multiplier: 100, unit: "%")
+        }
+    }
+}
+
 struct LineSlider: View {
     let selection: Binding<Double>
     let range: ClosedRange<Double>
@@ -4531,16 +4365,15 @@ struct LineSlider: View {
                     .frame(width: trackWidth, height: 4)
                     .overlay(alignment: .leading) {
                         Capsule()
-                            .fill(DesignColors.accent)
+                            .fill(isEnabled ? DesignColors.accent : DesignColors.tertiaryLabel.opacity(0.5))
                             .frame(width: trackWidth * min(1, max(0, progress)), height: 4)
                     }
                     .padding(.leading, thumbSize / 2)
                 Circle()
-                    .fill(.white)
+                    .fill(isEnabled ? Color.white : DesignColors.inputBackground)
                     .frame(width: thumbSize, height: thumbSize)
-                    .overlay(Circle().strokeBorder(isEnabled ? DesignColors.accent : DesignColors.secondaryLabel,
-                                                  lineWidth: 1.5))
-                    .shadow(color: .black.opacity(0.16), radius: 1, y: 1)
+                    .overlay(Circle().strokeBorder(DesignColors.inputBorder, lineWidth: 1))
+                    .shadow(color: isEnabled ? .black.opacity(0.16) : .clear, radius: 1, y: 1)
                     .offset(x: trackWidth * min(1, max(0, progress)))
             }
             .frame(maxWidth: .infinity, alignment: .leading)

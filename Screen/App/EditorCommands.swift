@@ -29,11 +29,14 @@ struct EditorEdits: Codable {
     var cameraMirrored: Bool?
     var faceBeautyAmount: Double?
     var faceMakeup: FaceMakeupSettings?
+    var cameraEffectSelection: CameraEffectSelection?
+    var cameraEffectsEnabled: Bool?
     var videoOverlayURL: URL?
     var cameraLayout: CameraLayoutSettings?
     var cameraLayoutChanges: [CameraLayoutChange]?
     var videoOverlayTiming: VideoOverlayTiming?
     var voiceOvers: [VoiceOverClip]?
+    var textOverlays: [TextOverlay]?
     var audioEnabled: Bool?
     var originalAudioVolume: Double?
     var voiceOverEnabled: Bool?
@@ -70,11 +73,21 @@ struct EditorEdits: Codable {
         if let cameraMirrored { settings.cameraMirrored = cameraMirrored }
         if let faceBeautyAmount { settings.faceBeautyAmount = faceBeautyAmount }
         if let faceMakeup { settings.faceMakeup = faceMakeup }
+        if cameraEffectSelection != nil || cameraEffectsEnabled != nil {
+            let selection = cameraEffectSelection ?? settings.resolvedCameraEffectSelection
+            let enabled = cameraEffectsEnabled ?? settings.cameraEffectsEnabled
+            // Retain the requested intensity so native validation rejects invalid input.
+            settings.cameraEffectSelection = selection
+            let amounts = selection.amounts(enabled: enabled, makeup: settings.faceMakeup ?? .init())
+            settings.faceBeautyAmount = amounts.natural
+            settings.faceMakeup = amounts.makeup
+        }
         if let videoOverlayURL { settings.videoOverlayURL = videoOverlayURL }
         if let cameraLayout { settings.cameraLayout = cameraLayout }
         if let cameraLayoutChanges { settings.cameraLayoutChanges = cameraLayoutChanges }
         if let videoOverlayTiming { settings.videoOverlayTiming = videoOverlayTiming }
         if let voiceOvers { settings.voiceOvers = voiceOvers }
+        if let textOverlays { settings.textOverlays = textOverlays }
         if let audioEnabled { settings.audioEnabled = audioEnabled }
         if let originalAudioVolume { settings.originalAudioVolume = originalAudioVolume }
         if let voiceOverEnabled { settings.voiceOverEnabled = voiceOverEnabled }

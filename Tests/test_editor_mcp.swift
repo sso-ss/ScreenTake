@@ -43,6 +43,23 @@ struct EditorMCPChecks {
         let image = NSBitmapImageRep(data: try Data(contentsOf: directory.appendingPathComponent("Preview.png")))!
         let color = image.colorAt(x: image.pixelsWide / 2, y: image.pixelsHigh / 2)!.usingColorSpace(.sRGB)!
         precondition(color.redComponent > 0.8 && color.greenComponent < 0.2, "MCP returned incorrect preview pixels")
+        func greenPixels(_ bitmap: NSBitmapImageRep) -> Int {
+            var count = 0
+            for y in 0..<bitmap.pixelsHigh {
+                for x in 0..<bitmap.pixelsWide {
+                    guard let pixel = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                    if pixel.greenComponent > 0.6 && pixel.redComponent < 0.3 && pixel.blueComponent < 0.3 { count += 1 }
+                }
+            }
+            return count
+        }
+        precondition(greenPixels(image) > 10, "MCP-created text must appear in the real preview")
+        let generator = AVAssetImageGenerator(asset: export)
+        let exportedFrame = try generator.copyCGImage(at: EditorAudio.time(0.5), actualTime: nil)
+        precondition(greenPixels(NSBitmapImageRep(cgImage: exportedFrame)) > 10,
+                     "MCP-created text must also appear in the exported video")
+        precondition(session.draft.textOverlays?.first?.x == 0.35 && session.draft.cameraEffectSelection?.style == .peachMakeup)
+        print("PASS: text created through MCP renders in actual preview and export frames")
         server.stop()
         precondition(!FileManager.default.fileExists(atPath: path))
         // Recovery after a crash leaves a stale socket, but never permits deleting

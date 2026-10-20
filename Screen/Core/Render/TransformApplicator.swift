@@ -78,6 +78,7 @@ final class LiveEditFrameRenderer {
     private let padding: CGFloat
     private let cursor: CGImage?
     private let faceTrack: FaceTrackingTrack?
+    private let textRenderer: TextOverlayRenderer
 
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
          mouse: MouseDataRecorder.MouseRecording? = nil, faceTrack: FaceTrackingTrack? = nil) {
@@ -91,6 +92,7 @@ final class LiveEditFrameRenderer {
         let scale = min(1, 2560 / max(dimensions.width, dimensions.height))
         outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
                             height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
+        textRenderer = TextOverlayRenderer(overlays: settings.textOverlays ?? [], size: outputSize)
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
         positions = mouse?.positions ?? []
         let captureWidth = (mouse?.screenBounds.width ?? Double(sourceSize.width)) * (mouse?.scaleFactor ?? 1)
@@ -107,7 +109,8 @@ final class LiveEditFrameRenderer {
     }
 
     func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
-                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
+                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil,
+                outputTime: Double? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -151,7 +154,7 @@ final class LiveEditFrameRenderer {
                                      faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
                                      beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
         }
-        return image.cropped(to: CGRect(origin: .zero, size: outputSize))
+        return textRenderer.composite(over: image, at: outputTime ?? time).cropped(to: CGRect(origin: .zero, size: outputSize))
     }
 
     private func position(at time: Double) -> CGPoint? {

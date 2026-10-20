@@ -152,7 +152,7 @@ final class RecordingState: ObservableObject {
             let mouseURL = result.mouseDataURL
             let hasManualZoom = mouseURL.map { hasManualZoomMarkers(mouseDataURL: $0) } ?? false
             let autoEnabled = captureSettings?.autoZoomEnabled == true
-            let shouldApplyZoom = autoEnabled || hasManualZoom
+            let shouldApplyZoom = captureSettings?.zoomEnabled != false && (autoEnabled || hasManualZoom)
             lastRecordingUsedZoom = shouldApplyZoom
             initialEdits = recordingEdits(for: videoURL, generateZoom: shouldApplyZoom)
             processingStage = nil
@@ -204,6 +204,7 @@ final class RecordingState: ObservableObject {
     }
 
     func toggleZoom() {
+        guard captureSettings?.zoomEnabled != false else { return }
         guard let coordinator = recordingCoordinator else {
             Log.recording.warning("toggleZoom: recordingCoordinator is nil")
             return
@@ -308,6 +309,7 @@ final class RecordingState: ObservableObject {
             cameraMirrored: captureSettings?.isCameraMirrored,
             faceBeautyAmount: captureSettings?.faceBeautyAmount,
             faceMakeup: captureSettings?.faceMakeup,
+            cameraEffectSelection: captureSettings?.cameraEffectSelection,
             videoOverlayURL: lastWebcamVideoURL,
             exportResolution: captureSettings?.exportResolution ?? .preserveSource,
             recordedBrowserContentRect: lastBrowserContentRect)
@@ -415,7 +417,14 @@ final class RecordingState: ObservableObject {
 
             processingStage = .processing
             let untrimmedURL = resultURL
-            resultURL = try await settings.trim.export(source: untrimmedURL)
+            let texts = settings.textOverlays ?? []
+            let renderedAsset = AVURLAsset(url: untrimmedURL)
+            let renderedTrack = try await renderedAsset.loadTracks(withMediaType: .video).first
+            let renderedSize = try await renderedTrack?.load(.naturalSize) ?? .zero
+            let textRenderer = TextOverlayRenderer(overlays: texts, size: renderedSize)
+            resultURL = try await settings.trim.export(source: untrimmedURL, frameFilter: texts.isEmpty ? nil : { image, time in
+                textRenderer.composite(over: image, at: time)
+            })
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,
                                                     originalVolume: settings.originalAudioVolume,
                                                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [],

@@ -77,13 +77,15 @@ enum LiveVideoPreview {
             phone = OverlayVideoFrames(url: url, maximumSize: CGSize(width: 1280, height: 1280))
         } else { phone = nil }
         let context = CIContext(options: [.cacheIntermediates: false])
+        let gapTextRenderer = TextOverlayRenderer(overlays: request.settings.textOverlays ?? [], size: renderer.outputSize)
         let filters = AVMutableVideoComposition(asset: composition) { frame in
             autoreleasepool {
                 let image = frame.sourceImage
                     .transformed(by: CGAffineTransform(translationX: -frame.sourceImage.extent.minX, y: -frame.sourceImage.extent.minY))
                 let sourceTime = timeline.sourceTime(at: frame.compositionTime)
                 guard sourceTime.isNumeric else {
-                    frame.finish(with: CIImage(color: .black).cropped(to: CGRect(origin: .zero, size: renderer.outputSize)), context: context)
+                    let black = CIImage(color: .black).cropped(to: CGRect(origin: .zero, size: renderer.outputSize))
+                    frame.finish(with: gapTextRenderer.composite(over: black, at: frame.compositionTime.seconds), context: context)
                     return
                 }
                 let webcamTime: CMTime?
@@ -97,7 +99,7 @@ enum LiveVideoPreview {
                 let result = renderer.render(image, at: sourceTime.seconds,
                                              webcamImage: webcamFrame?.image,
                                              webcamTime: webcamTime?.seconds, webcamSampleTime: webcamFrame?.time.seconds,
-                                             phoneImage: phone?.image(at: sourceTime))
+                                             phoneImage: phone?.image(at: sourceTime), outputTime: frame.compositionTime.seconds)
                 frame.finish(with: result, context: context)
             }
         }

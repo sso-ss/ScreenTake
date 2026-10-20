@@ -86,6 +86,9 @@
 		DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000004 /* FaceMesh.mlmodel */; };
 		DFA100000000000000000005 /* triangles.json in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000006 /* triangles.json */; };
 		DFA100000000000000000007 /* LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = DFA100000000000000000008 /* LICENSE.txt */; };
+		7E8700000000000000000002 /* TextOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000001 /* TextOverlay.swift */; };
+		7E8700000000000000000004 /* TextOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000003 /* TextOverlayRenderer.swift */; };
+		7E8700000000000000000006 /* TextEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000005 /* TextEditorPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -212,6 +215,9 @@
 		DFA100000000000000000004 /* FaceMesh.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FaceMesh.mlmodel; sourceTree = "<group>"; };
 		DFA100000000000000000006 /* triangles.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = triangles.json; sourceTree = "<group>"; };
 		DFA100000000000000000008 /* LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
+		7E8700000000000000000001 /* TextOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOverlay.swift; sourceTree = "<group>"; };
+		7E8700000000000000000003 /* TextOverlayRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOverlayRenderer.swift; sourceTree = "<group>"; };
+		7E8700000000000000000005 /* TextEditorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEditorPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -275,6 +281,7 @@
 				ED1700020000000000000001 /* LiveVideoPreview.swift */,
 				7F197F354D7CFC16665AEE29 /* FrameEvaluator.swift */,
 				63D5138D7A1133E7BA0D4278 /* TransformApplicator.swift */,
+				7E8700000000000000000003 /* TextOverlayRenderer.swift */,
 				E55CF63AB60900CC10D82F21 /* WebcamCompositor.swift */,
 				FA1100000000000000000002 /* FaceTracking.swift */,
 				BEA010000000000000000002 /* FaceBeautyFilter.swift */,
@@ -338,6 +345,7 @@
 				6BC8E02F1B8324C2AEFB7F1E /* CaptureMeta.swift */,
 				83FC0BFB6012FE0D217E6338 /* MediaAsset.swift */,
 				4AF00DE98C978E0A0DAF2172 /* RenderSettings.swift */,
+				7E8700000000000000000001 /* TextOverlay.swift */,
 				ED1700050000000000000001 /* EditValidation.swift */,
 				82D19650C656141BDEE63D4F /* ScreenProject.swift */,
 				ED1700040000000000000001 /* EditorProjectStore.swift */,
@@ -374,6 +382,7 @@
 			children = (
 				EA2000010000000000000001 /* ZoomRegionEditor.swift */,
 				D450B289D9878B21F305AA05 /* AudioEditorViews.swift */,
+				7E8700000000000000000005 /* TextEditorPanel.swift */,
 				DE5C1065339160BD6604FC0A /* ContentView.swift */,
 				57C5A0A8B7A778DD8A7D6094 /* MainWelcomeView.swift */,
 				AAF512D84C873D0CEA66D994 /* PermissionSetupWizardView.swift */,
@@ -541,6 +550,9 @@
 				ED1700010000000000000002 /* EditorSession.swift in Sources */,
 				E00DF59C8C4414C70950D47A /* AppState.swift in Sources */,
 				C63504D04F23E2CF13E46AA9 /* AudioEditorViews.swift in Sources */,
+				7E8700000000000000000006 /* TextEditorPanel.swift in Sources */,
+				7E8700000000000000000004 /* TextOverlayRenderer.swift in Sources */,
+				7E8700000000000000000002 /* TextOverlay.swift in Sources */,
 				26E267AD65E36AD219A801FD /* BackgroundStyle.swift in Sources */,
 				57D9993000EAF08145D07EC7 /* BugReporter.swift in Sources */,
 				0EEF5ED541135223028B26AD /* CameraTransform.swift in Sources */,

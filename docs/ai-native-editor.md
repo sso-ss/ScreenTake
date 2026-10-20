@@ -49,7 +49,7 @@ data needed for click zoom, cursor rendering, webcam composition, trim, and narr
 File → Save Project… (Shift-Command-S) writes a `.screentake` package. File → Open
 Project… (Shift-Command-O) restores the draft into the same editor session. Version 2
 stores the complete `VideoEditSettings`, including exact reordered timeline times,
-camera sections and take timing, crop, zooms, voiceovers, volumes, and resolution.
+camera sections and take timing, crop, zooms, text layers, voiceovers, volumes, and resolution.
 The package embeds source video, Duo phone video, audio, mouse data, camera takes,
 and narration under `media/`; its JSON uses only package-relative media paths.
 
@@ -111,6 +111,56 @@ reusing the ID with different parameters returns `request_id_reused`. Export ret
 return the same job with its latest status, including a failed or cancelled job.
 Commands rejected before execution are not cached; use a new request ID to start
 another job after a failure or cancellation.
+
+### Text, camera styles, and timeline tracks
+
+`apply_edits.textOverlays` replaces the complete text layer array, in back-to-front
+order (maximum 100). A new layer requires `id`, `text`, `start`, and `duration`;
+omitted appearance fields use native defaults. Preserve full existing layer objects
+and UUIDs when modifying one layer or adding another. `[]` removes all text.
+
+Text times use edited-video seconds. Position `x`/`y` is the layer center on the
+output canvas, normalized from the top-left. Font sizes, spacing, padding, outline
+widths and background radii use a 1080-point canvas height. `scale` applies to both
+axes when `uniformScale` is true; otherwise `scaleY` controls vertical scaling.
+Rotation uses degrees and colors use `#RRGGBB`. The MCP schema lists all styling
+fields, enums and bounds. For example, append this object to the existing array:
+
+```json
+{
+  "id": "22607588-CA38-46CA-9305-6AE810090771",
+  "text": "Your title",
+  "start": 0.5,
+  "duration": 2,
+  "fontSize": 96,
+  "bold": true,
+  "x": 0.5,
+  "y": 0.2
+}
+```
+
+Use `cameraEffectSelection: {"style":"natural","intensity":0.5}` (or
+`peachMakeup`) with `cameraEffectsEnabled` for the exclusive camera style picker.
+Selection alone preserves enablement. Disabling effects keeps the preferred style,
+intensity and makeup component values, so enabling restores them. These fields
+take precedence over legacy `faceBeautyAmount`/`faceMakeup.amount` in the same batch.
+
+The editor `zoomEnabled` master and the capture Auto Zoom preference are separate.
+`restoreAutomaticZooms: true` restores generated editor sections without changing
+the master. `zoomSegments: []` leaves no sections. Capture preferences are outside
+the editor command API.
+
+Text and narration filmstrips automatically reuse rows for non-overlapping clips,
+adding rows only for overlaps. The track viewport stops at 240 points and scrolls
+internally; row indices, maximum height and drawer state are UI concerns, not
+editable project settings. Existing narration timing/volume MCP fields continue
+to drive the same UI, playback and export behavior.
+
+The project skill at `.agents/skills/screentake-editor/SKILL.md` documents the MCP
+editing workflow, replacement-array semantics, text coordinates, camera styles,
+and preview/export verification. MCP helper version 1.2.0 adds the text and camera
+style fields. Restart an older helper/client connection to refresh its tool schema
+after updating ScreenTake.
 
 Jobs move through `queued`, `running`, and a terminal `succeeded`, `failed`, or
 `cancelled` state; cancellation can report `cancelling` while resources shut down.
