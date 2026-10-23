@@ -4,16 +4,22 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.20 (build 22)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.21 (build 23)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.20
+## New in 0.1.21
+
+- Remove the background from a camera overlay in live preview and exported video.
+- Edit recorded audio independently, choose whether cuts close gaps, and clean up silence in added audio.
+- Use the expanded bundled MCP helper from a connected AI client. Reconnect the client after updating ScreenTake.
+
+## Included from 0.1.20
 
 - Add styled text overlays and edit video, camera, audio, zoom, and text on their own timeline tracks.
-- Remove the camera background with the new **Background Removed** overlay type. Preview it live and use it in exported video.
-- Adjust recorded audio separately from its video and choose whether gaps close after cuts. Silence cleanup also works with added audio tracks.
-- Control these editing features from a connected AI client. The updated MCP helper ships inside the app; reconnect the client after updating ScreenTake.
+- Use consistent inspector controls and compact timeline tracks for text and narration.
+- Choose one camera presentation style while retaining separate Zoom and Auto Zoom settings.
+- Edit text and camera styles through a connected AI client with shared Undo.
 
 ## Included from 0.1.19
 
