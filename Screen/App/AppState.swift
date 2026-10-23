@@ -189,34 +189,16 @@ final class AppState: ObservableObject {
         let window = editorWindows.first(where: { $0.isKeyWindow })
             ?? editorWindows.first(where: { $0.isMainWindow })
             ?? editorWindows.first
-        let panel = NSPanel(contentRect: CGRect(x: 0, y: 0, width: 440, height: 210),
-                            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.isReleasedWhenClosed = false
-        let content = NSHostingView(rootView: VideoReplacementDialog(action: action) { discard in
-            let response: NSApplication.ModalResponse = discard ? .OK : .cancel
-            if let window {
-                window.endSheet(panel, returnCode: response)
-            } else {
-                NSApplication.shared.stopModal(withCode: response)
-            }
-        })
-        panel.contentView = content
-        panel.setContentSize(content.fittingSize)
-        defer { panel.orderOut(nil); panel.contentView = nil }
+        let alert = videoReplacementAlert(for: action)
         if let window {
             window.makeKeyAndOrderFront(nil)
             return await withCheckedContinuation { decision in
-                window.beginSheet(panel) { response in
-                    decision.resume(returning: response == .OK)
+                alert.beginSheetModal(for: window) { response in
+                    decision.resume(returning: response == .alertSecondButtonReturn)
                 }
             }
         }
-        panel.center()
-        panel.makeKeyAndOrderFront(nil)
-        return NSApplication.shared.runModal(for: panel) == .OK
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     func dismissCaptureToolbar() {
@@ -233,4 +215,14 @@ final class AppState: ObservableObject {
             }
         }
     }
+}
+
+@MainActor
+func videoReplacementAlert(for action: VideoReplacementAction) -> NSAlert {
+    let alert = NSAlert()
+    alert.messageText = AppLanguage.text("Replace current video?")
+    alert.informativeText = AppLanguage.text(action.message)
+    alert.addButton(withTitle: AppLanguage.text("Keep Editing"))
+    alert.addButton(withTitle: AppLanguage.text(action.buttonTitle))
+    return alert
 }

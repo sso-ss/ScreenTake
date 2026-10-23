@@ -3,16 +3,18 @@ import AppKit
 import SwiftUI
 import AVFoundation
 import CoreImage
-@testable import ScreenTake
 
 @main
 struct VideoOverlayTests {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.accessory)
-        let host = NSHostingView(rootView: VideoReplacementDialog(action: .record, onResolve: { _ in }))
-        let fit = host.fittingSize
-        precondition(fit.width == 440 && fit.height < 210 && fit.height > 100)
-        print("PASS: warning dialog uses content-derived size: \(fit)")
+        let replacementAlert = videoReplacementAlert(for: .record)
+        precondition(replacementAlert.messageText == AppLanguage.text("Replace current video?"))
+        precondition(replacementAlert.informativeText == AppLanguage.text(VideoReplacementAction.record.message))
+        precondition(replacementAlert.buttons.map(\.title) == [AppLanguage.text("Keep Editing"), AppLanguage.text("Discard & Record")])
+        precondition(replacementAlert.buttons[0].keyEquivalent == "\r")
+        precondition(replacementAlert.window.defaultButtonCell === replacementAlert.buttons[0].cell)
+        print("PASS: replacement warning uses the native alert with a safe default action")
         let timing = VideoOverlayTiming(start: 1, duration: 2)
         precondition(timing.sampleTime(at: 0.9) == nil)
         precondition(timing.sampleTime(at: 1) == .zero)

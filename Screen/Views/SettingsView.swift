@@ -2310,36 +2310,6 @@ struct SettingsView: View {
 
 }
 
-struct VideoReplacementDialog: View {
-    let action: VideoReplacementAction
-    let onResolve: (Bool) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.featureGap) {
-            Text("Replace current video?")
-                .font(Typography.heading)
-                .foregroundStyle(DesignColors.primaryLabel)
-            Text(LocalizedStringKey(action.message))
-                .font(.system(size: 13))
-                .foregroundStyle(DesignColors.secondaryLabel)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Spacing.labelToControl) {
-                Button(action.buttonTitle, role: .destructive) { onResolve(true) }
-                    .buttonStyle(CompactActionButtonStyle())
-                Spacer()
-                Button("Keep Editing") { onResolve(false) }
-                    .buttonStyle(CompactActionButtonStyle(prominent: true))
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-        .fixedSize(horizontal: false, vertical: true)
-        .background(DesignColors.windowBackground)
-        .onExitCommand { onResolve(false) }
-    }
-}
-
 /// Crop mode lives in the main preview; only Done changes the pending video edits.
 struct InlineScreenCropEditor: View {
     let sourceURL: URL
