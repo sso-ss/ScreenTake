@@ -55,6 +55,7 @@ struct SettingsView: View {
     @State private var isShowingSavePanel = false
     @State private var pendingReplacement: VideoReplacementAction?
     @State private var isShowingAppSettings = false
+    @State private var isShowingShortcuts = false
 
     private var videoURL: URL? { session.videoURL }
     private var videoPlayer: AVPlayer? { session.player }
@@ -247,6 +248,7 @@ struct SettingsView: View {
 
     var body: some View {
         settingsPresentation
+        .sheet(isPresented: $isShowingShortcuts) { EditorShortcutsView() }
         .sheet(isPresented: $isShowingAppSettings, onDismiss: {
             AppState.shared.updates.settingsDidClose()
         }) {
@@ -379,6 +381,14 @@ struct SettingsView: View {
 
             Spacer()
 
+            Button { isShowingShortcuts = true } label: {
+                Image(systemName: "keyboard")
+            }
+            .buttonStyle(CompactActionButtonStyle(iconOnly: true))
+            .localizedAccessibilityLabel("Editing shortcuts")
+            .accessibilityIdentifier("editingShortcuts")
+            .hoverHelp("Editing shortcuts")
+
             // Import button
             Button {
                 openVideoPanel()
@@ -488,20 +498,24 @@ struct SettingsView: View {
         let diameter = previewHeight * appState.capture.webcamPiPSize.fraction
         let padding: CGFloat = 8
         let position = appState.capture.webcamPiPPosition
-        let xOffset = (previewWidth - diameter - 2 * padding) * (position.horizontalFraction - 0.5)
+        let shape = appState.capture.webcamPiPShape
+        let width = shape == .cutout ? diameter * 4 / 3 : diameter
+        let xOffset = (previewWidth - width - 2 * padding) * (position.horizontalFraction - 0.5)
         let yOffset = (previewHeight - diameter - 2 * padding) * (position.verticalFraction - 0.5)
 
-        let shape = appState.capture.webcamPiPShape
-        let outline = RoundedRectangle(cornerRadius: shape == .circle ? diameter / 2 : diameter * 0.18)
+        let outline = RoundedRectangle(cornerRadius: shape == .circle ? diameter / 2 : shape == .roundedSquare ? diameter * 0.18 : 0)
         return ZStack {
-            outline.fill(
-                LinearGradient(
-                    colors: [Color.blue.opacity(0.4), Color.purple.opacity(0.3)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
+            if shape != .cutout {
+                outline.fill(
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.4), Color.purple.opacity(0.3)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
                 )
-            )
+            }
             if isShowingCameraPreview, let recorder = cameraPreview.recorder, cameraPreview.session != nil {
-                BeautyCameraFeedView(recorder: recorder, amount: appState.capture.faceBeautyAmount, makeup: appState.capture.faceMakeup, mirrored: appState.capture.isCameraMirrored)
+                BeautyCameraFeedView(recorder: recorder, amount: appState.capture.faceBeautyAmount, makeup: appState.capture.faceMakeup,
+                                     mirrored: appState.capture.isCameraMirrored, removeBackground: shape == .cutout)
                     .localizedAccessibilityLabel("Live camera preview")
                     .accessibilityIdentifier("inlineCameraPreview")
             } else if isShowingCameraPreview, cameraPreview.isStarting {
@@ -519,9 +533,9 @@ struct SettingsView: View {
                     .foregroundColor(.white.opacity(0.7))
             }
         }
-            .frame(width: diameter, height: diameter)
+            .frame(width: width, height: diameter)
             .clipShape(outline)
-            .overlay(outline.stroke(Color.white.opacity(0.6), lineWidth: 1.5))
+            .overlay(outline.stroke(shape == .cutout ? Color.clear : Color.white.opacity(0.6), lineWidth: 1.5))
             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
             .offset(x: xOffset, y: yOffset)
             .animation(.easeInOut(duration: 0.2), value: position)
@@ -874,6 +888,18 @@ struct SettingsView: View {
                         .disabled(videoOverlayRecorder.isBusy)
                     }
                 }
+                Divider()
+                webcamShapePicker(selection: editorOverlayTypeBinding)
+                    .disabled(videoOverlayRecorder.isBusy)
+                if editableVideoOverlayURL == nil {
+                    Text("Record or import a camera video to preview the overlay.")
+                        .font(Typography.caption)
+                        .foregroundStyle(DesignColors.secondaryLabel)
+                } else if currentCameraLayout.layout == .fullScreen {
+                    Text("Choosing an overlay type switches this camera section to Overlay.")
+                        .font(Typography.caption)
+                        .foregroundStyle(DesignColors.secondaryLabel)
+                }
                 if editableVideoOverlayURL != nil {
                     Divider()
                     settingsSection("Show Camera", isOn: $session.draft.webcamEnabled) {
@@ -884,7 +910,6 @@ struct SettingsView: View {
                         .hoverHelp("Flip the camera horizontally in preview and export.")
                         cameraLayoutControls
                         if currentCameraLayout.layout == .overlay {
-                            webcamShapePicker(selection: $session.draft.webcamShape)
                             webcamPositionPicker(selection: $session.draft.webcamPosition)
                             webcamSizePicker(selection: $session.draft.webcamSize)
                         } else {
@@ -909,6 +934,8 @@ struct SettingsView: View {
                                  duration: editedVideoDuration,
                                  hasOriginalAudio: hasEditableAudio,
                                  startRecording: startVoiceOver, importAudio: openVoiceOverPanel)
+                Divider()
+                silenceCleanupControls
             case .output:
                 settingsSection("Export") {
                     exportResolutionPicker(selection: $session.draft.exportResolution)
@@ -922,33 +949,6 @@ struct SettingsView: View {
         .foregroundStyle(DesignColors.primaryLabel)
     }
 
-    private var zoomTransitionControls: some View {
-        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            Text("Zoom transition").foregroundStyle(DesignColors.primaryLabel)
-            Picker("Motion", selection: Binding(
-                get: { session.draft.zoomTransitionMotion ?? .smooth },
-                set: { session.draft.zoomTransitionMotion = $0 }
-            )) {
-                ForEach(ZoomTransitionMotion.allCases, id: \.self) { motion in
-                    Text(LocalizedStringKey(motion.displayName)).tag(motion)
-                }
-            }
-            .pickerStyle(.menu)
-                Divider()
-                silenceCleanupControls
-            .frame(maxWidth: .infinity)
-            .localizedAccessibilityLabel("Zoom transition motion")
-            .accessibilityIdentifier("zoomTransitionMotion")
-        }
-    }
-
-    private func zoomFocusControls(_ segment: ZoomSegment) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.featureGap) {
-            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-                Button {
-                    if showsZoomRegion { showsZoomRegion = false }
-                    else { beginZoomRegionEditing() }
-                } label: {
     private var silenceCleanupControls: some View {
         InspectorSection(title: "Silence Cleanup") {
             VStack(alignment: .leading, spacing: Spacing.labelToControl) {
@@ -1028,6 +1028,31 @@ struct SettingsView: View {
         }
     }
 
+    private var zoomTransitionControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Zoom transition").foregroundStyle(DesignColors.primaryLabel)
+            Picker("Motion", selection: Binding(
+                get: { session.draft.zoomTransitionMotion ?? .smooth },
+                set: { session.draft.zoomTransitionMotion = $0 }
+            )) {
+                ForEach(ZoomTransitionMotion.allCases, id: \.self) { motion in
+                    Text(LocalizedStringKey(motion.displayName)).tag(motion)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity)
+            .localizedAccessibilityLabel("Zoom transition motion")
+            .accessibilityIdentifier("zoomTransitionMotion")
+        }
+    }
+
+    private func zoomFocusControls(_ segment: ZoomSegment) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.featureGap) {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                Button {
+                    if showsZoomRegion { showsZoomRegion = false }
+                    else { beginZoomRegionEditing() }
+                } label: {
                     Label("Set Zoom Area", systemImage: "viewfinder")
                 }
                 .buttonStyle(CompactActionButtonStyle(prominent: showsZoomRegion))
@@ -1316,6 +1341,17 @@ struct SettingsView: View {
 
     private var currentCameraLayout: CameraLayoutSettings {
         cameraLayoutChangeIndex.map { session.draft.cameraLayoutChanges[$0].settings } ?? session.draft.cameraLayout
+    }
+
+    private var editorOverlayTypeBinding: Binding<PiPShape> {
+        Binding(get: { session.draft.webcamShape }, set: { shape in
+            session.beginUndoGroup()
+            defer { session.endUndoGroup() }
+            session.draft.webcamShape = shape
+            if editableVideoOverlayURL != nil && currentCameraLayout.layout != .overlay {
+                updateCameraLayout { $0.layout = .overlay }
+            }
+        })
     }
 
     private var canTransitionCameraSection: Bool {
@@ -1723,7 +1759,7 @@ struct SettingsView: View {
 
     private func webcamShapePicker(selection: Binding<PiPShape>) -> some View {
         VStack(alignment: .leading, spacing: Spacing.labelToControl) {
-            Text("Shape").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
+            Text("Overlay Type").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
             HStack(spacing: Spacing.sm) {
                 ForEach(PiPShape.allCases, id: \.self) { shape in
                     Button {
@@ -1733,11 +1769,17 @@ struct SettingsView: View {
                             switch shape {
                             case .circle:
                                 Circle().fill(DesignColors.primaryLabel)
+                                    .frame(width: 18, height: 18)
                             case .roundedSquare:
                                 RoundedRectangle(cornerRadius: 4).fill(DesignColors.primaryLabel)
+                                    .frame(width: 18, height: 18)
+                            case .cutout:
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundStyle(DesignColors.primaryLabel)
                             }
                         }
-                        .frame(width: 18, height: 18)
+                        .frame(width: 24, height: 24)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                         .background(selection.wrappedValue == shape ? DesignColors.accent.opacity(0.25) : DesignColors.inputBackground)
@@ -1746,7 +1788,8 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .hoverHelp(editBusyReason)
-                    .localizedAccessibilityLabel("\(shape.displayName) camera shape")
+                    .localizedAccessibilityLabel("\(shape.displayName) overlay type")
+                    .accessibilityIdentifier("overlayType-\(shape.rawValue)")
                     .accessibilityAddTraits(selection.wrappedValue == shape ? .isSelected : [])
                 }
             }
@@ -2596,19 +2639,6 @@ final class SilenceReview: ObservableObject {
                         ($0.start.seconds, $1.seconds, $0.duration.seconds)
                     }
                 }
-                guard let self else { return }
-                self.suggestions = suggestions
-                self.selected = Set(suggestions.map(\.id))
-                self.activeID = suggestions.first?.id
-                self.message = suggestions.isEmpty ? "No silence found" : nil
-                self.analyzing = false
-            } catch {
-                guard !Task.isCancelled else { return }
-                self?.message = error.localizedDescription
-                self?.analyzing = false
-            }
-        }
-    }
                 let candidates = found.flatMap { cut in
                     audioPlacements.compactMap { placement -> VideoCut? in
                         let start = max(placement.source, cut.start)
@@ -2624,6 +2654,19 @@ final class SilenceReview: ObservableObject {
                         return end > start ? VideoCut(start: start, end: end) : nil
                     }
                 }.sorted { $0.start < $1.start }
+                guard let self else { return }
+                self.suggestions = suggestions
+                self.selected = Set(suggestions.map(\.id))
+                self.activeID = suggestions.first?.id
+                self.message = suggestions.isEmpty ? "No silence found" : nil
+                self.analyzing = false
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.message = error.localizedDescription
+                self?.analyzing = false
+            }
+        }
+    }
 
     func applying(to trim: VideoTrim, recordedAudioClips: [MediaTimelineClip]?,
                   voiceOvers: [VoiceOverClip], duration: Double, hasAudio: Bool)
@@ -2882,7 +2925,6 @@ struct VideoTrimControls: View {
     @State private var zoomDragSourceOffset: Double = 0
     @FocusState private var focusedZoomID: UUID?
     @FocusState private var filmstripFocused: Bool
-    @State private var isShowingShortcuts = false
     @State private var playbackFrameRate: Double = 30
     @State private var keyboardFocusRequest = 0
     @State private var selectingScreen = false
@@ -3306,7 +3348,6 @@ struct VideoTrimControls: View {
             case .end: seekOutput(editedDuration)
             }
         })
-        .sheet(isPresented: $isShowingShortcuts) { EditorShortcutsView() }
         .onDeleteCommand(perform: deleteTimelineSelection)
         .overlayPreferenceValue(TimelineTooltipKey.self) { tooltips in
             GeometryReader { geometry in
@@ -3355,6 +3396,7 @@ struct VideoTrimControls: View {
             silence.clear()
         }
         .onChange(of: audio) { _ in silence.clear() }
+        .onChange(of: voiceOvers) { _ in silence.clear() }
         .onChange(of: videoOverlayURL) { _ in
             isVideoOverlaySelected = false
             history = history.compactMap(\.withoutCamera)
@@ -3366,7 +3408,6 @@ struct VideoTrimControls: View {
         .onChange(of: selectedZoomID) { id in
             if id != nil { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
-        .onChange(of: voiceOvers) { _ in silence.clear() }
         .onChange(of: isVideoOverlaySelected) { selected in
             if selected { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
@@ -3513,8 +3554,6 @@ struct VideoTrimControls: View {
                     .modifier(TimelineTooltip(text: zoom >= 8 ? "The timeline is at its maximum zoom" : "Zoom timeline in"))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
-            icon("keyboard", "Editing shortcuts") { isShowingShortcuts = true }
-                .accessibilityIdentifier("editingShortcuts")
         }
     }
 

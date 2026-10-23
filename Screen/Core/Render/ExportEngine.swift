@@ -67,7 +67,7 @@ final class ExportEngine: ObservableObject {
         /// camera covers the entire recording. Mixed layouts and moved/trimmed
         /// overlays retain 60 fps for visible cursor and transition motion.
         func cameraCoversRecording(duration: CMTime, webcamRange: CMTimeRange) -> Bool {
-            webcamVideoURL != nil && videoOverlayTiming == nil && cameraLayout.layout == .fullScreen
+            webcamVideoURL != nil && videoOverlayTiming == nil && pipShape != .cutout && cameraLayout.layout == .fullScreen
                 && cameraLayoutChanges.isEmpty && webcamRange.isValid
                 && webcamRange.start <= .zero && webcamRange.end >= duration
         }
@@ -541,7 +541,7 @@ final class ExportEngine: ObservableObject {
                                                                      changes: configuration.cameraLayoutChanges)
                 let animatingCamera = compositor != nil && currentWebcamImage != nil && cameraTransition != nil
                 let cameraFillsCanvas = compositor != nil && currentWebcamImage != nil
-                    && cameraLayout.layout == .fullScreen && cameraTransition == nil
+                    && configuration.pipShape != .cutout && cameraLayout.layout == .fullScreen && cameraTransition == nil
 
                 var frameImage = image
 

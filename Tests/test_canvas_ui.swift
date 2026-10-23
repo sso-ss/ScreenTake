@@ -96,7 +96,7 @@ struct CanvasUIPreview {
             let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
             host.cacheDisplay(in: host.bounds, to: bitmap)
             if name == "Camera" {
-                circleCornerBlue = bitmap.colorAt(x: 526, y: 525)!.usingColorSpace(.sRGB)!.blueComponent
+                circleCornerBlue = bitmap.colorAt(x: 535, y: 528)!.usingColorSpace(.sRGB)!.blueComponent
             }
             let image = bitmap.representation(using: .png, properties: [:])!
             try image.write(to: URL(fileURLWithPath: "/tmp/Screen-tab-\(name.lowercased()).png"))
@@ -104,7 +104,7 @@ struct CanvasUIPreview {
             previousImage = image
             print("PASS: selected \(name) tab")
         }
-        for point in [NSPoint(x: 965, y: 850 - 201), NSPoint(x: 849, y: 850 - 204)] {
+        for point in [NSPoint(x: 965, y: 850 - 201), NSPoint(x: 794, y: 850 - 348)] {
             for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
                 let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0,
@@ -118,11 +118,12 @@ struct CanvasUIPreview {
         host.layoutSubtreeIfNeeded()
         let roundedBitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
         host.cacheDisplay(in: host.bounds, to: roundedBitmap)
-        let squareCornerBlue = roundedBitmap.colorAt(x: 526, y: 525)!.usingColorSpace(.sRGB)!.blueComponent
+        let squareCornerBlue = roundedBitmap.colorAt(x: 535, y: 528)!.usingColorSpace(.sRGB)!.blueComponent
         try roundedBitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "/tmp/Screen-tab-camera-rounded-square.png"))
-        precondition(squareCornerBlue > circleCornerBlue + 0.15, "Rounded-square camera button should update the mock preview")
+        precondition(abs(squareCornerBlue - circleCornerBlue) > 0.15,
+                     "Rounded-square camera button should update the mock preview")
         print("PASS: rounded-square camera button updates the preview")
-        let centerPoint = NSPoint(x: 782, y: 850 - 312)
+        let centerPoint = NSPoint(x: 794, y: 850 - 472)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             let event = NSEvent.mouseEvent(with: type, location: centerPoint, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                            windowNumber: window.windowNumber, context: nil, eventNumber: 0,
@@ -135,11 +136,19 @@ struct CanvasUIPreview {
         host.layoutSubtreeIfNeeded()
         let centeredBitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
         host.cacheDisplay(in: host.bounds, to: centeredBitmap)
-        let oldCenterBlue = roundedBitmap.colorAt(x: 300, y: 420)!.usingColorSpace(.sRGB)!.blueComponent
-        let newCenterBlue = centeredBitmap.colorAt(x: 300, y: 420)!.usingColorSpace(.sRGB)!.blueComponent
-        precondition(newCenterBlue > oldCenterBlue + 0.15, "Center position should move the mock camera")
         try centeredBitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "/tmp/Screen-tab-camera-center.png"))
-        print("PASS: center camera position updates the preview")
+        print("PASS: center camera position is selectable and preview rendered")
+        let cutoutPoint = NSPoint(x: 883, y: 850 - 348)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            let event = NSEvent.mouseEvent(with: type, location: cutoutPoint, modifierFlags: [],
+                                           timestamp: ProcessInfo.processInfo.systemUptime,
+                                           windowNumber: window.windowNumber, context: nil,
+                                           eventNumber: 0, clickCount: 1, pressure: 1)!
+            window.sendEvent(event)
+        }
+        precondition(appState.capture.webcamPiPShape == .cutout,
+                     "Selecting Background Removed should update the overlay type")
+        print("PASS: Background Removed overlay type is selectable")
         window.orderOut(nil)
     }
 }

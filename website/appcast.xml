@@ -1,49 +1,52 @@
-<?xml version="1.0" standalone="yes"?>
-<!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
--->
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>ScreenTake</title>
         <item>
+            <title>0.1.20</title>
+            <pubDate>Thu, 22 Oct 2026 23:35:11 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.1.20</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.20</h2>
+<ul>
+<li>Add styled text overlays and separate video, camera, audio, zoom, and text timeline tracks.</li>
+<li>Remove the camera background in live preview and exported video.</li>
+<li>Adjust recorded audio independently, control gap closing, and clean up silence in added audio tracks.</li>
+<li>Use the updated bundled MCP helper; reconnect your AI client after installing.</li>
+</ul>
+<p>Requires Apple Silicon and macOS 13 or later. Save your project before updating.</p>
+]]></description>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg" length="37933607" type="application/octet-stream" sparkle:edSignature="qBD4jl+k+vZeuGqTEETcain2Dq7LmX0Pixdlyc8tWfIeiQHI0fZ7dqBSqOfjX8j+rs0sPCRKoJlisinMgj7AAg=="></enclosure>
+        </item>
+        <item>
             <title>0.1.19</title>
-            <pubDate>Mon, 19 Oct 2026 21:52:00 -0700</pubDate>
+            <pubDate>Thu, 22 Oct 2026 23:35:11 -0700</pubDate>
             <link>https://sso-ss.github.io/ScreenTake/</link>
             <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
             <sparkle:version>21</sparkle:version>
             <sparkle:shortVersionString>0.1.19</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>ScreenTake 0.1.19</h2><ul><li>Upload your own background image and keep it inside saved projects, with consistent previews and export.</li><li>Choose 16 wallpapers in a square, four-column grid, including new 4K Silk, Pastel, Breeze, and Mint presets.</li><li>Draw, move, and resize manual zoom regions on recordings, imported videos, and phone layouts.</li><li>Adjust phone corner rounding separately and use floating phone chrome.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>]]></description>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg" length="37710476" type="application/octet-stream" sparkle:edSignature="oyNFxOiAysjAifwsBM0Bx1C0bn2liPFwbC5K7UziYmV+SCtHG1w6kPMtqQviFjILGbI4d2EWiFrhGA4oFvZwDg=="/>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg" length="37710476" type="application/octet-stream" sparkle:edSignature="oyNFxOiAysjAifwsBM0Bx1C0bn2liPFwbC5K7UziYmV+SCtHG1w6kPMtqQviFjILGbI4d2EWiFrhGA4oFvZwDg=="></enclosure>
         </item>
         <item>
             <title>0.1.17</title>
-            <pubDate>Tue, 13 Oct 2026 19:04:15 -0700</pubDate>
+            <pubDate>Thu, 22 Oct 2026 23:35:11 -0700</pubDate>
             <link>https://sso-ss.github.io/ScreenTake/</link>
             <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
             <sparkle:version>19</sparkle:version>
             <sparkle:shortVersionString>0.1.17</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>ScreenTake 0.1.17</h2><ul><li>Reduce temporary disk use during imported-video exports while preserving original media, current results, Undo references, and saved projects.</li><li>Keep generated frames evenly spaced in long imported-video exports with many zooms.</li><li>Validated a 15-minute imported video with 300 zooms and audio at 1080p. The exact reported failure remains unconfirmed without the original clip or error message.</li></ul><p>Includes in-app updates, editing shortcuts, and Mirror Camera. Versions through 0.1.15 need a manual installation.</p>]]></description>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.17-build19.dmg" length="23653807" type="application/octet-stream" sparkle:edSignature="5l/36vtqpneF3b86XkovkIojhyQ3suJdhIH7Y5sZto5PnyBrYFwVM+iOOoFqTyPlr4vtXzlPbs5uYy2llh8wCw=="/>
-        </item>
-        <item>
-            <title>0.1.16</title>
-            <pubDate>Tue, 13 Oct 2026 03:25:48 -0700</pubDate>
-            <link>https://sso-ss.github.io/ScreenTake/</link>
-            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
-            <sparkle:version>18</sparkle:version>
-            <sparkle:shortVersionString>0.1.16</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>ScreenTake 0.1.16</h2><ul><li>Download and install updates inside ScreenTake.</li><li>Enable optional automatic downloads and installation on quit in Settings → Updates.</li><li>Recording, media processing, and unsaved projects block a restart. Save your editable project first.</li><li>Update feeds and downloads are signed and verified before installation.</li></ul>]]></description>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.16-build18.dmg" length="23632401" type="application/octet-stream" sparkle:edSignature="37HOajNGFqRM7tcSXXISk2dvvIJUqlDy9zKfgt+1FVuutm3ZldXJwrGwpAF0kFAfe/qTgkVUFlsHlINvVvfpCA=="/>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.17-build19.dmg" length="23653807" type="application/octet-stream" sparkle:edSignature="5l/36vtqpneF3b86XkovkIojhyQ3suJdhIH7Y5sZto5PnyBrYFwVM+iOOoFqTyPlr4vtXzlPbs5uYy2llh8wCw=="></enclosure>
         </item>
     </channel>
-</rss>
-<!-- sparkle-signatures:
-edSignature: V8GKqCiNdw2znejwz7Dh1TI8mwJ1YYRaRVTmwVHIbGh0lRfEmAqGoz8JfXojz5Dtd0xEizTFjPQaVIXWwBouCA==
-length: 4639
+</rss><!-- sparkle-signatures:
+edSignature: /crRgt1TVfo02lZgMqXyPKw65HYB+eHbRLbH7gwytE8OoxlGlAu4LCLNBmMo0Gkx8WbVWG0fhBYSb1yebnp8Cg==
+length: 3623
 -->

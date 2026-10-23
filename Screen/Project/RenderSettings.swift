@@ -683,11 +683,13 @@ enum OutputColorSpace: String, Codable {
 enum PiPShape: String, Codable, CaseIterable {
     case circle
     case roundedSquare
+    case cutout
 
     var displayName: String {
         switch self {
         case .circle: return "Circle"
         case .roundedSquare: return "Rounded Square"
+        case .cutout: return "Background Removed"
         }
     }
 }

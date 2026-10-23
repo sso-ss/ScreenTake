@@ -4,11 +4,18 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.19 (build 21)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.20 (build 22)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.19
+## New in 0.1.20
+
+- Add styled text overlays and edit video, camera, audio, zoom, and text on their own timeline tracks.
+- Remove the camera background with the new **Background Removed** overlay type. Preview it live and use it in exported video.
+- Adjust recorded audio separately from its video and choose whether gaps close after cuts. Silence cleanup also works with added audio tracks.
+- Control these editing features from a connected AI client. The updated MCP helper ships inside the app; reconnect the client after updating ScreenTake.
+
+## Included from 0.1.19
 
 - Upload your own background image, replace or remove it, and keep it inside saved projects. The same image appears in previews, recordings, and exports.
 - Choose among 16 wallpapers in a four-column grid of square thumbnails. New 4K Silk, Pastel, Breeze, and Mint backgrounds share soft, translucent folds in four palettes.
@@ -90,11 +97,11 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Screen capture | Choose a display or window; record at 30 or 60 FPS; pause, resume, and stop from the native capture toolbar or keyboard shortcuts. |
 | Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
 | Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
-| Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Use editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
-| Pause cleanup | Detect pauses, preview the suggestions, and choose which to remove. Undo restores removed sections. |
+| Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Add styled text overlays. Use separate video, camera, audio, zoom, and text tracks and editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
+| Pause cleanup | Detect pauses in original or added audio, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
-| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. |
-| Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Overlay or Full Screen per section, adjust shape, size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
+| Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
+| Camera and overlays | Preview your camera in the recording canvas; record or import camera footage. Optionally mirror the camera in previews and export. Choose Circle, Rounded Square, or Background Removed overlays, or Full Screen per section. Adjust size, position, zoom, and framing, optionally follow one face, and add smooth transitions with adjustable duration and motion. |
 | Canvas and framing | Choose Original, 16:9, 16:10, 1:1, 4:5, or 9:16. Use desktop or phone framing, adjust desktop and phone corners separately, use floating phone chrome, and crop phone content with Fit or Fill. |
 | Backgrounds | Choose 16 built-in wallpapers, including 4K Silk, Pastel, Breeze, and Mint, in a four-column grid of square thumbnails. Upload, replace, or remove your own image; saved projects embed it. Toggle the background for an original-size desktop canvas. |
 | Preview and export | Preview edits immediately after recording; render effects when applying changes or exporting a MOV. Save a .screentake project to retain source media and edits. Recordings and editable source files stay on your Mac. |
@@ -112,6 +119,10 @@ Select your microphone above **Record Voiceover** in the Audio panel. The select
 Use **File → Save Project…** to retain source media, capture data, and edits in a `.screentake` project. Use **File → Export Video…** or the **Download** control to export a finished MOV; pending edits render before the file is saved.
 
 This build is signed with a Developer ID certificate and notarized by Apple. If macOS blocks the first launch, confirm you downloaded the current DMG and report the exact message. Do not disable macOS security protections.
+
+## Connect an AI client
+
+Open **ScreenTake → AI Connection…** and choose **Copy Setup** to get the MCP command for the app you are running. The signed app includes `screentake-mcp`; a compatible client connects to it as a local stdio server with no arguments. Keep ScreenTake open with a video or project loaded. After updating ScreenTake, restart the client’s MCP connection to load the new tools. See [AI editor setup](../docs/ai-native-editor.md#connect-an-ai-client-mcp) for configuration examples.
 
 ## Keyboard shortcuts
 

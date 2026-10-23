@@ -16,6 +16,8 @@ python3 tools/run_swift_checks.py Tests/test_zoom_motion.swift
 python3 tools/run_swift_checks.py Tests/test_zoom_region.swift
 python3 tools/run_swift_checks.py Tests/test_inspector_controls.swift
 python3 tools/run_swift_checks.py Tests/test_voiceover.swift
+python3 tools/run_swift_checks.py Tests/test_editor_overlay_type.swift
+python3 tools/run_swift_checks.py Tests/test_person_cutout.swift
 ```
 
 Bare filenames also work, and the runner defaults to `test_editor_session.swift` when no checks are specified. `--render-only` skips optional screenshot checks in checks that support it. Some checks require recording permissions, hardware, a supplied clip, or a separately built app module.
@@ -41,3 +43,5 @@ The zoom region check verifies box bounds and corner resizing, fixed focus with 
 `test_voiceover.swift` checks preview/export audio timing, trimming, volume, mute and decoded waveforms. It also verifies shared voiceover rows, overlap packing, row reclamation after edits, and bounded timeline scrolling in light/dark appearances.
 
 `test_inspector_controls.swift` checks exclusive camera styles and persisted preferences, independent Zoom and Auto Zoom settings, collapsed OFF sections, and light/dark camera controls. It also sends native mouse events through text selection and dragging, checking canvas coordinates, rotated text, layer order, timing and grouped Undo/Redo.
+
+`test_editor_overlay_type.swift` selects Background Removed in the editor before adding camera media and checks that choosing it switches a full-screen camera section to an overlay. `test_person_cutout.swift` checks real camera segmentation and preview/export agreement when the local `.build/occlusion-checks/Peach eye and hand review.screenize/media/camera.mov` fixture is available; it skips when that clip is absent.
