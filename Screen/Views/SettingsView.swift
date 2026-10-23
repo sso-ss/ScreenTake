@@ -791,7 +791,7 @@ struct SettingsView: View {
                 settingsSection("Show Cursor", isOn: $session.draft.showCursor) {
                     cursorShapePicker(selection: $session.draft.cursorShape)
                     cursorSizeSlider(selection: $session.draft.cursorScale)
-                    settingsToggle(icon: "waveform.path", label: "Smooth Motion", isOn: $session.draft.smoothCursor)
+                    settingsToggle(label: "Smooth Motion", isOn: $session.draft.smoothCursor)
                     if session.draft.smoothCursor {
                         cursorSmoothingSlider(selection: $session.draft.smoothCursorSigma)
                     }
@@ -1165,7 +1165,7 @@ struct SettingsView: View {
                         get: { appState.capture.cursorScale },
                         set: { appState.capture.cursorScale = $0 }
                     ))
-                    settingsToggle(icon: "waveform.path", label: "Smooth Motion", isOn: Binding(
+                    settingsToggle(label: "Smooth Motion", isOn: Binding(
                         get: { appState.capture.smoothCursor },
                         set: { appState.capture.smoothCursor = $0 }
                     ))
