@@ -23,6 +23,11 @@ private enum SettingsPanel: String, CaseIterable {
     }
 }
 
+private enum SilenceAudioTrack: Hashable {
+    case original
+    case take(UUID)
+}
+
 // MARK: - Settings View (Home Screen)
 
 struct SettingsView: View {
@@ -44,6 +49,8 @@ struct SettingsView: View {
     @State private var zoomRegionPreviewTask: Task<Void, Never>?
     @StateObject private var cameraPreview = CameraPreviewController()
     @StateObject private var cameraLayoutPlayback = TimelinePlayback()
+    @StateObject private var silenceReview = SilenceReview()
+    @State private var selectedSilenceAudioTrack: SilenceAudioTrack = .original
     @State private var isShowingCameraPreview = false
     @State private var isShowingSavePanel = false
     @State private var pendingReplacement: VideoReplacementAction?
@@ -927,6 +934,8 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.menu)
+                Divider()
+                silenceCleanupControls
             .frame(maxWidth: .infinity)
             .localizedAccessibilityLabel("Zoom transition motion")
             .accessibilityIdentifier("zoomTransitionMotion")
@@ -940,6 +949,85 @@ struct SettingsView: View {
                     if showsZoomRegion { showsZoomRegion = false }
                     else { beginZoomRegionEditing() }
                 } label: {
+    private var silenceCleanupControls: some View {
+        InspectorSection(title: "Silence Cleanup") {
+            VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+                Text("Choose an audio track to find quiet sections. Review the suggestions on the timeline before removing them.")
+                    .font(Typography.caption)
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                Picker("Analyze", selection: Binding(
+                    get: { availableSilenceTracks.contains(selectedSilenceAudioTrack) ? selectedSilenceAudioTrack : (availableSilenceTracks.first ?? .original) },
+                    set: { selectedSilenceAudioTrack = $0; silenceReview.clear() }
+                )) {
+                    if hasEditableAudio, previewAudioURL != nil {
+                        Text("Original Audio").tag(SilenceAudioTrack.original)
+                    }
+                    ForEach(Array(session.draft.voiceOvers.enumerated()), id: \.element.id) { index, clip in
+                        Text("Take \(index + 1)").tag(SilenceAudioTrack.take(clip.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("silenceAudioTrack")
+                .disabled(silenceReview.analyzing || editsBusy || availableSilenceTracks.isEmpty)
+                if silenceReview.analyzing {
+                    HStack(spacing: Spacing.sm) {
+                        ProgressView().controlSize(.small)
+                        Text("Finding silences...")
+                        Spacer(minLength: 0)
+                        Button("Cancel") { silenceReview.clear() }
+                            .buttonStyle(CompactActionButtonStyle())
+                    }
+                } else {
+                    Button {
+                        guard let source = selectedSilenceSource else { return }
+                        silenceReview.analyze(audio: source.url, clip: source.clip,
+                                              trim: session.draft.trim, recordedAudioClips: session.draft.recordedAudioClips,
+                                              duration: sourceDuration)
+                    } label: {
+                        Label("Find Silences", systemImage: "waveform.badge.minus")
+                    }
+                    .buttonStyle(CompactActionButtonStyle())
+                    .disabled(selectedSilenceSource == nil || editsBusy)
+                    .hoverHelp(availableSilenceTracks.isEmpty ? "Add audio to analyze." : editBusyReason ?? "Find quiet sections in the selected track.")
+                    .accessibilityIdentifier("findSilences")
+                }
+                Text("Removing a pause shortens the video and every audio track.")
+                    .font(Typography.caption)
+                    .foregroundStyle(DesignColors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let message = silenceReview.message {
+                    Text(LocalizedStringKey(message))
+                        .font(Typography.caption)
+                        .foregroundStyle(DesignColors.secondaryLabel)
+                } else if !silenceReview.suggestions.isEmpty {
+                    Text("\(silenceReview.suggestions.count) suggested pauses are ready to review on the timeline.")
+                        .font(Typography.caption)
+                        .foregroundStyle(DesignColors.secondaryLabel)
+                }
+            }
+        }
+    }
+
+    private var availableSilenceTracks: [SilenceAudioTrack] {
+        (hasEditableAudio && previewAudioURL != nil && session.draft.recordedAudioClips != [] ? [.original] : [])
+            + session.draft.voiceOvers.map { .take($0.id) }
+    }
+
+    private var selectedSilenceSource: (url: URL, clip: VoiceOverClip?)? {
+        let track = availableSilenceTracks.contains(selectedSilenceAudioTrack)
+            ? selectedSilenceAudioTrack : availableSilenceTracks.first
+        switch track {
+        case .original:
+            guard let previewAudioURL else { return nil }
+            return (previewAudioURL, nil)
+        case .take(let id):
+            guard let clip = session.draft.voiceOvers.first(where: { $0.id == id }) else { return nil }
+            return (clip.url, clip)
+        case nil: return nil
+        }
+    }
+
                     Label("Set Zoom Area", systemImage: "viewfinder")
                 }
                 .buttonStyle(CompactActionButtonStyle(prominent: showsZoomRegion))
@@ -1977,7 +2065,7 @@ struct SettingsView: View {
                                   cameraLayout: session.draft.cameraLayout,
                                   cameraLayoutChanges: $session.draft.cameraLayoutChanges,
                                   isVideoOverlaySelected: $session.isVideoOverlaySelected,
-                                  session: session)
+                                  silence: silenceReview, session: session)
                     .disabled(isCroppingScreen || isShowingSavePanel || session.isBusy)
                     .onChange(of: session.selectedRecordedAudioID) { id in
                         if id != nil { selectedPanel = .audio }
@@ -2516,7 +2604,10 @@ final class SilenceReview: ObservableObject {
         message = nil
     }
 
-    func analyze(audio: URL, trim: VideoTrim, duration: Double) {
+    func show(_ text: String) { message = text }
+
+    func analyze(audio: URL, clip: VoiceOverClip?, trim: VideoTrim,
+                 recordedAudioClips: [MediaTimelineClip]?, duration: Double) {
         clear()
         analyzing = true
         let settings = settings
@@ -2524,12 +2615,15 @@ final class SilenceReview: ObservableObject {
             do {
                 let found = try await SilenceDetector.suggestions(source: audio, settings: settings)
                 try Task.checkCancellation()
-                let ranges = try trim.timeline(duration: CMTime(seconds: duration, preferredTimescale: 60000)).ranges
-                let suggestions = found.flatMap { cut in
-                    ranges.compactMap { range -> VideoCut? in
-                        let start = max(range.start.seconds, cut.start)
-                        let end = min(range.end.seconds, cut.end)
-                        return end > start ? VideoCut(start: start, end: end) : nil
+                let timeline = try trim.timeline(duration: CMTime(seconds: duration, preferredTimescale: 60000))
+                let audioPlacements: [(source: Double, output: Double, duration: Double)]
+                if let clip {
+                    audioPlacements = [(clip.sourceStart, clip.start, clip.duration)]
+                } else if let recordedAudioClips {
+                    audioPlacements = recordedAudioClips.map { ($0.sourceStart, $0.start, $0.duration) }
+                } else {
+                    audioPlacements = zip(timeline.ranges, timeline.outputStarts).map {
+                        ($0.start.seconds, $1.seconds, $0.duration.seconds)
                     }
                 }
                 guard let self else { return }
@@ -2545,16 +2639,35 @@ final class SilenceReview: ObservableObject {
             }
         }
     }
+                let candidates = found.flatMap { cut in
+                    audioPlacements.compactMap { placement -> VideoCut? in
+                        let start = max(placement.source, cut.start)
+                        let end = min(placement.source + placement.duration, cut.end)
+                        return end > start ? VideoCut(start: placement.output + start - placement.source,
+                                                      end: placement.output + end - placement.source) : nil
+                    }
+                }
+                let suggestions = candidates.flatMap { cut in
+                    zip(timeline.ranges, timeline.outputStarts).compactMap { range, output -> VideoCut? in
+                        let start = max(output.seconds, cut.start)
+                        let end = min(output.seconds + range.duration.seconds, cut.end)
+                        return end > start ? VideoCut(start: start, end: end) : nil
+                    }
+                }.sorted { $0.start < $1.start }
 
-    func applying(to trim: VideoTrim, duration: Double) -> VideoTrim? {
+    func applying(to trim: VideoTrim, recordedAudioClips: [MediaTimelineClip]?,
+                  voiceOvers: [VoiceOverClip], duration: Double, hasAudio: Bool)
+        -> (trim: VideoTrim, recordedAudioClips: [MediaTimelineClip], voiceOvers: [VoiceOverClip])? {
         guard !selectedCuts.isEmpty else { return nil }
-        var result = trim
-        result.cuts += selectedCuts
-        if trim.clips != nil {
-            var timeline = LinkedMediaTimeline(trim: trim, audioClips: [], sourceDuration: duration, hasAudio: false)
-            guard timeline.cutSources(selectedCuts, closeGaps: true) else { return nil }
-        }
-        return (try? result.timeline(duration: CMTime(seconds: duration, preferredTimescale: 60000))) == nil ? nil : result
+        var timeline = LinkedMediaTimeline(trim: trim, audioClips: recordedAudioClips,
+                                           sourceDuration: duration, hasAudio: hasAudio)
+        let cuts = selectedCuts.sorted { $0.start < $1.start }
+        guard timeline.cutOutput(cuts) else { return nil }
+        var result = VideoTrim()
+        result.clips = timeline.video
+        result.timelineLength = timeline.duration
+        guard (try? result.timeline(duration: CMTime(seconds: duration, preferredTimescale: 60000))) != nil else { return nil }
+        return (result, timeline.audio, VoiceOverClip.removing(cuts, from: voiceOvers))
     }
 
     deinit { task?.cancel() }
@@ -3283,6 +3396,7 @@ struct VideoTrimControls: View {
         .onChange(of: selectedZoomID) { id in
             if id != nil { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
+        .onChange(of: voiceOvers) { _ in silence.clear() }
         .onChange(of: isVideoOverlaySelected) { selected in
             if selected { session?.selectedTextID = nil; selectedAudioID = nil; selectedSegment = nil }
         }
@@ -3466,10 +3580,9 @@ struct VideoTrimControls: View {
 
     private func reviewPause(_ cut: VideoCut, play: Bool = false) {
         silence.activeID = cut.id
-        seek(source: cut.start)
-        guard play, let timeline else { return }
-        let start = timeline.outputTime(at: CMTime(seconds: cut.start, preferredTimescale: 60000))
-        player.currentItem?.forwardPlaybackEndTime = CMTimeAdd(start, CMTime(seconds: cut.end - cut.start, preferredTimescale: 60000))
+        seekOutput(cut.start)
+        guard play else { return }
+        player.currentItem?.forwardPlaybackEndTime = CMTime(seconds: cut.end, preferredTimescale: 60000)
         player.play()
     }
 
@@ -3507,13 +3620,25 @@ struct VideoTrimControls: View {
                 }
                 Spacer(minLength: 4)
                 Button("Remove \(silence.selected.count)") {
-                    if let result = silence.applying(to: trim, duration: duration) {
-                        commit(result)
-                        silence.clear()
+                    if let result = silence.applying(to: trim, recordedAudioClips: session?.draft.recordedAudioClips,
+                                                     voiceOvers: voiceOvers, duration: duration, hasAudio: audio != nil) {
+                        if let session {
+                            do {
+                                try session.updateEdits {
+                                    $0.trim = result.trim
+                                    $0.recordedAudioClips = result.recordedAudioClips
+                                    $0.voiceOvers = result.voiceOvers
+                                }
+                                silence.clear()
+                            } catch { silence.show(error.localizedDescription) }
+                        } else {
+                            commit(result.trim)
+                            silence.clear()
+                        }
                     }
                 }
-                .disabled(silence.applying(to: trim, duration: duration) == nil)
-                .hoverHelp(silence.applying(to: trim, duration: duration) == nil ? "Select pauses to remove while keeping at least one video section." : "Remove the checked pauses; Undo restores them")
+                .disabled(silence.selected.isEmpty)
+                .hoverHelp(silence.selected.isEmpty ? "Select pauses to remove while keeping at least one video section." : "Remove the checked pauses; Undo restores them")
                 icon("xmark", "Dismiss silence suggestions") {
                     player.pause()
                     player.currentItem?.forwardPlaybackEndTime = .invalid
@@ -3655,8 +3780,9 @@ struct VideoTrimControls: View {
             ForEach(silence.suggestions) { cut in
                 ForEach(segments.indices, id: \.self) { index in
                 let segment = segments[index]
-                let start = max(cut.start, segment.start.seconds)
-                let end = min(cut.end, segment.end.seconds)
+                let segmentStart = segmentOffset(index)
+                let start = max(cut.start, segmentStart)
+                let end = min(cut.end, segmentStart + segment.duration.seconds)
                 if end > start {
                 let highlighted = silence.selected.contains(cut.id)
                 Button { reviewPause(cut) } label: {
@@ -3678,7 +3804,7 @@ struct VideoTrimControls: View {
                 .buttonStyle(.plain)
                 .localizedAccessibilityLabel("Suggested silence \(timestamp(cut.start)) to \(timestamp(cut.end))")
                 .hoverHelp("Suggested silence: \(timestamp(cut.start)) to \(timestamp(cut.end))")
-                .offset(x: width * (segmentOffset(index) + start - segment.start.seconds) / total + 12, y: screenLaneTop)
+                .offset(x: width * start / total + 12, y: screenLaneTop)
                 }
                 }
             }

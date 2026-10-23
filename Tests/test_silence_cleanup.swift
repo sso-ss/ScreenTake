@@ -49,6 +49,28 @@ struct SilenceCleanupTests {
         precondition(exporter.status == .completed)
         let mixedCuts = try await SilenceDetector.suggestions(source: mixedURL)
         precondition(mixedCuts.count == 2, "Sound in a second track must protect a pause from removal")
+        var rearranged = VideoTrim()
+        rearranged.clips = [MediaTimelineClip(start: 0, sourceStart: 3, duration: 2, linkID: UUID()),
+                            MediaTimelineClip(start: 2, sourceStart: 0, duration: 3, linkID: UUID())]
+        let take = VoiceOverClip(url: source, start: 0.5, sourceStart: 1, duration: 3, sourceDuration: 5)
+        let review = SilenceReview()
+        review.analyze(audio: source, clip: take, trim: rearranged,
+                       recordedAudioClips: nil, duration: 5)
+        while review.analyzing { try await Task.sleep(nanoseconds: 10_000_000) }
+        let takeSuggestions = review.suggestions
+        precondition(takeSuggestions.count == 2, "A pause spanning video clips must be split for review")
+        precondition(abs(takeSuggestions[0].start - 1.65) < 0.04 && abs(takeSuggestions[0].end - 2) < 0.04)
+        precondition(abs(takeSuggestions[1].start - 2) < 0.04 && abs(takeSuggestions[1].end - 2.35) < 0.04)
+        var linked = LinkedMediaTimeline(trim: rearranged, audioClips: nil, sourceDuration: 5, hasAudio: true)
+        precondition(linked.cutOutput([VideoCut(start: 1.5, end: 2.5)]))
+        precondition(abs(linked.duration - 4) < 0.001 && linked.video.count == 2)
+        precondition(abs(linked.video[0].duration - 1.5) < 0.001)
+        precondition(abs(linked.video[1].start - 1.5) < 0.001 && abs(linked.video[1].sourceStart - 0.5) < 0.001)
+        precondition(linked.audio.count == 2 && linked.audio.allSatisfy { $0.linkID != nil })
+        let trimmedTakes = VoiceOverClip.removing([VideoCut(start: 1.5, end: 2.5)], from: [take])
+        precondition(trimmedTakes.count == 2)
+        precondition(abs(trimmedTakes[0].duration - 1) < 0.001)
+        precondition(abs(trimmedTakes[1].start - 1.5) < 0.001 && abs(trimmedTakes[1].sourceStart - 3) < 0.001)
         let quiet = try audio(name: "quiet-speech", silent: false, quiet: true)
         let quietCuts = try await SilenceDetector.suggestions(source: quiet)
         precondition(quietCuts.count == 3)
@@ -64,6 +86,6 @@ struct SilenceCleanupTests {
         task.cancel()
         do { _ = try await task.value; preconditionFailure("Cancellation ignored") }
         catch is CancellationError { }
-        print("PASS: silence suggestions, speech padding, quiet sound, stereo phase safety, minimum pause, cancellation and unchanged source")
+        print("PASS: silence suggestions, added-take mapping and synchronized cuts, speech padding, quiet sound, stereo phase safety, minimum pause, cancellation and unchanged source")
     }
 }
