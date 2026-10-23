@@ -381,3 +381,36 @@ final class MouseDataRecorder: @unchecked Sendable {
         Log.tracking.info("Mouse data saved: \(url.lastPathComponent) (\(data.count) bytes)")
     }
 }
+
+// MARK: - Smoothing Extension
+
+extension MouseDataRecorder {
+    // Smooths the mouse positions using a Gaussian kernel with the specified sigma value.
+    static func smoothedPositions(_ positions: [MousePosition], sigma: TimeInterval = 0.06) -> [MousePosition] {
+        guard positions.count > 2 else { return positions }
+        let radius = sigma * 3
+        var smoothed: [MousePosition] = []
+        smoothed.reserveCapacity(positions.count)
+        var lower = 0
+        var upper = 0
+        for center in positions {
+            while lower < positions.count, positions[lower].timestamp < center.timestamp - radius { lower += 1 }
+            while upper < positions.count, positions[upper].timestamp <= center.timestamp + radius { upper += 1 }
+            var sumX = 0.0
+            var sumY = 0.0
+            var sumWeight = 0.0
+            for index in lower..<upper {
+                let dt = positions[index].timestamp - center.timestamp
+                let weight = exp(-(dt * dt) / (2 * sigma * sigma))
+                sumX += positions[index].x * weight
+                sumY += positions[index].y * weight
+                sumWeight += weight
+            }
+            smoothed.append(MousePosition(timestamp: center.timestamp,
+                                          x: sumX / sumWeight,
+                                          y: sumY / sumWeight,
+                                          velocity: center.velocity))
+        }
+        return smoothed
+    }
+}

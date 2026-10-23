@@ -24,6 +24,8 @@ struct VideoEditSettings: Equatable, Codable {
     var showCursor = true
     var cursorShape: CursorShape = .arrow
     var cursorScale: Double = 1
+    var smoothCursor = false
+    var smoothCursorSigma: Double = 0.06
     var zoomEnabled = false
     var zoomLevel: Double = 2
     /// Nil keeps projects saved before motion controls on the original smooth curve.

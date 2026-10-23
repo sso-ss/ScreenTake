@@ -94,7 +94,8 @@ final class LiveEditFrameRenderer {
                             height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
         textRenderer = TextOverlayRenderer(overlays: settings.textOverlays ?? [], size: outputSize)
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
-        positions = mouse?.positions ?? []
+        let rawPositions = mouse?.positions ?? []
+        positions = settings.smoothCursor ? MouseDataRecorder.smoothedPositions(rawPositions, sigma: settings.smoothCursorSigma) : rawPositions
         let captureWidth = (mouse?.screenBounds.width ?? Double(sourceSize.width)) * (mouse?.scaleFactor ?? 1)
         padding = sourceSize.width > captureWidth + 1 ? (sourceSize.width - captureWidth) / (2 * sourceSize.width) : 0
         cursor = settings.showCursor ? CursorImageProvider.cgImage(width: 24 * settings.cursorScale, screenScale: 2, shape: settings.cursorShape) : nil

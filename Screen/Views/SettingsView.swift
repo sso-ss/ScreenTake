@@ -791,6 +791,10 @@ struct SettingsView: View {
                 settingsSection("Show Cursor", isOn: $session.draft.showCursor) {
                     cursorShapePicker(selection: $session.draft.cursorShape)
                     cursorSizeSlider(selection: $session.draft.cursorScale)
+                    settingsToggle(label: "Smooth Motion", isOn: $session.draft.smoothCursor)
+                    if session.draft.smoothCursor {
+                        cursorSmoothingSlider(selection: $session.draft.smoothCursorSigma)
+                    }
                 }
                 .disabled(session.mouseURL == nil)
                 Divider()
@@ -1161,6 +1165,16 @@ struct SettingsView: View {
                         get: { appState.capture.cursorScale },
                         set: { appState.capture.cursorScale = $0 }
                     ))
+                    settingsToggle(label: "Smooth Motion", isOn: Binding(
+                        get: { appState.capture.smoothCursor },
+                        set: { appState.capture.smoothCursor = $0 }
+                    ))
+                    if appState.capture.smoothCursor {
+                        cursorSmoothingSlider(selection: Binding(
+                            get: { appState.capture.smoothCursorSigma },
+                            set: { appState.capture.smoothCursorSigma = $0 }
+                        ))
+                    }
                 }
                 Divider()
                 settingsSection("Highlight Clicks", isOn: Binding(
@@ -1719,6 +1733,15 @@ struct SettingsView: View {
             primarySlider(selection: selection, range: 0.5...3.0,
                           label: "Cursor size",
                           multiplier: 100, unit: "%")
+        }
+    }
+
+    private func cursorSmoothingSlider(selection: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.labelToControl) {
+            Text("Smoothing").font(Typography.body).foregroundStyle(DesignColors.primaryLabel)
+            primarySlider(selection: selection, range: 0.02...0.25,
+                          label: "Cursor smoothing",
+                          multiplier: 1000, unit: " ms")
         }
     }
 

@@ -48,6 +48,8 @@ final class ExportEngine: ObservableObject {
         var cursorScale: Double = 1.0
         var cursorShape: CursorShape = .arrow
         var showCursor: Bool = true
+        var smoothCursor: Bool = false
+        var smoothCursorSigma: Double = 0.06
         var canvasRatio: CanvasRatio = .original
         var deviceLayout: DeviceLayout = .desktop
         var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
@@ -169,7 +171,9 @@ final class ExportEngine: ObservableObject {
         if let mouseURL = configuration.mouseDataURL,
            let data = try? Data(contentsOf: mouseURL),
            let recording = try? JSONDecoder().decode(MouseDataRecorder.MouseRecording.self, from: data) {
-            mousePositions = recording.positions
+            mousePositions = configuration.smoothCursor
+                ? MouseDataRecorder.smoothedPositions(recording.positions, sigma: configuration.smoothCursorSigma)
+                : recording.positions
 
             let captureWidth = recording.screenBounds.width * recording.scaleFactor
             let captureHeight = recording.screenBounds.height * recording.scaleFactor
