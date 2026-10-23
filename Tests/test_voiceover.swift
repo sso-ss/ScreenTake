@@ -70,12 +70,37 @@ struct VoiceOverChecks {
 
     @MainActor
     static func main() async throws {
+        setbuf(stdout, nil)
         NSApplication.shared.setActivationPolicy(.accessory)
         let directory = URL(fileURLWithPath: "/tmp/ScreenTake-voiceover-check-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let silent = directory.appendingPathComponent("silent.mov")
         let audio = directory.appendingPathComponent("tone.caf")
         try tone(audio)
+        let sequential = (0..<100).map { index in
+            VoiceOverClip(url: audio, start: Double(index) * 0.1, duration: 0.1, sourceDuration: 4)
+        }
+        let packed = VoiceOverTimelineLayout(clips: Array(sequential.reversed()), duration: 10)
+        precondition(packed.rowCount == 1 && packed.rowIndices.count == 100,
+                     "Sequential takes must share a row, including touching decimal time boundaries")
+        var overlapping = Array(sequential.prefix(4))
+        for index in overlapping.indices { overlapping[index].start = Double(index) * 0.25; overlapping[index].duration = 1 }
+        let stacked = VoiceOverTimelineLayout(clips: overlapping, duration: 3)
+        precondition(stacked.rowCount == 4 && Set(stacked.rowIndices.values).count == 4,
+                     "Overlapping takes must remain individually accessible")
+        overlapping[3].start = 1.5
+        precondition(VoiceOverTimelineLayout(clips: overlapping, duration: 3).rowCount == 3,
+                     "Moving a take out of an overlap must reclaim its row")
+        overlapping.remove(at: 2)
+        precondition(VoiceOverTimelineLayout(clips: overlapping, duration: 3).rowCount == 2,
+                     "Deleting an overlapping take must reclaim its row")
+        overlapping[0].duration = 0.25
+        precondition(VoiceOverTimelineLayout(clips: overlapping, duration: 3).rowCount == 1,
+                     "Trimming away an overlap must reuse the shared row")
+        precondition(VoiceOverTimelineLayout(clips: sequential, duration: 0).height == 0)
+        precondition(VoiceOverTimelineLayout(clips: sequential, duration: 0.5).rowIndices.count == 5,
+                     "Off-timeline takes must not reserve rows")
+        print("PASS: sequential voiceovers share a row; overlaps remain visible and rows reclaim after move, trim or deletion")
         try await video(silent)
         let original = try await MediaMuxer.mux(videoURL: silent, systemAudioURL: audio, micAudioURL: nil, removeSourceAudio: false)
         var settings = VideoEditSettings(backgroundEnabled: false, showCursor: false)
@@ -155,6 +180,54 @@ struct VoiceOverChecks {
         let retainedTracks = try await AVURLAsset(url: state.lastUntrimmedRecordingURL!).loadTracks(withMediaType: .audio)
         precondition(retainedTracks.isEmpty)
         print("PASS: recorded-source pipeline exports voiceover without captured audio and keeps the original reference clean")
+        func scrollViews(in view: NSView) -> [NSScrollView] {
+            (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
+        }
+        let timelinePlayer = AVPlayer(url: original)
+        var compactHeight = 0.0
+        for dark in [false, true] {
+            for crowded in [false, true] {
+                var timelineSettings = VideoEditSettings()
+                timelineSettings.voiceOvers = (0..<12).map { index in
+                    VoiceOverClip(url: audio, start: crowded ? 0 : Double(index) * 0.3,
+                                  duration: crowded ? 3.5 : 0.25, sourceDuration: 4)
+                }
+                let fixture = AudioUIFixture(settings: timelineSettings)
+                let hosted = NSHostingView(rootView: AudioTimelinePreview(fixture: fixture,
+                    player: timelinePlayer, source: original).frame(width: 850)
+                    .environment(\.colorScheme, dark ? .dark : .light))
+                let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 850, height: 800),
+                    styleMask: [.borderless], backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                window.contentView = hosted
+                window.orderBack(nil)
+                hosted.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                hosted.frame = NSRect(x: 0, y: 0, width: 850, height: 800)
+                hosted.layoutSubtreeIfNeeded()
+                window.setContentSize(CGSize(width: 850, height: hosted.fittingSize.height))
+                try await Task.sleep(nanoseconds: 200_000_000)
+                hosted.layoutSubtreeIfNeeded()
+                precondition(hosted.frame.height <= 304.1, "Voiceover rows must respect the timeline maximum height")
+                if !crowded { compactHeight = hosted.frame.height }
+                let scroll = scrollViews(in: hosted).max(by: { $0.frame.width < $1.frame.width })!
+                precondition(scroll.contentView.bounds.height <= TimelineMetrics.maximumTrackHeight + 1)
+                print("Voice timeline \(crowded ? "overflow" : "packed"): host=\(hosted.frame), viewport=\(scroll.contentView.bounds), document=\(scroll.documentView!.frame)")
+                if crowded {
+                    precondition(hosted.frame.height > compactHeight)
+                    let document = scroll.documentView!
+                    precondition(document.frame.height > scroll.contentView.bounds.height + 300)
+                    scroll.contentView.scroll(to: CGPoint(x: 0, y: document.frame.height - scroll.contentView.bounds.height))
+                    scroll.reflectScrolledClipView(scroll.contentView)
+                    precondition(scroll.contentView.bounds.minY > 300, "Every overlapping take must be reachable by scrolling")
+                }
+                let bitmap = hosted.bitmapImageRepForCachingDisplay(in: hosted.bounds)!
+                hosted.cacheDisplay(in: hosted.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath:
+                    "/tmp/screentake-voice-timeline-\(crowded ? "overflow" : "packed")-\(dark ? "dark" : "light").png"))
+                window.orderOut(nil)
+            }
+        }
+        print("PASS: light/dark voiceover tracks share rows, stay height-capped and scroll to the last overlapping take")
         if CommandLine.arguments.contains("--ui") {
             settings.audioEnabled = true
             settings.originalAudioVolume = 1
@@ -187,6 +260,17 @@ final class AudioUIFixture: ObservableObject {
     @Published var settings: VideoEditSettings
     @Published var selected: UUID?
     init(settings: VideoEditSettings) { self.settings = settings; selected = settings.voiceOvers.first?.id }
+}
+
+struct AudioTimelinePreview: View {
+    @ObservedObject var fixture: AudioUIFixture
+    let player: AVPlayer
+    let source: URL
+
+    var body: some View {
+        VideoTrimControls(trim: $fixture.settings.trim, duration: 4, player: player, source: source, audio: source,
+                          voiceOvers: $fixture.settings.voiceOvers, selectedVoiceOverID: $fixture.selected)
+    }
 }
 
 struct AudioUIPreview: View {

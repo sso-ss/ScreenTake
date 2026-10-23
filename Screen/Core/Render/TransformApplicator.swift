@@ -78,6 +78,7 @@ final class LiveEditFrameRenderer {
     private let padding: CGFloat
     private let cursor: CGImage?
     private let faceTrack: FaceTrackingTrack?
+    private let textRenderer: TextOverlayRenderer
 
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
          mouse: MouseDataRecorder.MouseRecording? = nil, faceTrack: FaceTrackingTrack? = nil) {
@@ -91,6 +92,7 @@ final class LiveEditFrameRenderer {
         let scale = min(1, 2560 / max(dimensions.width, dimensions.height))
         outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
                             height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
+        textRenderer = TextOverlayRenderer(overlays: settings.textOverlays ?? [], size: outputSize)
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
         let rawPositions = mouse?.positions ?? []
         positions = settings.smoothCursor ? MouseDataRecorder.smoothedPositions(rawPositions, sigma: settings.smoothCursorSigma) : rawPositions
@@ -99,15 +101,17 @@ final class LiveEditFrameRenderer {
         cursor = settings.showCursor ? CursorImageProvider.cgImage(width: 24 * settings.cursorScale, screenScale: 2, shape: settings.cursorShape) : nil
         canvas = settings.backgroundEnabled || settings.ratio != .original || settings.layout != .desktop
             ? CanvasCompositor(size: outputSize, sourceSize: cropRect.size, layout: settings.layout,
-                               wallpaper: settings.wallpaper, phoneContentMode: settings.phoneMode,
+                               wallpaper: settings.wallpaper, customBackgroundImage: settings.customBackgroundImage, phoneContentMode: settings.phoneMode,
                                desktopCornerRadius: CGFloat(settings.desktopCornerRadius),
+                               phoneCornerRadius: settings.phoneCornerRadius.map { CGFloat($0) },
                                preserveSourcePixels: settings.exportResolution == .preserveSource) : nil
         webcam = settings.webcamEnabled ? WebcamCompositor(outputSize: outputSize, position: settings.webcamPosition,
                                    pipSize: settings.webcamSize, shape: settings.webcamShape) : nil
     }
 
     func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
-                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil) -> CIImage {
+                webcamTime: Double? = nil, webcamSampleTime: Double? = nil, phoneImage: CIImage? = nil,
+                outputTime: Double? = nil) -> CIImage {
         var transform = evaluator.evaluate(at: time)
         transform.centerX = (transform.centerX - normalizedCrop.minX) / normalizedCrop.width
         transform.centerY = (transform.centerY - normalizedCrop.minY) / normalizedCrop.height
@@ -147,11 +151,11 @@ final class LiveEditFrameRenderer {
                                                      changes: settings.cameraLayoutChanges)
             let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                            changes: settings.cameraLayoutChanges)
-            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout,
+            image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout, mirrored: settings.cameraMirrored ?? false,
                                      faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
                                      beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
         }
-        return image.cropped(to: CGRect(origin: .zero, size: outputSize))
+        return textRenderer.composite(over: image, at: outputTime ?? time).cropped(to: CGRect(origin: .zero, size: outputSize))
     }
 
     private func position(at time: Double) -> CGPoint? {
@@ -221,11 +225,14 @@ struct CanvasGeometry {
         return frame.insetBy(dx: 12 * unit, dy: 12 * unit)
     }
 
-    static func phoneContent(_ frame: CGRect, layout: DeviceLayout = .iPhone) -> CGRect {
+    static func phoneScreenRadius(_ frame: CGRect, layout: DeviceLayout, cornerRadius: CGFloat?) -> CGFloat {
         let screen = phoneScreen(frame, layout: layout)
-        if layout.isFoldablePhone { return screen }
-        let unit = phoneUnit(frame, layout: layout)
-        return CGRect(x: screen.minX, y: screen.minY + 24 * unit, width: screen.width, height: screen.height - 66 * unit)
+        let fraction = cornerRadius ?? CGFloat(layout.defaultPhoneCornerRadius)
+        return min(screen.width, screen.height) * min(0.2, max(0, fraction))
+    }
+
+    static func phoneContent(_ frame: CGRect, layout: DeviceLayout = .iPhone) -> CGRect {
+        phoneScreen(frame, layout: layout)
     }
 }
 
@@ -234,18 +241,22 @@ final class CanvasCompositor {
     let bounds: CGRect
     private let background: CIImage
     private let chrome: CIImage
+    private let phoneOverlay: CIImage?
     private let layout: DeviceLayout
     private let phoneContentMode: PhoneContentMode
     private let desktopCornerRadius: CGFloat
+    private let phoneCornerRadius: CGFloat?
 
-    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, preserveSourcePixels: Bool = false) {
+    init(size: CGSize, sourceSize: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data? = nil, phoneContentMode: PhoneContentMode = .fit, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil, preserveSourcePixels: Bool = false) {
         self.layout = layout
         self.phoneContentMode = phoneContentMode
         self.desktopCornerRadius = min(0.5, max(0, desktopCornerRadius))
+        self.phoneCornerRadius = phoneCornerRadius
         bounds = CGRect(origin: .zero, size: size)
         geometry = CanvasGeometry(size: size, layout: layout, sourceSize: sourceSize, preserveSourcePixels: preserveSourcePixels)
-        background = Self.makeBackground(size: size, wallpaper: wallpaper)
-        chrome = Self.makeChrome(size: size, geometry: geometry, layout: layout, desktopCornerRadius: self.desktopCornerRadius)
+        background = Self.makeBackground(size: size, wallpaper: wallpaper, customBackgroundImage: customBackgroundImage)
+        chrome = Self.makeChrome(size: size, geometry: geometry, layout: layout, desktopCornerRadius: self.desktopCornerRadius, phoneCornerRadius: phoneCornerRadius)
+        phoneOverlay = Self.makePhoneOverlay(size: size, geometry: geometry, layout: layout)
     }
 
     func composite(primary: CIImage, phone: CIImage? = nil, camera: CameraTransform = .identity, primaryOverlay: CIImage? = nil) -> CIImage {
@@ -267,15 +278,15 @@ final class CanvasCompositor {
             let phoneImage = layout.isPhone ? content(in: rect, mode: phoneContentMode) : Self.fitted(image, in: rect, mode: phoneContentMode)
             result = phoneImage.composited(over: result).applyingFilter("CIBlendWithMask", parameters: [
                 kCIInputBackgroundImageKey: result,
-                kCIInputMaskImageKey: Self.roundedMask(CanvasGeometry.phoneScreen(frame, layout: layout), radius: CanvasGeometry.phoneUnit(frame, layout: layout) * (layout.isFoldablePhone ? 32 : 48))
+                kCIInputMaskImageKey: Self.roundedMask(CanvasGeometry.phoneScreen(frame, layout: layout), radius: CanvasGeometry.phoneScreenRadius(frame, layout: layout, cornerRadius: phoneCornerRadius))
             ])
         }
-        return result.cropped(to: bounds)
+        return (phoneOverlay?.composited(over: result) ?? result).cropped(to: bounds)
     }
 
-    static func preview(size: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, desktopCornerRadius: CGFloat = 0.025) -> CGImage? {
+    static func preview(size: CGSize, layout: DeviceLayout, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data? = nil, desktopCornerRadius: CGFloat = 0.025, phoneCornerRadius: CGFloat? = nil) -> CGImage? {
         func sample(phone: Bool) -> CIImage {
-            let size = phone ? (layout.isFoldablePhone ? layout.phoneFrameSize : CGSize(width: 390, height: 778)) : CGSize(width: 1440, height: 900)
+            let size = phone ? (layout.isFoldablePhone ? layout.phoneFrameSize : CGSize(width: 390, height: 844)) : CGSize(width: 1440, height: 900)
             let context = context(size: size)
             context.setFillColor(CGColor(gray: 0.11, alpha: 1))
             context.fill(CGRect(origin: .zero, size: size))
@@ -302,7 +313,7 @@ final class CanvasCompositor {
             return CIImage(cgImage: context.makeImage()!)
         }
         let primary = sample(phone: layout.isPhone)
-        let compositor = CanvasCompositor(size: size, sourceSize: primary.extent.size, layout: layout, wallpaper: wallpaper, desktopCornerRadius: desktopCornerRadius)
+        let compositor = CanvasCompositor(size: size, sourceSize: primary.extent.size, layout: layout, wallpaper: wallpaper, customBackgroundImage: customBackgroundImage, desktopCornerRadius: desktopCornerRadius, phoneCornerRadius: phoneCornerRadius)
         let image = compositor.composite(primary: primary, phone: sample(phone: true))
         return CIContext().createCGImage(image, from: image.extent)
     }
@@ -332,8 +343,12 @@ final class CanvasCompositor {
                   bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     }
 
-    private static func makeBackground(size: CGSize, wallpaper: BackgroundStyle.WallpaperPreset) -> CIImage {
+    private static func makeBackground(size: CGSize, wallpaper: BackgroundStyle.WallpaperPreset, customBackgroundImage: Data?) -> CIImage {
         let rect = CGRect(origin: .zero, size: size)
+        if let customBackgroundImage, let image = CIImage(data: customBackgroundImage) {
+            return fitted(image, in: rect, mode: .fill)
+                .composited(over: CIImage(color: .black).cropped(to: rect))
+        }
         if let name = wallpaper.imageName, let image = NSImage(named: name),
            let bitmap = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let scale = max(size.width / CGFloat(bitmap.width), size.height / CGFloat(bitmap.height))
@@ -351,7 +366,7 @@ final class CanvasCompositor {
         return CIImage(cgImage: context.makeImage()!)
     }
 
-    private static func makeChrome(size: CGSize, geometry: CanvasGeometry, layout: DeviceLayout, desktopCornerRadius: CGFloat) -> CIImage {
+    private static func makeChrome(size: CGSize, geometry: CanvasGeometry, layout: DeviceLayout, desktopCornerRadius: CGFloat, phoneCornerRadius: CGFloat?) -> CIImage {
         let context = context(size: size)
         func rounded(_ rect: CGRect, radius: CGFloat, color: CGColor) {
             context.setFillColor(color)
@@ -366,19 +381,36 @@ final class CanvasCompositor {
         }
         if let phone = geometry.phone {
             let unit = CanvasGeometry.phoneUnit(phone, layout: layout)
-            let radius: CGFloat = layout.isFoldablePhone ? 44 : 60
+            let screenRadius = CanvasGeometry.phoneScreenRadius(phone, layout: layout, cornerRadius: phoneCornerRadius)
+            let radius = screenRadius + 12 * unit
             context.saveGState()
             context.setShadow(offset: CGSize(width: 0, height: -12 * unit), blur: 28 * unit, color: CGColor(gray: 0, alpha: 0.45))
-            rounded(phone, radius: radius * unit, color: CGColor(gray: 0.42, alpha: 1))
+            rounded(phone, radius: radius, color: CGColor(gray: 0.42, alpha: 1))
             context.restoreGState()
-            rounded(phone.insetBy(dx: 2 * unit, dy: 2 * unit), radius: (radius - 2) * unit, color: CGColor(gray: 0.025, alpha: 1))
+            rounded(phone.insetBy(dx: 2 * unit, dy: 2 * unit), radius: radius - 2 * unit, color: CGColor(gray: 0.025, alpha: 1))
             let screen = CanvasGeometry.phoneScreen(phone, layout: layout)
-            rounded(screen, radius: (radius - 12) * unit, color: CGColor(gray: 0.07, alpha: 1))
-            if !layout.isFoldablePhone {
-                rounded(CGRect(x: phone.midX - 60 * unit, y: screen.maxY - 34 * unit, width: 120 * unit, height: 25 * unit), radius: 13 * unit, color: CGColor(gray: 0, alpha: 1))
-                rounded(CGRect(x: phone.midX - 64 * unit, y: screen.minY + 8 * unit, width: 128 * unit, height: 5 * unit), radius: 2.5 * unit, color: CGColor(gray: 0.8, alpha: 1))
-            }
+            rounded(screen, radius: screenRadius, color: CGColor(gray: 0.07, alpha: 1))
         }
+        return CIImage(cgImage: context.makeImage()!)
+    }
+
+    private static func makePhoneOverlay(size: CGSize, geometry: CanvasGeometry, layout: DeviceLayout) -> CIImage? {
+        guard let phone = geometry.phone, !layout.isFoldablePhone else { return nil }
+        let context = context(size: size)
+        let unit = CanvasGeometry.phoneUnit(phone, layout: layout)
+        let screen = CanvasGeometry.phoneScreen(phone, layout: layout)
+        let island = CGRect(x: phone.midX - 60 * unit, y: screen.maxY - 34 * unit,
+                            width: 120 * unit, height: 25 * unit)
+        context.setFillColor(CGColor(gray: 0, alpha: 1))
+        context.addPath(CGPath(roundedRect: island, cornerWidth: 13 * unit, cornerHeight: 13 * unit, transform: nil))
+        context.fillPath()
+        let handle = CGRect(x: phone.midX - 64 * unit, y: screen.minY + 8 * unit,
+                            width: 128 * unit, height: 5 * unit)
+        // Keep the floating indicator visible over light footage as well as dark footage.
+        context.setShadow(offset: .zero, blur: 2 * unit, color: CGColor(gray: 0, alpha: 0.8))
+        context.setFillColor(CGColor(gray: 0.8, alpha: 1))
+        context.addPath(CGPath(roundedRect: handle, cornerWidth: 2.5 * unit, cornerHeight: 2.5 * unit, transform: nil))
+        context.fillPath()
         return CIImage(cgImage: context.makeImage()!)
     }
 }

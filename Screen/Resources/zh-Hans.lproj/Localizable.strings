@@ -264,3 +264,74 @@
 "Face definition" = "面部轮廓";
 
 "Under-eye shadow" = "下眼影";
+
+"Mirror Camera" = "镜像摄像头";
+"Flip the camera horizontally in preview and export." = "在预览和导出中水平翻转摄像头画面。";
+"Editing shortcuts" = "编辑快捷键";
+"Play / Pause" = "播放 / 暂停";
+"Reverse / Pause / Play" = "倒放 / 暂停 / 播放";
+"Previous / Next Frame" = "上一帧 / 下一帧";
+"Seek One Second" = "移动一秒";
+"Go to start / end" = "跳到开头 / 结尾";
+"Split at Playhead" = "在播放头处分割";
+"Undo / Redo" = "撤销 / 重做";
+"Delete Selection" = "删除所选项";
+"Link / Unlink Audio" = "链接 / 取消链接音频";
+"Zoom Timeline In / Out" = "放大 / 缩小时间线";
+"Export Video…" = "导出视频…";
+"Playback keys are available while editing, outside text fields." = "编辑时，可在文本输入框之外使用播放快捷键。";
+
+// Automatic updates
+"Updates" = "更新";
+"Automatically check for updates" = "自动检查更新";
+"Automatically download and install updates on quit" = "退出时自动下载并安装更新";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "更新会在退出时安装。请先完成录制和媒体处理，并保存项目。";
+"Automatic installation is optional. You can always check and install updates manually here." = "自动安装是可选的。您随时可以在此手动检查并安装更新。";
+"Install and Relaunch" = "安装并重新启动";
+"ScreenTake is keeping your work safe" = "ScreenTake 正在保护您的工作";
+"Finish recording before updating or quitting." = "更新或退出前请结束录制。";
+"Wait for media processing to finish before updating or quitting." = "更新或退出前请等待媒体处理完成。";
+"Close the capture controls before updating or quitting." = "更新或退出前请关闭录制控件。";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "安装更新或退出前请保存项目。导出视频不会保存可编辑的项目。";
+"Complete permission setup before checking for updates." = "检查更新前请完成权限设置。";
+"You’re up to date." = "已是最新版本。";
+"Unable to check for updates. Try again later." = "无法检查更新。请稍后重试。";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "无法启动更新程序。请重新安装最新版 ScreenTake。";
+
+"Zoom transition" = "缩放过渡";
+"Zoom transition motion" = "缩放过渡动画";
+
+"Set Zoom Area" = "设置缩放区域";
+"Zoom Area" = "缩放区域";
+"Top" = "顶部";
+"Bottom" = "底部";
+"Loading zoom preview" = "正在加载缩放预览";
+"Drag in the zoom track to choose when to zoom, then set its area." = "在缩放轨道中拖动以选择缩放时间，然后设置区域。";
+"Selected zoom area" = "选定的缩放区域";
+"Drag to reposition the zoom area" = "拖动以移动缩放区域";
+"Left top zoom handle" = "缩放区域左上角控制点";
+"Right top zoom handle" = "缩放区域右上角控制点";
+"Left bottom zoom handle" = "缩放区域左下角控制点";
+"Right bottom zoom handle" = "缩放区域右下角控制点";
+"Preview Zoom" = "预览缩放";
+"Select Area" = "选择区域";
+"Area magnification" = "区域放大倍率";
+"Could not load this frame. Try another point in the video." = "无法加载此帧。请尝试视频中的其他位置。";
+"Starts at %.1fs · %.1f×" = "开始于 %.1f秒 · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "自定义背景";
+"Upload Image…" = "上传图片…";
+"Replace Image…" = "替换图片…";
+"Remove custom background" = "移除自定义背景";
+"Return to the selected preset background." = "返回所选的预设背景。";
+"Upload custom background image" = "上传自定义背景图片";
+"Choose an image to fill the canvas background." = "选择用于填充画布背景的图片。";
+"Choose Background Image" = "选择背景图片";
+"Choose Image" = "选择图片";
+"Could Not Import Background" = "无法导入背景";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "请选择有效的图片文件，例如 PNG、JPEG 或 HEIC。";
+"Silk" = "丝绸";
+"Pastel" = "粉彩";
+"Breeze" = "微风";
+"Mint" = "薄荷";

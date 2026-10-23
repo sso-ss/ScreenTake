@@ -12,7 +12,11 @@ struct VideoEditSettings: Equatable, Codable {
     var ratio: CanvasRatio = .original
     var layout: DeviceLayout = .desktop
     var wallpaper: BackgroundStyle.WallpaperPreset = .sonoma
+    /// Embedded so custom backgrounds survive moving or reopening a project.
+    var customBackgroundImage: Data?
     var desktopCornerRadius: Double = 0.025
+    /// Nil preserves the original device rounding in older projects.
+    var phoneCornerRadius: Double?
     var backgroundEnabled = true
     var crop = PhoneCrop()
     var phoneMode: PhoneContentMode = .fit
@@ -24,14 +28,20 @@ struct VideoEditSettings: Equatable, Codable {
     var smoothCursorSigma: Double = 0.06
     var zoomEnabled = false
     var zoomLevel: Double = 2
+    /// Nil keeps projects saved before motion controls on the original smooth curve.
+    var zoomTransitionMotion: ZoomTransitionMotion?
     var zoomSegments: [ZoomSegment]? = nil
     var webcamEnabled = false
     var webcamShape: PiPShape = .circle
     var webcamPosition: PiPPosition = .bottomRight
     var webcamSize: PiPSize = .medium
+    /// Nil preserves the orientation of projects saved before mirroring was available.
+    var cameraMirrored: Bool?
     /// Optional so projects saved before beauty filtering decode with the effect off.
     var faceBeautyAmount: Double?
     var faceMakeup: FaceMakeupSettings?
+    /// Remembers the selected style and intensity while camera effects are off.
+    var cameraEffectSelection: CameraEffectSelection?
     var cameraLayout = CameraLayoutSettings()
     /// Layout changes follow camera source time, including moved and trimmed takes.
     var cameraLayoutChanges: [CameraLayoutChange] = []
@@ -50,6 +60,8 @@ struct VideoEditSettings: Equatable, Codable {
     var voiceOverEnabled = true
     var voiceOverVolume: Double = 1
     var voiceOvers: [VoiceOverClip] = []
+    /// Optional for projects created before text overlays were introduced.
+    var textOverlays: [TextOverlay]?
     var trim = VideoTrim()
     var exportResolution: ExportResolution = .preserveSource
     /// Optional source metadata captured from the browser's visible web area.
@@ -66,6 +78,48 @@ struct VideoEditSettings: Equatable, Codable {
     func outputSize(source: CGSize) -> CGSize {
         exportResolution.size(source: source, crop: crop, ratio: ratio, layout: layout,
                               usesCanvas: usesCanvas, phoneMode: phoneMode)
+    }
+}
+
+enum CameraEffectStyle: String, CaseIterable, Codable {
+    case natural, peachMakeup
+
+    var displayName: String { self == .natural ? "Natural" : "Peach Makeup" }
+}
+
+struct CameraEffectSelection: Equatable, Codable {
+    var style: CameraEffectStyle = .natural
+    var intensity: Double = 0.5
+
+    var clamped: Self {
+        Self(style: style, intensity: min(1, max(0.05, intensity.isFinite ? intensity : 0.5)))
+    }
+
+    static func current(preferred: Self?, natural: Double, makeup: FaceMakeupSettings) -> Self {
+        if makeup.amount > 0 { return Self(style: .peachMakeup, intensity: makeup.amount).clamped }
+        if natural > 0 { return Self(style: .natural, intensity: natural).clamped }
+        return preferred?.clamped ?? Self()
+    }
+
+    func amounts(enabled: Bool, makeup: FaceMakeupSettings) -> (natural: Double, makeup: FaceMakeupSettings) {
+        var updated = makeup
+        updated.amount = enabled && style == .peachMakeup ? clamped.intensity : 0
+        return (enabled && style == .natural ? clamped.intensity : 0, updated)
+    }
+}
+
+extension VideoEditSettings {
+    var cameraEffectsEnabled: Bool { (faceBeautyAmount ?? 0) > 0 || (faceMakeup?.amount ?? 0) > 0 }
+
+    var resolvedCameraEffectSelection: CameraEffectSelection {
+        .current(preferred: cameraEffectSelection, natural: faceBeautyAmount ?? 0, makeup: faceMakeup ?? .init())
+    }
+
+    mutating func setCameraEffect(_ selection: CameraEffectSelection, enabled: Bool) {
+        cameraEffectSelection = selection.clamped
+        let amounts = selection.amounts(enabled: enabled, makeup: faceMakeup ?? .init())
+        faceBeautyAmount = amounts.natural
+        faceMakeup = amounts.makeup
     }
 }
 
@@ -97,6 +151,28 @@ enum CameraTransitionMotion: String, CaseIterable, Codable {
         case .linear: return t
         case .easeIn: return t * t
         case .easeOut: return 1 - (1 - t) * (1 - t)
+        }
+    }
+}
+
+enum ZoomTransitionMotion: String, CaseIterable, Codable {
+    case smooth, linear, easeIn, easeOut
+
+    var displayName: String {
+        switch self {
+        case .smooth: return "Smooth"
+        case .linear: return "Linear"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        }
+    }
+
+    var easing: EasingCurve {
+        switch self {
+        case .smooth: return .easeInOut
+        case .linear: return .linear
+        case .easeIn: return .easeIn
+        case .easeOut: return .easeOut
         }
     }
 }
@@ -295,6 +371,12 @@ struct ZoomSegment: Equatable, Identifiable, Codable {
     var centerX: Double
     var centerY: Double
     var followsCursor = true
+    /// Nil keeps older zoom sections on the global magnification and cursor focus.
+    var manualRegion: ZoomRegion?
+
+    func magnification(default zoomLevel: Double) -> Double {
+        manualRegion.map { Double($0.magnification) } ?? zoomLevel
+    }
 }
 
 struct PhoneCrop: Equatable, Codable {
@@ -433,6 +515,10 @@ enum DeviceLayout: String, CaseIterable, Codable {
 
     var isFoldablePhone: Bool {
         self == .iPhoneDuoClosed || self == .iPhoneDuoUnfolded
+    }
+
+    var defaultPhoneCornerRadius: Double {
+        (isFoldablePhone ? 32.0 : 48.0) / 390
     }
 
     var phoneFrameSize: CGSize {
@@ -599,11 +685,13 @@ enum OutputColorSpace: String, Codable {
 enum PiPShape: String, Codable, CaseIterable {
     case circle
     case roundedSquare
+    case cutout
 
     var displayName: String {
         switch self {
         case .circle: return "Circle"
         case .roundedSquare: return "Rounded Square"
+        case .cutout: return "Background Removed"
         }
     }
 }

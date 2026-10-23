@@ -441,7 +441,13 @@ final class VFRRecordingManager: @unchecked Sendable {
             stops = [(def.startColor, 0), (def.endColor, 1)]
         case .solid(let color):
             stops = [(color, 0), (color, 1)]
-        case .image:
+        case .image(let data):
+            if let image = CIImage(data: data) {
+                let rect = CGRect(x: 0, y: 0, width: width, height: height)
+                backgroundImage = CanvasCompositor.fitted(image, in: rect, mode: .fill)
+                    .composited(over: CIImage(color: .black).cropped(to: rect))
+                return
+            }
             stops = [(.gray, 0), (.gray, 1)]
         }
 

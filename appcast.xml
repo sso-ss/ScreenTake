@@ -1,0 +1,49 @@
+<?xml version="1.0" standalone="yes"?>
+<!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>ScreenTake</title>
+        <item>
+            <title>0.1.21</title>
+            <pubDate>Thu, 22 Oct 2026 23:55:01 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.1.21</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.21</h2><ul><li>Remove the camera background in live preview and exported video.</li><li>Edit recorded audio independently, choose whether cuts close gaps, and clean up silence in added audio.</li><li>Use the expanded bundled MCP helper from a connected AI client. Reconnect the client after updating ScreenTake.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
+]]></description>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg" length="37933760" type="application/octet-stream" sparkle:edSignature="VCdpRVxWh+J+2wa03zj8SJQFGxuzSyNJ5WTHqXrwg3J71s6eHPQrJLaX7S/QoE8jiUFejpV2BVc3AvEzEvb8Dg=="/>
+        </item>
+        <item>
+            <title>0.1.20</title>
+            <pubDate>Tue, 20 Oct 2026 00:50:20 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.1.20</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg" length="37831661" type="application/octet-stream" sparkle:edSignature="6/qf4yr/fUHqcdkRQmMEpxDKJrOp2y6GDPoUUtgYcAT3nXhD7/kr/EcoFXT+C8PvSKJ0EVCPTUebk//KQ28sBg=="/>
+        </item>
+        <item>
+            <title>0.1.19</title>
+            <pubDate>Mon, 19 Oct 2026 21:52:00 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>21</sparkle:version>
+            <sparkle:shortVersionString>0.1.19</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.19</h2><ul><li>Upload your own background image and keep it inside saved projects, with consistent previews and export.</li><li>Choose 16 wallpapers in a square, four-column grid, including new 4K Silk, Pastel, Breeze, and Mint presets.</li><li>Draw, move, and resize manual zoom regions on recordings, imported videos, and phone layouts.</li><li>Adjust phone corner rounding separately and use floating phone chrome.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>]]></description>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg" length="37710476" type="application/octet-stream" sparkle:edSignature="oyNFxOiAysjAifwsBM0Bx1C0bn2liPFwbC5K7UziYmV+SCtHG1w6kPMtqQviFjILGbI4d2EWiFrhGA4oFvZwDg=="/>
+        </item>
+    </channel>
+</rss>
+<!-- sparkle-signatures:
+edSignature: f82yBgQ53vU8aQuuTouJ3WmK5Bv9HDUmElyXgVMlS7JX8CDy38/bmMUu8Zdq8+89qvHHZEH4rwUv98OTK/MTDA==
+length: 4036
+-->

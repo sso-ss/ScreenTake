@@ -1,0 +1,4 @@
+interface:
+  display_name: "ScreenTake Editor"
+  short_description: "Edit ScreenTake projects with the local MCP tools"
+  default_prompt: "Use $screentake-editor to add a styled title to the current video and preview it."

@@ -10,6 +10,36 @@ struct VoiceOverClip: Equatable, Identifiable, Codable {
     var sourceDuration: Double
 
     var end: Double { start + duration }
+
+    /// Remove output-time pauses and move the remaining audio with the video.
+    static func removing(_ cuts: [VideoCut], from clips: [VoiceOverClip]) -> [VoiceOverClip] {
+        clips.flatMap { clip in
+            var boundary = clip.start
+            var pieces: [VoiceOverClip] = []
+            let relevant = cuts.filter { $0.end > clip.start && $0.start < clip.end }
+            for cut in relevant {
+                let end = min(clip.end, max(boundary, cut.start))
+                if end - boundary > 0.000001 {
+                    var piece = clip
+                    if !pieces.isEmpty { piece.id = UUID() }
+                    piece.start = boundary - cuts.reduce(0) { $0 + max(0, min($1.end, boundary) - $1.start) }
+                    piece.sourceStart += boundary - clip.start
+                    piece.duration = end - boundary
+                    pieces.append(piece)
+                }
+                boundary = max(boundary, min(clip.end, cut.end))
+            }
+            if clip.end - boundary > 0.000001 {
+                var piece = clip
+                if !pieces.isEmpty { piece.id = UUID() }
+                piece.start = boundary - cuts.reduce(0) { $0 + max(0, min($1.end, boundary) - $1.start) }
+                piece.sourceStart += boundary - clip.start
+                piece.duration = clip.end - boundary
+                pieces.append(piece)
+            }
+            return pieces
+        }
+    }
 }
 
 enum EditorAudio {
@@ -70,7 +100,8 @@ enum EditorAudio {
 
     static func export(video: URL, originalEnabled: Bool, originalVolume: Double,
                        clips: [VoiceOverClip], voiceOverVolume: Double,
-                       recordedSource: URL? = nil, recordedClips: [MediaTimelineClip]? = nil) async throws -> URL {
+                       recordedSource: URL? = nil, recordedClips: [MediaTimelineClip]? = nil,
+                       outputDirectory: URL? = nil) async throws -> URL {
         if recordedClips == nil && clips.isEmpty && originalEnabled && originalVolume == 1 { return video }
         let asset = AVURLAsset(url: video)
         let duration = try await asset.load(.duration)
@@ -88,15 +119,20 @@ enum EditorAudio {
         }
         let mix = try await mix(into: composition, duration: duration, originalVolume: originalVolume,
                                 clips: clips, voiceOverVolume: voiceOverVolume)
-        // An audio mix requires encoding; passthrough would ignore volume changes.
-        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+        // Unity-gain edits only rearrange samples. Preserve the already rendered
+        // video instead of running a second encoder while rebuilding audio clips.
+        // Real level changes still require encoding: passthrough ignores audioMix.
+        let changesLevels = (originalEnabled && originalVolume != 1) || (!clips.isEmpty && voiceOverVolume != 1)
+        let preset = changesLevels ? AVAssetExportPresetHighestQuality : AVAssetExportPresetPassthrough
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: preset) else {
             throw VideoTrimError.exportFailed
         }
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("ScreenTake-audio-\(UUID().uuidString).mov")
+        let output = (outputDirectory ?? FileManager.default.temporaryDirectory)
+            .appendingPathComponent("ScreenTake-audio-\(UUID().uuidString).mov")
         exporter.outputURL = output
         exporter.outputFileType = .mov
         exporter.timeRange = CMTimeRange(start: .zero, duration: duration)
-        exporter.audioMix = mix
+        if changesLevels { exporter.audioMix = mix }
         await withTaskCancellationHandler {
             await exporter.export()
         } onCancel: {
@@ -429,6 +465,56 @@ struct LinkedMediaTimeline: Equatable {
         clearMismatchedLinks()
         guard !video.isEmpty, validPositions else { self = old; return false }
         if closeGaps { duration = max(video.map(\.end).max() ?? 0, audio.map(\.end).max() ?? 0) }
+        return self != old
+    }
+
+    /// Cut the same output-time intervals from both recorded lanes, then ripple them together.
+    mutating func cutOutput(_ cuts: [VideoCut]) -> Bool {
+        let ordered = cuts.sorted { $0.start < $1.start }
+        guard !ordered.isEmpty,
+              ordered.allSatisfy({ $0.start.isFinite && $0.end.isFinite && $0.start >= 0 && $0.end > $0.start }),
+              zip(ordered, ordered.dropFirst()).allSatisfy({ $0.end <= $1.start + 0.000001 }),
+              ordered.last!.end <= duration + 0.001 else { return false }
+        let old = self
+        var links: [UUID: [Double: UUID]] = [:]
+        func remaining(_ clips: [MediaTimelineClip]) -> [MediaTimelineClip] {
+            clips.flatMap { clip -> [MediaTimelineClip] in
+                var boundary = clip.start
+                var pieces: [MediaTimelineClip] = []
+                for cut in ordered where cut.end > clip.start && cut.start < clip.end {
+                    let end = min(clip.end, max(boundary, cut.start))
+                    if end - boundary > 0.000001 { pieces.append(piece(boundary, end)) }
+                    boundary = max(boundary, min(clip.end, cut.end))
+                }
+                if clip.end - boundary > 0.000001 { pieces.append(piece(boundary, clip.end)) }
+                return pieces
+
+                func piece(_ start: Double, _ end: Double) -> MediaTimelineClip {
+                    var result = clip
+                    if !pieces.isEmpty { result.id = UUID() }
+                    result.start = start - ordered.reduce(0) { $0 + max(0, min($1.end, start) - $1.start) }
+                    result.sourceStart += start - clip.start
+                    result.duration = end - start
+                    if let link = clip.linkID {
+                        if let existing = links[link]?[start] { result.linkID = existing }
+                        else {
+                            let new = UUID()
+                            links[link, default: [:]][start] = new
+                            result.linkID = new
+                        }
+                    }
+                    return result
+                }
+            }
+        }
+        video = remaining(video)
+        audio = remaining(audio)
+        duration -= ordered.reduce(0) { $0 + $1.end - $1.start }
+        clearMismatchedLinks()
+        guard !video.isEmpty, validPositions, duration >= video.map(\.end).max() ?? 0 else {
+            self = old; return false
+        }
+        sort()
         return self != old
     }
     private var validPositions: Bool {

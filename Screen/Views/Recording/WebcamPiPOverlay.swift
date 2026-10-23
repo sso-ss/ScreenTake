@@ -16,6 +16,7 @@ final class WebcamPiPOverlay {
     private var frameLayer: CALayer?
     private weak var webcamRecorder: WebcamRecorder?
     private var beautyRenderer: CameraBeautyPreviewRenderer?
+    private var shape: PiPShape = .circle
 
     // MARK: - Show / Hide
 
@@ -26,21 +27,23 @@ final class WebcamPiPOverlay {
         pipSize: PiPSize,
         shape: PiPShape,
         screenBounds: CGRect,
-        beautyAmount: Double = 0, makeup: FaceMakeupSettings = .init()
+        beautyAmount: Double = 0, makeup: FaceMakeupSettings = .init(), mirrored: Bool = false
     ) {
         hide()
         self.webcamRecorder = webcamRecorder
+        self.shape = shape
 
         let diameter = pipSize.fraction * screenBounds.height
+        let width = shape == .cutout ? diameter * 4 / 3 : diameter
         let padding: CGFloat = 20
         let origin = cornerOrigin(
             position: position,
-            diameter: diameter,
+            width: width, height: diameter,
             padding: padding,
             screenBounds: screenBounds
         )
 
-        let frame = NSRect(x: origin.x, y: origin.y, width: diameter, height: diameter)
+        let frame = NSRect(x: origin.x, y: origin.y, width: width, height: diameter)
 
         let window = NSWindow(
             contentRect: frame,
@@ -51,24 +54,24 @@ final class WebcamPiPOverlay {
         window.level = NSWindow.Level(NSWindow.Level.screenSaver.rawValue)
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = true
+        window.hasShadow = shape != .cutout
         window.ignoresMouseEvents = true
         window.hidesOnDeactivate = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         let containerView = NSView(frame: NSRect(origin: .zero, size: frame.size))
         containerView.wantsLayer = true
-        containerView.layer?.cornerRadius = shape == .circle ? diameter / 2 : diameter * 0.18
+        containerView.layer?.cornerRadius = shape == .circle ? diameter / 2 : shape == .roundedSquare ? diameter * 0.18 : 0
         containerView.layer?.masksToBounds = true
         containerView.layer?.borderColor = NSColor.white.cgColor
-        containerView.layer?.borderWidth = 3
+        containerView.layer?.borderWidth = shape == .cutout ? 0 : 3
 
         // Shadow on the backing view
         let backingView = NSView(frame: NSRect(origin: .zero, size: frame.size))
         backingView.wantsLayer = true
         backingView.layer?.cornerRadius = containerView.layer?.cornerRadius ?? 0
         backingView.layer?.shadowColor = NSColor.black.cgColor
-        backingView.layer?.shadowOpacity = 0.4
+        backingView.layer?.shadowOpacity = shape == .cutout ? 0 : 0.4
         backingView.layer?.shadowRadius = 8
         backingView.layer?.shadowOffset = CGSize(width: 0, height: -2)
         backingView.addSubview(containerView)
@@ -77,7 +80,7 @@ final class WebcamPiPOverlay {
         // Expand it to 4:3 aspect so the square circle crops width, not squeezes.
         let aspectRatio: CGFloat = 4.0 / 3.0
         let layerW = diameter * aspectRatio
-        let layerX = (diameter - layerW) / 2
+        let layerX = (width - layerW) / 2
         let fLayer = CALayer()
         fLayer.frame = CGRect(x: layerX, y: 0, width: layerW, height: diameter)
         fLayer.contentsGravity = .resizeAspectFill
@@ -99,7 +102,8 @@ final class WebcamPiPOverlay {
         let renderer = CameraBeautyPreviewRenderer(layer: fLayer)
         renderer.setDisplayPixelSize(CGSize(width: fLayer.bounds.width * window.backingScaleFactor,
                                            height: fLayer.bounds.height * window.backingScaleFactor))
-        renderer.configure(recorder: webcamRecorder, amount: beautyAmount, makeup: makeup)
+        renderer.configure(recorder: webcamRecorder, amount: beautyAmount, makeup: makeup,
+                           mirrored: mirrored, removeBackground: shape == .cutout)
         beautyRenderer = renderer
     }
 
@@ -124,29 +128,30 @@ final class WebcamPiPOverlay {
     func updatePosition(_ position: PiPPosition, pipSize: PiPSize, screenBounds: CGRect) {
         guard let window = overlayWindow else { return }
         let diameter = pipSize.fraction * screenBounds.height
+        let width = shape == .cutout ? diameter * 4 / 3 : diameter
         let padding: CGFloat = 20
         let origin = cornerOrigin(
             position: position,
-            diameter: diameter,
+            width: width, height: diameter,
             padding: padding,
             screenBounds: screenBounds
         )
-        window.setFrame(NSRect(x: origin.x, y: origin.y, width: diameter, height: diameter), display: true)
+        window.setFrame(NSRect(x: origin.x, y: origin.y, width: width, height: diameter), display: true)
     }
 
     // MARK: - Helpers
 
     private func cornerOrigin(
         position: PiPPosition,
-        diameter: CGFloat,
+        width: CGFloat, height: CGFloat,
         padding: CGFloat,
         screenBounds: CGRect
     ) -> CGPoint {
         return CGPoint(
             x: screenBounds.minX + padding
-                + (screenBounds.width - diameter - 2 * padding) * position.horizontalFraction,
+                + (screenBounds.width - width - 2 * padding) * position.horizontalFraction,
             y: screenBounds.minY + padding
-                + (screenBounds.height - diameter - 2 * padding) * (1 - position.verticalFraction)
+                + (screenBounds.height - height - 2 * padding) * (1 - position.verticalFraction)
         )
     }
 }

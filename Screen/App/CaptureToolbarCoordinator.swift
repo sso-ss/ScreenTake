@@ -22,6 +22,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
     @Published var recordingDuration: TimeInterval = 0
     @Published var statusMessage: String = ""
     @Published var isZoomedIn: Bool = false
+    @Published private(set) var isZoomAvailable: Bool = true
     @Published var isWebcamActive: Bool = false
     @Published var isWebcamAvailable: Bool = false
 
@@ -280,12 +281,15 @@ final class CaptureToolbarCoordinator: ObservableObject {
             do {
                 try await appState.recording.startRecording(appState: appState)
                 self.toolbarPhase = .recording
+                self.isZoomAvailable = appState.capture.zoomEnabled
                 self.isMicrophoneEnabled = appState.recording.recordingCoordinator?.isMicrophoneEnabled ?? false
                 self.statusMessage = appState.capture.isMicrophoneEnabled && !self.isMicrophoneEnabled
                     ? "Microphone is unavailable. Check Audio settings and microphone access."
                     : ""
                 Log.recording.info("Recording started")
-                self.zoomIndicator.showBorder(captureBounds: self.captureTargetBounds())
+                if self.isZoomAvailable {
+                    self.zoomIndicator.showBorder(captureBounds: self.captureTargetBounds())
+                }
                 self.showWebcamPiPIfNeeded()
                 self.startRecordingShortcuts()
             } catch {
@@ -317,6 +321,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
     }
 
     func toggleZoom() {
+        guard isZoomAvailable else { return }
         Log.app.info("CaptureToolbarCoordinator.toggleZoom() called, isZoomedIn was \(self.isZoomedIn)")
         appState?.recording.toggleZoom()
         isZoomedIn.toggle()
@@ -398,7 +403,7 @@ final class CaptureToolbarCoordinator: ObservableObject {
             pipSize: capture.webcamPiPSize,
             shape: capture.webcamPiPShape,
             screenBounds: bounds,
-            beautyAmount: capture.faceBeautyAmount, makeup: capture.faceMakeup
+            beautyAmount: capture.faceBeautyAmount, makeup: capture.faceMakeup, mirrored: capture.isCameraMirrored
         )
     }
 

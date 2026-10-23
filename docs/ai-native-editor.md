@@ -49,7 +49,7 @@ data needed for click zoom, cursor rendering, webcam composition, trim, and narr
 File → Save Project… (Shift-Command-S) writes a `.screentake` package. File → Open
 Project… (Shift-Command-O) restores the draft into the same editor session. Version 2
 stores the complete `VideoEditSettings`, including exact reordered timeline times,
-camera sections and take timing, crop, zooms, voiceovers, volumes, and resolution.
+camera sections and take timing, crop, zooms, text layers, voiceovers, volumes, and resolution.
 The package embeds source video, Duo phone video, audio, mouse data, camera takes,
 and narration under `media/`; its JSON uses only package-relative media paths.
 
@@ -78,8 +78,9 @@ Supported operations:
 | `open_video`, `open_project` | Absolute local path; replacing existing work requires current project ID/revision and explicit `discardUnsaved` when needed |
 | `save_project` | Absolute `.screentake` path |
 | `apply_edits` | Partial typed settings batch, committed as one undo operation |
+| `set_browser_toolbar_hidden` | Detect browser content in the current preview frame and crop its toolbar, or restore the previous crop |
 | `undo`, `redo` | Shared editor history |
-| `find_silences` | Job with suggested removals in retained source-time ranges |
+| `find_silences` | Job with suggested removals for original or added audio |
 | `render_preview` | Job with PNG artifacts at 1–12 edited-video timestamps |
 | `export_video` | Job rendering and atomically saving to an absolute local path |
 | `get_job`, `cancel_job` | Job ID; inspect or cancel queued/running work |
@@ -111,6 +112,83 @@ reusing the ID with different parameters returns `request_id_reused`. Export ret
 return the same job with its latest status, including a failed or cancelled job.
 Commands rejected before execution are not cached; use a new request ID to start
 another job after a failure or cancellation.
+
+### Text, camera styles, and timeline tracks
+
+`apply_edits.textOverlays` replaces the complete text layer array, in back-to-front
+order (maximum 100). A new layer requires `id`, `text`, `start`, and `duration`;
+omitted appearance fields use native defaults. Preserve full existing layer objects
+and UUIDs when modifying one layer or adding another. `[]` removes all text.
+
+Text times use edited-video seconds. Position `x`/`y` is the layer center on the
+output canvas, normalized from the top-left. Font sizes, spacing, padding, outline
+widths and background radii use a 1080-point canvas height. `scale` applies to both
+axes when `uniformScale` is true; otherwise `scaleY` controls vertical scaling.
+Rotation uses degrees and colors use `#RRGGBB`. The MCP schema lists all styling
+fields, enums and bounds. For example, append this object to the existing array:
+
+```json
+{
+  "id": "22607588-CA38-46CA-9305-6AE810090771",
+  "text": "Your title",
+  "start": 0.5,
+  "duration": 2,
+  "fontSize": 96,
+  "bold": true,
+  "x": 0.5,
+  "y": 0.2
+}
+```
+
+Use `cameraEffectSelection: {"style":"natural","intensity":0.5}` (or
+`peachMakeup`) with `cameraEffectsEnabled` for the exclusive camera style picker.
+Selection alone preserves enablement. Disabling effects keeps the preferred style,
+intensity and makeup component values, so enabling restores them. These fields
+take precedence over legacy `faceBeautyAmount`/`faceMakeup.amount` in the same batch.
+
+The editor `zoomEnabled` master and the capture Auto Zoom preference are separate.
+`restoreAutomaticZooms: true` restores generated editor sections without changing
+the master. `zoomSegments: []` leaves no sections. Capture preferences are outside
+the editor command API.
+
+Text and narration filmstrips automatically reuse rows for non-overlapping clips,
+adding rows only for overlaps. The track viewport stops at 240 points and scrolls
+internally; row indices, maximum height and drawer state are UI concerns, not
+editable project settings. Existing narration timing/volume MCP fields continue
+to drive the same UI, playback and export behavior.
+
+The same editor batch supports the camera `webcamShape: "cutout"` and the `silk`,
+`pastel`, `breeze`, and `mint` wallpaper presets. To import a custom background,
+pass an absolute local image path as `customBackgroundImagePath`; ScreenTake
+converts it to a bounded embedded PNG. `clearCustomBackgroundImage: true` removes
+the custom image, and choosing a wallpaper also clears it. An image path wins if
+both are supplied in one batch.
+
+Independent recorded audio is available as `recordedAudioClips`, an array of
+`{id, start, sourceStart, duration, linkID?}`. `trim.clips` uses the same clip
+shape for video, and `trim.timelineLength` preserves output gaps. Arrays replace
+the full prior value, so preserve IDs and link IDs when editing one section.
+Linked audio and video clips must have matching timing. `closeTimelineGaps` sets
+the editor's close gaps preference for subsequent timeline cuts.
+
+`find_silences` still returns source-time suggestions for original audio by
+default. Set `outputTime: true` to map original audio into edited-video seconds,
+including independent recorded audio placements. Set `audioTrackID` to a
+`voiceOvers` clip UUID to analyze that added audio; its suggestions are always in
+edited-video seconds. The job reports `suggestionTimebase`. Review the cuts, then
+apply source-time suggestions with `removeRanges`, or output-time suggestions with
+`removeOutputRanges`. Output cuts ripple the video, recorded audio, and added
+audio together in one undoable edit.
+
+`set_browser_toolbar_hidden` takes `hidden: true` or `false` with the current
+project ID and revision. It uses the editor's browser content detector at the
+current preview frame, and returns an error if no valid content is found.
+
+The project skill at `.agents/skills/screentake-editor/SKILL.md` documents the MCP
+editing workflow, replacement-array semantics, text coordinates, camera styles,
+and preview/export verification. MCP helper version 1.3.0 adds the new background,
+camera cutout, audio timeline, and silence cleanup fields. Restart an older
+helper/client connection to refresh its tool schema after updating ScreenTake.
 
 Jobs move through `queued`, `running`, and a terminal `succeeded`, `failed`, or
 `cancelled` state; cancellation can report `cancelling` while resources shut down.
@@ -201,7 +279,7 @@ and reassess. Paths are absolute local paths; nested media references are `file:
 URLs. Nested objects replace their fields using the native defaults where supported;
 omitted top-level edit fields remain unchanged. Cuts, zoom segments, and narration
 clips require their own UUID identifiers, as advertised in the schema. Silence
-suggestions use source seconds; preview timestamps use edited-video seconds.
+suggestion timebase is reported by each job; preview timestamps use edited-video seconds.
 Jobs outlive bridge disconnects. After a lost response, retry using identical
 arguments and the same `requestID`; a command may already have completed. Do not
 repeat a failed/cancelled export with its old ID when intending to start a new job.

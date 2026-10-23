@@ -24,6 +24,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let updates = AppState.shared.updates
+        let safety = updates.safety
+        if safety.recording || safety.processing || safety.selecting || safety.unsavedWork {
+            updates.showSafetyMessage()
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         menuBarController?.remove()
         AppState.shared.editorConnection.stop()
@@ -144,7 +154,7 @@ final class ScreenTakeMenuBarController: NSObject, NSMenuDelegate {
         }
         updateItem.isEnabled = canUseActions
         checkItem.title = AppLanguage.text(appState.updates.isChecking ? "Checking for Updates…" : "Check for Updates...")
-        checkItem.isEnabled = canUseActions && !appState.updates.isChecking
+        checkItem.isEnabled = canUseActions && appState.updates.canCheckForUpdates
         quitItem.title = AppLanguage.text("Quit ScreenTake")
         quitItem.isEnabled = !isBusy
     }
@@ -276,6 +286,11 @@ struct ScreenApp: App {
                 Button(AppLanguage.text("Save Project…")) { saveProjectFile() }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
                     .disabled(appState.editorSession.videoURL == nil || appState.editorSession.isBusy)
+                Button(AppLanguage.text("Export Video…")) {
+                    NotificationCenter.default.post(name: .exportEditorVideo, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .disabled(appState.editorSession.videoURL == nil || appState.editorSession.isBusy || !appState.editorSession.hasValidTimeline)
                 Divider()
 
                 Button(AppLanguage.text("Start Recording")) {

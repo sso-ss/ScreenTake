@@ -264,3 +264,74 @@
 "Face definition" = "Definición facial";
 
 "Under-eye shadow" = "Sombra bajo los ojos";
+
+"Mirror Camera" = "Reflejar cámara";
+"Flip the camera horizontally in preview and export." = "Invierte horizontalmente la cámara en la vista previa y la exportación.";
+"Editing shortcuts" = "Atajos de edición";
+"Play / Pause" = "Reproducir / Pausar";
+"Reverse / Pause / Play" = "Reversa / Pausar / Reproducir";
+"Previous / Next Frame" = "Fotograma anterior / siguiente";
+"Seek One Second" = "Avanzar o retroceder un segundo";
+"Go to start / end" = "Ir al inicio / final";
+"Split at Playhead" = "Dividir en el cabezal";
+"Undo / Redo" = "Deshacer / Rehacer";
+"Delete Selection" = "Eliminar selección";
+"Link / Unlink Audio" = "Vincular / Desvincular audio";
+"Zoom Timeline In / Out" = "Ampliar / Reducir línea de tiempo";
+"Export Video…" = "Exportar vídeo…";
+"Playback keys are available while editing, outside text fields." = "Las teclas de reproducción funcionan al editar, fuera de los campos de texto.";
+
+// Automatic updates
+"Updates" = "Actualizaciones";
+"Automatically check for updates" = "Buscar actualizaciones automáticamente";
+"Automatically download and install updates on quit" = "Descargar e instalar actualizaciones automáticamente al salir";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "Las actualizaciones se instalan al salir. Primero termina la grabación y el procesamiento de medios, y guarda los proyectos.";
+"Automatic installation is optional. You can always check and install updates manually here." = "La instalación automática es opcional. Puedes buscar e instalar actualizaciones manualmente aquí en cualquier momento.";
+"Install and Relaunch" = "Instalar y reiniciar";
+"ScreenTake is keeping your work safe" = "ScreenTake está protegiendo tu trabajo";
+"Finish recording before updating or quitting." = "Termina la grabación antes de actualizar o salir.";
+"Wait for media processing to finish before updating or quitting." = "Espera a que termine el procesamiento de medios antes de actualizar o salir.";
+"Close the capture controls before updating or quitting." = "Cierra los controles de captura antes de actualizar o salir.";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "Guarda el proyecto antes de instalar la actualización o salir. Exportar un video no guarda el proyecto editable.";
+"Complete permission setup before checking for updates." = "Completa la configuración de permisos antes de buscar actualizaciones.";
+"You’re up to date." = "Tienes la última versión.";
+"Unable to check for updates. Try again later." = "No se pueden buscar actualizaciones. Inténtalo más tarde.";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "No se puede iniciar el actualizador. Reinstala la última versión de ScreenTake.";
+
+"Zoom transition" = "Transición de zoom";
+"Zoom transition motion" = "Movimiento de la transición de zoom";
+
+"Set Zoom Area" = "Definir área de zoom";
+"Zoom Area" = "Área de zoom";
+"Top" = "Arriba";
+"Bottom" = "Abajo";
+"Loading zoom preview" = "Cargando vista de zoom";
+"Drag in the zoom track to choose when to zoom, then set its area." = "Arrastra en la pista de zoom para elegir cuándo ampliar y después define el área.";
+"Selected zoom area" = "Área de zoom seleccionada";
+"Drag to reposition the zoom area" = "Arrastra para mover el área de zoom";
+"Left top zoom handle" = "Control superior izquierdo del zoom";
+"Right top zoom handle" = "Control superior derecho del zoom";
+"Left bottom zoom handle" = "Control inferior izquierdo del zoom";
+"Right bottom zoom handle" = "Control inferior derecho del zoom";
+"Preview Zoom" = "Vista previa del zoom";
+"Select Area" = "Seleccionar área";
+"Area magnification" = "Ampliación del área";
+"Could not load this frame. Try another point in the video." = "No se pudo cargar este fotograma. Prueba otro punto del vídeo.";
+"Starts at %.1fs · %.1f×" = "Inicio en %.1fs · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "Fondo personalizado";
+"Upload Image…" = "Subir imagen…";
+"Replace Image…" = "Reemplazar imagen…";
+"Remove custom background" = "Quitar fondo personalizado";
+"Return to the selected preset background." = "Volver al fondo predefinido seleccionado.";
+"Upload custom background image" = "Subir imagen de fondo personalizada";
+"Choose an image to fill the canvas background." = "Elige una imagen para llenar el fondo del lienzo.";
+"Choose Background Image" = "Elegir imagen de fondo";
+"Choose Image" = "Elegir imagen";
+"Could Not Import Background" = "No se pudo importar el fondo";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "Elige un archivo de imagen válido, como PNG, JPEG o HEIC.";
+"Silk" = "Seda";
+"Pastel" = "Pastel";
+"Breeze" = "Brisa";
+"Mint" = "Menta";

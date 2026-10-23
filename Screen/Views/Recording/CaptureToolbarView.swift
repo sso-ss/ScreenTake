@@ -187,7 +187,8 @@ struct CaptureToolbarView: View {
             }
             .buttonStyle(.plain)
             .localizedAccessibilityLabel(coordinator.isZoomedIn ? "Zoom out" : "Zoom in")
-            .hoverHelp(coordinator.isZoomedIn ? "Zoom out (Ctrl+Z)" : "Zoom in (Ctrl+Z)")
+            .disabled(!coordinator.isZoomAvailable)
+            .hoverHelp(!coordinator.isZoomAvailable ? "Turn on Zoom in Cursor settings before recording." : coordinator.isZoomedIn ? "Zoom out (Ctrl+Z)" : "Zoom in (Ctrl+Z)")
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: coordinator.isZoomedIn)
 
             // Webcam toggle

@@ -1,6 +1,8 @@
 import Foundation
 import CoreImage
 import CoreGraphics
+import CoreVideo
+import Vision
 
 /// Composites a shaped webcam PiP overlay onto a screen frame.
 final class WebcamCompositor {
@@ -12,6 +14,7 @@ final class WebcamCompositor {
     private var cachedBeautyAmount = 0.0
     private var cachedMakeup = FaceMakeupSettings()
     private var cachedBeautyImage: CIImage?
+    private let personCutout = PersonCutout()
     private(set) var filteredFrameCount = 0
 
     /// Padding from screen edge for the PiP circle.
@@ -21,6 +24,7 @@ final class WebcamCompositor {
     private let maskImage: CIImage
     private let borderRing: CIImage
     private let diameter: CGFloat
+    private let pipWidth: CGFloat
     private let borderWidth: CGFloat = 2
     private let pipOrigin: CGPoint
     private let borderOrigin: CGPoint
@@ -31,6 +35,7 @@ final class WebcamCompositor {
         self.position = position
         self.shape = shape
         self.diameter = outputSize.height * pipSize.fraction
+        self.pipWidth = shape == .cutout ? diameter * 4 / 3 : diameter
 
         // Pre-generate mask and border once
         self.maskImage = Self.createMask(diameter: diameter, shape: shape)
@@ -39,7 +44,7 @@ final class WebcamCompositor {
         self.pipOrigin = Self.calculateOrigin(
             position: position,
             outputSize: outputSize,
-            diameter: diameter
+            width: pipWidth, height: diameter
         )
         self.borderOrigin = CGPoint(
             x: pipOrigin.x - borderWidth,
@@ -47,13 +52,23 @@ final class WebcamCompositor {
         )
     }
 
+    static func mirrored(_ image: CIImage) -> CIImage {
+        image.transformed(by: CGAffineTransform(a: -1, b: 0, c: 0, d: 1,
+                                                tx: image.extent.minX + image.extent.maxX, ty: 0))
+    }
+
     func composite(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   mirrored: Bool = false,
                    faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil,
                    beautyAmount: Double = 0, beautyTime: Double = 0, makeup: FaceMakeupSettings = .init()) -> CIImage {
-        compositeFiltered(webcamImage: filteredFrame(webcamImage, at: beautyTime, amount: beautyAmount, makeup: makeup),
-                          onto: screenImage, settings: settings, faceFocus: faceFocus, transition: transition)
+        let filtered = filteredFrame(webcamImage, at: beautyTime, amount: beautyAmount, makeup: makeup)
+        let prepared = shape == .cutout
+            ? personCutout.apply(to: filtered, source: webcamImage, at: beautyTime)
+            : filtered
+        return compositeFiltered(webcamImage: prepared,
+                          onto: screenImage, settings: settings, mirrored: mirrored, faceFocus: faceFocus, transition: transition)
     }
 
     /// A camera sample can span several 60fps output frames. Cache its pixels,
@@ -91,44 +106,54 @@ final class WebcamCompositor {
     /// Filter exactly once, before any crop, layout transition or shape mask.
     private func compositeFiltered(webcamImage: CIImage, onto screenImage: CIImage,
                    settings: CameraLayoutSettings = CameraLayoutSettings(),
+                   mirrored: Bool = false,
                    faceFocus: FaceTrackingTrack.Focus? = nil,
                    transition: CameraLayoutTransition? = nil) -> CIImage {
         if let transition {
             if transition.progress <= 0 {
-                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.from, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.from, mirrored: mirrored, faceFocus: faceFocus)
             }
             if transition.progress >= 1 {
-                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.to, faceFocus: faceFocus)
+                return compositeFiltered(webcamImage: webcamImage, onto: screenImage, settings: transition.to, mirrored: mirrored, faceFocus: faceFocus)
             }
-            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, faceFocus: faceFocus)
+            return transitioning(webcamImage: webcamImage, onto: screenImage, transition: transition, mirrored: mirrored, faceFocus: faceFocus)
         }
         let focus = settings.followFace ? faceFocus : nil
         if settings.layout == .fullScreen {
             let bounds = screenImage.extent
             let manualCrop = settings.crop(in: webcamImage.extent, output: bounds.size)
             let crop = focus?.crop(in: webcamImage.extent, fallback: manualCrop) ?? manualCrop
-            return webcamImage.cropped(to: crop)
+            let cropped = webcamImage.cropped(to: crop)
+            return (mirrored ? Self.mirrored(cropped) : cropped)
                 .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
                 .transformed(by: CGAffineTransform(scaleX: bounds.width / crop.width, y: bounds.height / crop.height))
                 .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY))
                 .cropped(to: bounds)
         }
-        // Center-crop the webcam to a square, then scale to target diameter
+        // Keep more of the shoulders for a cutout; framed styles remain square.
         let webcamExtent = webcamImage.extent
-        let minSide = min(webcamExtent.width, webcamExtent.height)
-        let cropOriginX = webcamExtent.origin.x + (webcamExtent.width - minSide) / 2
-        let cropOriginY = webcamExtent.origin.y + (webcamExtent.height - minSide) / 2
-        let centeredCrop = CGRect(x: cropOriginX, y: cropOriginY, width: minSide, height: minSide)
-        let squareCrop = focus?.crop(in: webcamExtent, fallback: centeredCrop) ?? centeredCrop
+        let aspect = shape == .cutout ? CGFloat(4.0 / 3.0) : 1
+        let cropWidth = min(webcamExtent.width, webcamExtent.height * aspect)
+        let cropHeight = min(webcamExtent.height, cropWidth / aspect)
+        let centeredCrop = CGRect(x: webcamExtent.midX - cropWidth / 2, y: webcamExtent.midY - cropHeight / 2,
+                                  width: cropWidth, height: cropHeight)
+        let cameraCrop = focus?.crop(in: webcamExtent, fallback: centeredCrop) ?? centeredCrop
 
-        let scale = diameter / squareCrop.width
-        let scaled = webcamImage
-            .cropped(to: squareCrop)
+        let scale = min(pipWidth / cameraCrop.width, diameter / cameraCrop.height)
+        let cropped = webcamImage.cropped(to: cameraCrop)
+        let scaled = (mirrored ? Self.mirrored(cropped) : cropped)
             .transformed(by: CGAffineTransform(
-                translationX: -squareCrop.origin.x,
-                y: -squareCrop.origin.y
+                translationX: -cameraCrop.origin.x,
+                y: -cameraCrop.origin.y
             ))
             .transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+        if shape == .cutout {
+            let origin = CGPoint(x: pipOrigin.x + (pipWidth - cameraCrop.width * scale) / 2,
+                                 y: pipOrigin.y + (diameter - cameraCrop.height * scale) / 2)
+            return scaled.transformed(by: CGAffineTransform(translationX: origin.x, y: origin.y))
+                .composited(over: screenImage).cropped(to: screenImage.extent)
+        }
 
         // Apply cached shape mask
         let masked = scaled.applyingFilter("CIBlendWithMask", parameters: [
@@ -148,15 +173,17 @@ final class WebcamCompositor {
     }
 
     private func transitioning(webcamImage: CIImage, onto screenImage: CIImage,
-                               transition: CameraLayoutTransition, faceFocus: FaceTrackingTrack.Focus?) -> CIImage {
+                               transition: CameraLayoutTransition, mirrored: Bool, faceFocus: FaceTrackingTrack.Focus?) -> CIImage {
         let bounds = screenImage.extent
         let source = webcamImage.extent
-        let overlay = CGRect(origin: pipOrigin, size: CGSize(width: diameter, height: diameter))
-        let square = CGRect(x: source.midX - min(source.width, source.height) / 2,
-                            y: source.midY - min(source.width, source.height) / 2,
-                            width: min(source.width, source.height), height: min(source.width, source.height))
+        let overlay = CGRect(origin: pipOrigin, size: CGSize(width: pipWidth, height: diameter))
+        let aspect = shape == .cutout ? CGFloat(4.0 / 3.0) : 1
+        let cropWidth = min(source.width, source.height * aspect)
+        let cropHeight = min(source.height, cropWidth / aspect)
+        let overlayCrop = CGRect(x: source.midX - cropWidth / 2, y: source.midY - cropHeight / 2,
+                                 width: cropWidth, height: cropHeight)
         func crop(_ settings: CameraLayoutSettings) -> CGRect {
-            let fallback = settings.layout == .fullScreen ? settings.crop(in: source, output: bounds.size) : square
+            let fallback = settings.layout == .fullScreen ? settings.crop(in: source, output: bounds.size) : overlayCrop
             return settings.followFace ? faceFocus?.crop(in: source, fallback: fallback) ?? fallback : fallback
         }
         let amount = CGFloat(transition.progress)
@@ -178,10 +205,12 @@ final class WebcamCompositor {
         let cropRect = CGRect(x: min(source.maxX - width, max(source.minX, mix(fromCrop.midX, toCrop.midX) - width / 2)),
                               y: min(source.maxY - height, max(source.minY, mix(fromCrop.midY, toCrop.midY) - height / 2)),
                               width: width, height: height)
-        let image = webcamImage.cropped(to: cropRect)
+        let cropped = webcamImage.cropped(to: cropRect)
+        let image = (mirrored ? Self.mirrored(cropped) : cropped)
             .transformed(by: CGAffineTransform(translationX: -cropRect.minX, y: -cropRect.minY))
             .transformed(by: CGAffineTransform(scaleX: rect.width / cropRect.width, y: rect.height / cropRect.height))
             .transformed(by: CGAffineTransform(translationX: rect.minX, y: rect.minY))
+        if shape == .cutout { return image.composited(over: screenImage).cropped(to: bounds) }
         let overlayRadius = diameter * (shape == .circle ? 0.5 : 0.18)
         let radius = mix(fromFull ? 0 : overlayRadius, toFull ? 0 : overlayRadius)
         func mask(_ extent: CGRect, radius: CGFloat, alpha: CGFloat = 1) -> CIImage {
@@ -245,16 +274,74 @@ final class WebcamCompositor {
         case .roundedSquare:
             return CGPath(roundedRect: rect, cornerWidth: rect.width * 0.18,
                           cornerHeight: rect.height * 0.18, transform: nil)
+        case .cutout:
+            return CGPath(rect: rect, transform: nil)
         }
     }
 
     private static func calculateOrigin(
-        position: PiPPosition, outputSize: CGSize, diameter: CGFloat
+        position: PiPPosition, outputSize: CGSize, width: CGFloat, height: CGFloat
     ) -> CGPoint {
         let padding = edgePadding
         return CGPoint(
-            x: padding + (outputSize.width - diameter - 2 * padding) * position.horizontalFraction,
-            y: padding + (outputSize.height - diameter - 2 * padding) * (1 - position.verticalFraction)
+            x: padding + (outputSize.width - width - 2 * padding) * position.horizontalFraction,
+            y: padding + (outputSize.height - height - 2 * padding) * (1 - position.verticalFraction)
         )
+    }
+}
+
+/// Reuses the person mask while one camera sample is held across output frames.
+/// The source frame is used for detection so beauty adjustments do not change
+/// the silhouette between preview and export.
+final class PersonCutout {
+    private let lock = NSLock()
+    private var request = PersonCutout.makeRequest()
+    private var cachedSource: CIImage?
+    private var cachedTime: Double?
+    private var cachedMask: CIImage?
+
+    func apply(to image: CIImage, source: CIImage, at time: Double) -> CIImage {
+        lock.lock()
+        defer { lock.unlock() }
+        let mask: CIImage?
+        if cachedSource === source, cachedTime == time {
+            mask = cachedMask
+        } else {
+            if let cachedTime, time < cachedTime { request = Self.makeRequest() }
+            cachedSource = source
+            cachedTime = time
+            cachedMask = makeMask(for: source)
+            mask = cachedMask
+        }
+        guard let mask else { return image }
+        return image.applyingFilter("CIBlendWithMask", parameters: [
+            kCIInputBackgroundImageKey: CIImage(color: .clear).cropped(to: image.extent),
+            kCIInputMaskImageKey: mask
+        ]).cropped(to: image.extent)
+    }
+
+    private func makeMask(for source: CIImage) -> CIImage? {
+        do {
+            try VNImageRequestHandler(ciImage: source, options: [:]).perform([request])
+            guard let buffer = request.results?.first?.pixelBuffer else { return nil }
+            let small = CIImage(cvPixelBuffer: buffer)
+            guard small.extent.width > 0, small.extent.height > 0 else { return nil }
+            let scaled = small.transformed(by: CGAffineTransform(
+                scaleX: source.extent.width / small.extent.width,
+                y: source.extent.height / small.extent.height))
+                .transformed(by: CGAffineTransform(translationX: source.extent.minX, y: source.extent.minY))
+            return scaled.applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1])
+                .cropped(to: source.extent)
+        } catch {
+            Log.app.error("Background removal failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private static func makeRequest() -> VNGeneratePersonSegmentationRequest {
+        let request = VNGeneratePersonSegmentationRequest()
+        request.qualityLevel = .balanced
+        request.outputPixelFormat = kCVPixelFormatType_OneComponent8
+        return request
     }
 }

@@ -37,6 +37,7 @@ struct ContentView: View {
 // MARK: - Notifications
 
 extension Notification.Name {
+    static let exportEditorVideo = Notification.Name("exportEditorVideo")
     static let openAppSettings = Notification.Name("openAppSettings")
     static let openVideoFile = Notification.Name("openVideoFile")
     static let openProjectFile = Notification.Name("openProjectFile")

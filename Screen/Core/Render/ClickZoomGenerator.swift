@@ -25,6 +25,7 @@ enum ClickZoomGenerator {
         var mergeDistance: CGFloat = 0.35
         /// Duration to pan between clicks during an active zoom (seconds).
         var panDuration: TimeInterval = 0.4
+        var transitionMotion: ZoomTransitionMotion = .smooth
     }
 
     /// Generate camera keyframes from mouse recording data.
@@ -35,11 +36,16 @@ enum ClickZoomGenerator {
     ///   - settings: Zoom timing and level settings.
     /// - Returns: Array of camera keyframes for the FrameEvaluator.
     static func generate(
-        from mouseDataURL: URL,
+        from mouseDataURL: URL?,
         sourceVideoURL: URL? = nil,
         settings: Settings = Settings(),
-        segments: [ZoomSegment]? = nil
+        segments: [ZoomSegment]? = nil,
+        crop: PhoneCrop = PhoneCrop()
     ) async throws -> [CameraKeyframe] {
+        guard let mouseDataURL else {
+            return generate(segments: segments ?? [], zoomLevel: settings.zoomLevel,
+                            transitionMotion: settings.transitionMotion, crop: crop)
+        }
         let data = try Data(contentsOf: mouseDataURL)
         let recording = try JSONDecoder().decode(
             MouseDataRecorder.MouseRecording.self, from: data
@@ -53,7 +59,8 @@ enum ClickZoomGenerator {
 
         if let segments {
             return generate(segments: segments, positions: recording.positions,
-                            paddingRatio: paddingRatio, zoomLevel: settings.zoomLevel)
+                            paddingRatio: paddingRatio, zoomLevel: settings.zoomLevel,
+                            transitionMotion: settings.transitionMotion, crop: crop)
         }
         return generate(from: recording, paddingRatio: paddingRatio, settings: settings)
     }
@@ -117,21 +124,25 @@ enum ClickZoomGenerator {
         segments: [ZoomSegment],
         positions: [MouseDataRecorder.MousePosition] = [],
         paddingRatio: CGFloat = 0,
-        zoomLevel: CGFloat = 2
+        zoomLevel: CGFloat = 2,
+        transitionMotion: ZoomTransitionMotion = .smooth,
+        crop: PhoneCrop = PhoneCrop()
     ) -> [CameraKeyframe] {
         let contentScale = 1 - 2 * paddingRatio
         var keyframes = [CameraKeyframe(time: 0, transform: .identity, easing: .linear)]
-        for segment in segments.sorted(by: { $0.start < $1.start }) where segment.start.isFinite && segment.end.isFinite && segment.centerX.isFinite && segment.centerY.isFinite && segment.end > segment.start && zoomLevel > 1 {
+        for segment in segments.sorted(by: { $0.start < $1.start }) where segment.start.isFinite && segment.end.isFinite && segment.centerX.isFinite && segment.centerY.isFinite && segment.end > segment.start && segment.magnification(default: Double(zoomLevel)) > 1 {
             let start = max(0, segment.start)
             let end = max(start + 0.1, segment.end)
-            let target = CameraTransform(
+            let target = segment.manualRegion?.camera(in: crop) ?? CameraTransform(
                 zoom: min(4, max(1.1, zoomLevel)),
                 centerX: paddingRatio + CGFloat(min(1, max(0, segment.centerX))) * contentScale,
                 centerY: paddingRatio + CGFloat(1 - min(1, max(0, segment.centerY))) * contentScale
             ).clamped()
-            appendClickTransition(to: &keyframes, at: start, target: target, duration: min(0.6, (end - start) / 3))
+            appendClickTransition(to: &keyframes, at: start, target: target,
+                                  duration: min(0.6, (end - start) / 3), easing: transitionMotion.easing)
             keyframes.append(CameraKeyframe(time: end, transform: target, easing: .linear))
-            appendClickTransition(to: &keyframes, at: end, target: .identity, duration: 0.6)
+            appendClickTransition(to: &keyframes, at: end, target: .identity, duration: 0.6,
+                                  easing: transitionMotion.easing)
         }
         keyframes = deduplicateByTime(keyframes)
         guard !positions.isEmpty else { return keyframes }
@@ -141,7 +152,7 @@ enum ClickZoomGenerator {
         let ordered = segments.sorted { $0.start < $1.start }
         let fixedIntervals = ordered.indices.compactMap { index -> (Double, Double)? in
             let segment = ordered[index]
-            guard !segment.followsCursor else { return nil }
+            guard !segment.followsCursor || segment.manualRegion != nil else { return nil }
             let nextStart = index + 1 < ordered.count ? ordered[index + 1].start : .infinity
             return (segment.start, min(segment.end + 0.6, nextStart))
         }
@@ -264,7 +275,8 @@ enum ClickZoomGenerator {
             ).clamped() : .identity
             appendClickTransition(
                 to: &keyframes, at: max(0, marker.timestamp), target: target,
-                duration: marker.isZoomIn ? settings.zoomInDuration : settings.zoomOutDuration
+                duration: marker.isZoomIn ? settings.zoomInDuration : settings.zoomOutDuration,
+                easing: settings.transitionMotion.easing
             )
         }
         if let last = keyframes.last, let end = positions.last?.timestamp, end > last.time {
@@ -357,7 +369,8 @@ enum ClickZoomGenerator {
                 }
                 let duration = current.zoom < settings.zoomLevel - 0.0001
                     ? settings.zoomInDuration : settings.panDuration
-                appendClickTransition(to: &keyframes, at: start, target: target, duration: duration)
+                appendClickTransition(to: &keyframes, at: start, target: target, duration: duration,
+                                      easing: settings.transitionMotion.easing)
                 movementEnd = start + max(0, duration)
                 lastRetargetTime = clickTime
             }
@@ -366,7 +379,8 @@ enum ClickZoomGenerator {
             keyframes.removeAll { $0.time > holdStart }
             holdEnd = max(holdStart, clickTime + settings.holdDuration)
             keyframes.append(CameraKeyframe(time: holdEnd, transform: target, easing: .linear))
-            appendClickTransition(to: &keyframes, at: holdEnd, target: .identity, duration: settings.zoomOutDuration)
+            appendClickTransition(to: &keyframes, at: holdEnd, target: .identity, duration: settings.zoomOutDuration,
+                                  easing: settings.transitionMotion.easing)
             previousClickTime = clickTime
         }
 
@@ -379,7 +393,8 @@ enum ClickZoomGenerator {
         to keyframes: inout [CameraKeyframe],
         at start: TimeInterval,
         target: CameraTransform,
-        duration: TimeInterval
+        duration: TimeInterval,
+        easing: EasingCurve
     ) {
         let current = FrameEvaluator(keyframes: keyframes).evaluate(at: start)
         keyframes.removeAll { $0.time >= start }
@@ -393,7 +408,7 @@ enum ClickZoomGenerator {
             let progress = CGFloat(step) / CGFloat(steps)
             keyframes.append(CameraKeyframe(
                 time: start + duration * Double(progress),
-                transform: current.lerp(to: target, t: EasingCurve.easeInOut.evaluate(progress)),
+                transform: current.lerp(to: target, t: easing.evaluate(progress)),
                 easing: .linear
             ))
         }

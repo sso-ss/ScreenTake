@@ -264,3 +264,74 @@
 "Face definition" = "얼굴 윤곽";
 
 "Under-eye shadow" = "언더 아이 섀도";
+
+"Mirror Camera" = "카메라 좌우 반전";
+"Flip the camera horizontally in preview and export." = "미리보기와 내보내기에서 카메라를 좌우로 반전합니다.";
+"Editing shortcuts" = "편집 단축키";
+"Play / Pause" = "재생 / 일시 정지";
+"Reverse / Pause / Play" = "역재생 / 일시 정지 / 재생";
+"Previous / Next Frame" = "이전 / 다음 프레임";
+"Seek One Second" = "1초 이동";
+"Go to start / end" = "처음 / 끝으로 이동";
+"Split at Playhead" = "재생 헤드에서 분할";
+"Undo / Redo" = "실행 취소 / 다시 실행";
+"Delete Selection" = "선택 항목 삭제";
+"Link / Unlink Audio" = "오디오 연결 / 연결 해제";
+"Zoom Timeline In / Out" = "타임라인 확대 / 축소";
+"Export Video…" = "비디오 내보내기…";
+"Playback keys are available while editing, outside text fields." = "편집 중 텍스트 입력란 밖에서 재생 단축키를 사용할 수 있습니다.";
+
+// Automatic updates
+"Updates" = "업데이트";
+"Automatically check for updates" = "자동으로 업데이트 확인";
+"Automatically download and install updates on quit" = "종료 시 업데이트 자동 다운로드 및 설치";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "업데이트는 앱 종료 시 설치됩니다. 녹화와 미디어 처리를 완료하고 프로젝트를 저장해야 합니다.";
+"Automatic installation is optional. You can always check and install updates manually here." = "자동 설치는 선택 사항입니다. 여기에서 언제든지 업데이트를 직접 확인하고 설치할 수 있습니다.";
+"Install and Relaunch" = "설치 및 다시 실행";
+"ScreenTake is keeping your work safe" = "ScreenTake가 작업을 보호합니다";
+"Finish recording before updating or quitting." = "업데이트하거나 종료하기 전에 녹화를 마치세요.";
+"Wait for media processing to finish before updating or quitting." = "업데이트하거나 종료하기 전에 미디어 처리가 완료될 때까지 기다리세요.";
+"Close the capture controls before updating or quitting." = "업데이트하거나 종료하기 전에 캡처 컨트롤을 닫으세요.";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "업데이트를 설치하거나 종료하기 전에 프로젝트를 저장하세요. 동영상 내보내기는 편집 가능한 프로젝트를 저장하지 않습니다.";
+"Complete permission setup before checking for updates." = "업데이트를 확인하기 전에 권한 설정을 완료하세요.";
+"You’re up to date." = "최신 버전입니다.";
+"Unable to check for updates. Try again later." = "업데이트를 확인할 수 없습니다. 나중에 다시 시도하세요.";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "업데이트 기능을 시작할 수 없습니다. 최신 ScreenTake를 다시 설치하세요.";
+
+"Zoom transition" = "확대 전환";
+"Zoom transition motion" = "확대 전환 움직임";
+
+"Set Zoom Area" = "확대 영역 설정";
+"Zoom Area" = "확대 영역";
+"Top" = "상단";
+"Bottom" = "하단";
+"Loading zoom preview" = "확대 미리보기 불러오는 중";
+"Drag in the zoom track to choose when to zoom, then set its area." = "확대 트랙을 드래그해 확대할 구간을 지정한 다음 영역을 설정하세요.";
+"Selected zoom area" = "선택한 확대 영역";
+"Drag to reposition the zoom area" = "드래그하여 확대 영역 이동";
+"Left top zoom handle" = "확대 영역 왼쪽 위 조절점";
+"Right top zoom handle" = "확대 영역 오른쪽 위 조절점";
+"Left bottom zoom handle" = "확대 영역 왼쪽 아래 조절점";
+"Right bottom zoom handle" = "확대 영역 오른쪽 아래 조절점";
+"Preview Zoom" = "확대 미리보기";
+"Select Area" = "영역 선택";
+"Area magnification" = "영역 확대 배율";
+"Could not load this frame. Try another point in the video." = "이 프레임을 불러올 수 없습니다. 영상의 다른 지점을 선택해 주세요.";
+"Starts at %.1fs · %.1f×" = "시작 %.1f초 · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "사용자 지정 배경";
+"Upload Image…" = "이미지 업로드…";
+"Replace Image…" = "이미지 교체…";
+"Remove custom background" = "사용자 지정 배경 제거";
+"Return to the selected preset background." = "선택한 기본 배경으로 돌아갑니다.";
+"Upload custom background image" = "사용자 지정 배경 이미지 업로드";
+"Choose an image to fill the canvas background." = "캔버스 배경을 채울 이미지를 선택하세요.";
+"Choose Background Image" = "배경 이미지 선택";
+"Choose Image" = "이미지 선택";
+"Could Not Import Background" = "배경을 가져올 수 없음";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "PNG, JPEG, HEIC 등 올바른 이미지 파일을 선택하세요.";
+"Silk" = "실크";
+"Pastel" = "파스텔";
+"Breeze" = "브리즈";
+"Mint" = "민트";

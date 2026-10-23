@@ -51,7 +51,7 @@ def protocol_checks():
     assert responses[6]['result']['isError'] and responses[6]['result']['structuredContent']['error']['code'] == 'connection_unavailable'
     assert responses[-1]['result'] == {}
     tools = responses[4]['result']['tools']
-    assert len(tools) == 14 and all(tool['inputSchema']['additionalProperties'] is False for tool in tools)
+    assert len(tools) == 15 and all(tool['inputSchema']['additionalProperties'] is False for tool in tools)
     for tool in tools:
         assert tool['annotations']['openWorldHint'] is False
     # Every EditorEdits member must be discoverable by a client.
@@ -60,6 +60,8 @@ def protocol_checks():
     fields = set(re.findall(r'    var (\w+):', swift))
     edits = next(tool for tool in tools if tool['name'] == 'apply_edits')['inputSchema']['properties']['edits']['properties']
     assert fields == set(edits), fields ^ set(edits)
+    text_fields = (ROOT / 'Screen/Project/TextOverlay.swift').read_text().split('struct TextOverlay:', 1)[1].split('    init()', 1)[0]
+    assert set(re.findall(r'    var (\w+)\b', text_fields)) == set(edits['textOverlays']['items']['properties'])
     print('PASS: stdio JSON-RPC negotiation, discovery, schemas, malformed/oversized input, notifications, and offline diagnostics', flush=True)
 
     # Old protocol versions omit structured content; unknown versions negotiate latest.
@@ -78,17 +80,37 @@ def protocol_checks():
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(showCursor=1))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cursorScale=4))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(ratio='typo'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(webcamShape='unknown'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(wallpaper='unknown'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(customBackgroundImagePath='relative.png'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(recordedAudioClips=[dict(id='bad', start=0, sourceStart=0, duration=1)]))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(removeOutputRanges=[]))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='unknown', intensity=0.5)))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='natural', intensity=0)))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(crop=dict(rect=[[0, 0], [1]])))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(phoneVideoURL='https://example.com/a.mov'))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(phoneVideoURL='file:///a\0.mov'))),
         dict(name='find_silences', arguments=dict(**revision, silence=dict(thresholdDB=-40, minimumPause=0, padding=0))),
+        dict(name='find_silences', arguments=dict(**revision, audioTrackID='bad')),
+        dict(name='set_browser_toolbar_hidden', arguments=dict(**revision, hidden=1)),
         dict(name='get_job', arguments=dict(jobID='bad')),
         dict(name='get_job', arguments=dict(jobID=str(uuid.uuid4()), expectedRevision=0)),
         dict(name='get_preview_frame', arguments=dict(jobID=str(uuid.uuid4()), index=0.5)),
         dict(name='open_video', arguments=dict(path='relative.mov')),
         dict(name='render_preview', arguments=dict(**revision, times=list(range(13))))]
+    title = dict(id=str(uuid.uuid4()), text='MCP 한글', start=0.2, duration=0.8)
+    for invalid in (dict(x=1.1), dict(fontSize=241), dict(color='#GG0000'), dict(duration=0),
+                    dict(text='x' * 10001), dict(fontName='x' * 201), dict(backgroundStyle='unknown'), dict(id='bad')):
+        invalid_calls.append(dict(name='apply_edits', arguments=dict(**revision, edits=dict(textOverlays=[dict(title, **invalid)]))))
+    invalid_calls.append(dict(name='apply_edits', arguments=dict(**revision, edits=dict(textOverlays=[title] * 101))))
     responses = run_frames([messages[3]] + [json.dumps(rpc('tools/call', params)).encode() + b'\n' for params in invalid_calls])
     assert all(response['error']['code'] == -32602 for response in responses[1:]), responses
+    accepted = run_frames([messages[3], json.dumps(rpc('tools/call', dict(name='apply_edits', arguments=dict(
+        **revision, edits=dict(textOverlays=[title], cameraEffectSelection=dict(style='peachMakeup', intensity=0.6),
+                               cameraEffectsEnabled=True, webcamShape='cutout', wallpaper='silk',
+                               closeTimelineGaps=False, clearCustomBackgroundImage=True,
+                               recordedAudioClips=[], removeOutputRanges=[dict(id=str(uuid.uuid4()), start=0.2, end=0.3)]))))).encode() + b'\n'])[-1]
+    assert accepted['result']['structuredContent']['error']['code'] == 'connection_unavailable', accepted
     bad_frames = [b'{"jsonrpc":"2.0","id":true,"method":"ping"}\n',
                   b'{"jsonrpc":"2.0","id":1.5,"method":"ping"}\n',
                   b'{"jsonrpc":"2.0","id":null,"method":"ping"}\n',
@@ -235,7 +257,7 @@ def integration(path, source, destination):
     assert os.stat(Path(path).parent).st_mode & 0o777 == 0o700
 
     client = Client(path)
-    assert len(client.rpc('tools/list')['tools']) == 14
+    assert len(client.rpc('tools/list')['tools']) == 15
     assert len(client.rpc('resources/list')['resources']) == 1
     assert client.call('get_capabilities')['ok']
     project = client.call('open_video', path=source)['project']
@@ -261,10 +283,50 @@ def integration(path, source, destination):
     undone = client.call('undo', **rev(edited))['project']
     assert undone['settings']['ratio'] == 'original'
     edited = client.call('redo', **rev(undone))['project']
+    title = dict(id=str(uuid.uuid4()), text='MCP 한글', start=0.2, duration=0.8, color='#00FF00')
+    changed = client.call('apply_edits', **rev(edited), edits=dict(textOverlays=[title],
+        cameraEffectSelection=dict(style='natural', intensity=0.35), cameraEffectsEnabled=True))
+    assert changed['ok'], changed
+    titled = changed['project']
+    layer = titled['settings']['textOverlays'][0]
+    assert layer['fontName'] == 'System' and layer['fontSize'] == 64 and layer['x'] == layer['y'] == 0.5
+    assert titled['settings']['faceBeautyAmount'] == 0.35 and titled['settings']['faceMakeup']['amount'] == 0
+    reverted = client.call('undo', **rev(titled))['project']
+    assert not reverted['settings'].get('textOverlays') and not reverted['settings'].get('faceBeautyAmount')
+    edited = client.call('redo', **rev(reverted))['project']
+    layer.update(x=0.35, y=0.2, scale=1.2, uniformScale=False, scaleY=0.8)
+    edited = client.call('apply_edits', **rev(edited), edits=dict(textOverlays=[layer],
+        cameraEffectSelection=dict(style='peachMakeup', intensity=0.6), cameraEffectsEnabled=True))['project']
+    assert edited['settings']['faceBeautyAmount'] == 0 and edited['settings']['faceMakeup']['amount'] == 0.6
+    selection = edited['settings']['cameraEffectSelection']
+    edited = client.call('apply_edits', **rev(edited), edits=dict(cameraEffectsEnabled=False))['project']
+    assert edited['settings']['faceBeautyAmount'] == edited['settings']['faceMakeup']['amount'] == 0
+    assert edited['settings']['cameraEffectSelection'] == selection
+    edited = client.call('apply_edits', **rev(edited), edits=dict(cameraEffectsEnabled=True))['project']
+    assert edited['settings']['faceMakeup']['amount'] == 0.6
+    assert edited['settings']['textOverlays'][0] == layer
+    edited = client.call('apply_edits', **rev(edited), edits=dict(
+        webcamShape='cutout', wallpaper='silk', closeTimelineGaps=False))['project']
+    assert edited['settings']['webcamShape'] == 'cutout'
+    assert edited['settings']['wallpaper'] == 'silk'
+    assert edited['settings']['closeTimelineGaps'] is False
+    imported = client.call('apply_edits', **rev(edited), edits=dict(
+        customBackgroundImagePath=str(ROOT / 'assets/mark.png')))
+    assert imported['ok'] and imported['project']['settings']['customBackgroundImage'], imported
+    edited = client.call('apply_edits', **rev(imported['project']), edits=dict(
+        clearCustomBackgroundImage=True))['project']
+    assert edited['settings'].get('customBackgroundImage') is None
+    cut = client.call('apply_edits', **rev(edited), edits=dict(removeOutputRanges=[
+        dict(id=str(uuid.uuid4()), start=0.2, end=0.3)]))
+    assert cut['ok'] and abs(cut['project']['editedDuration'] - 1.4) < 0.002, cut
+    edited = client.call('undo', **rev(cut['project']))['project']
+    assert abs(edited['editedDuration'] - 1.5) < 0.002
     saved = client.call('save_project', **rev(edited), path=destination + '/Portable.screentake')
     assert saved['ok'] and not saved['project']['hasUnsavedWork'], saved
     edited = client.call('open_project', **rev(saved['project']), path=destination + '/Portable.screentake')['project']
     assert edited['settings']['ratio'] == 'square'
+    assert edited['settings']['textOverlays'][0] == layer
+    assert edited['settings']['cameraEffectSelection'] == selection
 
     def finish(job):
         deadline = time.monotonic() + 90
@@ -294,6 +356,7 @@ def integration(path, source, destination):
     assert not failure['ok']
     assert client.call('get_project')['project']['id'] == edited['id']
     client.close()
+    print('PASS: MCP text defaults, positioning/scaling, shared Undo/Redo, exclusive camera styles, remembered OFF settings and portable persistence', flush=True)
     print('PASS: real stdio→socket→native session, reconnect/retries, revision protection, resource reads, shared undo/redo, portable project, preview image, jobs, and export', flush=True)
 
 

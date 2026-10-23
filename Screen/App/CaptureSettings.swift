@@ -47,6 +47,7 @@ final class CaptureSettings: ObservableObject {
 
     @AppStorage("canvasRatio") var canvasRatio: CanvasRatio = .original
     @AppStorage("desktopCornerRadius") var desktopCornerRadius: Double = 0.025
+    @AppStorage("phoneCornerRadius") var phoneCornerRadius: Double?
     @AppStorage("deviceLayout") private var deviceLayoutRaw: String = DeviceLayout.desktop.rawValue
     var deviceLayout: DeviceLayout {
         get { DeviceLayout.allCases.first { $0.rawValue == deviceLayoutRaw } ?? .desktop }
@@ -66,7 +67,7 @@ final class CaptureSettings: ObservableObject {
         phoneCrop = crop
     }
 
-    var usesCanvas: Bool { canvasRatio != .original || deviceLayout != .desktop }
+    var usesCanvas: Bool { canvasRatio != .original || deviceLayout != .desktop || customBackgroundImage != nil }
     var isLayoutReady: Bool { deviceLayout != .duo || phoneVideoURL != nil }
 
     // MARK: - Cursor
@@ -82,9 +83,16 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Background
 
     @AppStorage("backgroundWallpaper") var backgroundWallpaperRaw: String = "sonoma"
+    @AppStorage("customBackgroundImage") private var customBackgroundData: Data = Data()
+
+    var customBackgroundImage: Data? {
+        get { customBackgroundData.isEmpty ? nil : customBackgroundData }
+        set { customBackgroundData = newValue ?? Data() }
+    }
 
     // MARK: - Auto Zoom
 
+    @AppStorage("captureZoomEnabled") var zoomEnabled: Bool = true
     @AppStorage("autoZoomEnabled") var autoZoomEnabled: Bool = false
 
     // MARK: - Webcam
@@ -102,6 +110,7 @@ final class CaptureSettings: ObservableObject {
             if newValue { isMicrophoneEnabled = true }
         }
     }
+    @AppStorage("isCameraMirrored") var isCameraMirrored = false
     @AppStorage("selectedWebcamDeviceID") var selectedWebcamDeviceID: String = ""
     @AppStorage("webcamPiPPositionRaw") var webcamPiPPositionRaw: String = PiPPosition.bottomRight.rawValue
     @AppStorage("webcamPiPSizeRaw") var webcamPiPSizeRaw: String = PiPSize.medium.rawValue
@@ -125,6 +134,22 @@ final class CaptureSettings: ObservableObject {
             objectWillChange.send()
             savedFaceMakeup = data
         }
+    }
+
+    @AppStorage("cameraEffectSelection") private var savedCameraEffectSelection: Data = Data()
+    var cameraEffectsEnabled: Bool { faceBeautyAmount > 0 || faceMakeup.amount > 0 }
+    var cameraEffectSelection: CameraEffectSelection {
+        .current(preferred: try? JSONDecoder().decode(CameraEffectSelection.self, from: savedCameraEffectSelection),
+                 natural: faceBeautyAmount, makeup: faceMakeup)
+    }
+
+    func setCameraEffect(_ selection: CameraEffectSelection, enabled: Bool) {
+        let selection = selection.clamped
+        let amounts = selection.amounts(enabled: enabled, makeup: faceMakeup)
+        objectWillChange.send()
+        if let data = try? JSONEncoder().encode(selection) { savedCameraEffectSelection = data }
+        faceBeautyAmount = amounts.natural
+        faceMakeup = amounts.makeup
     }
 
     var webcamPiPPosition: PiPPosition {
@@ -162,7 +187,8 @@ final class CaptureSettings: ObservableObject {
     // MARK: - Background Style
 
     var backgroundStyle: BackgroundStyle {
-        .wallpaper(selectedWallpaper)
+        if let customBackgroundImage { return .image(customBackgroundImage) }
+        return .wallpaper(selectedWallpaper)
     }
 
     // MARK: - Computed

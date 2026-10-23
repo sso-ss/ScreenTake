@@ -8,9 +8,13 @@ struct BeautyCameraFeedView: NSViewRepresentable {
     let recorder: WebcamRecorder
     let amount: Double
     var makeup: FaceMakeupSettings = .init()
+    var mirrored = false
+    var removeBackground = false
 
     func makeNSView(context: Context) -> BeautyCameraNSView { BeautyCameraNSView() }
-    func updateNSView(_ view: BeautyCameraNSView, context: Context) { view.configure(recorder: recorder, amount: amount, makeup: makeup) }
+    func updateNSView(_ view: BeautyCameraNSView, context: Context) {
+        view.configure(recorder: recorder, amount: amount, makeup: makeup, mirrored: mirrored, removeBackground: removeBackground)
+    }
     static func dismantleNSView(_ view: BeautyCameraNSView, coordinator: ()) { view.stop() }
 }
 
@@ -35,9 +39,11 @@ final class BeautyCameraNSView: NSView {
         let scale = window?.backingScaleFactor ?? 2
         renderer?.setDisplayPixelSize(CGSize(width: bounds.width * scale, height: bounds.height * scale))
     }
-    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init()) {
+    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init(),
+                   mirrored: Bool = false, removeBackground: Bool = false) {
         if renderer == nil { renderer = CameraBeautyPreviewRenderer(layer: imageLayer) }
-        renderer?.configure(recorder: recorder, amount: amount, makeup: makeup)
+        renderer?.configure(recorder: recorder, amount: amount, makeup: makeup, mirrored: mirrored,
+                            removeBackground: removeBackground)
         updatePreviewSize()
     }
     func stop() { renderer?.stop(); renderer = nil }
@@ -48,6 +54,10 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
     private weak var recorder: WebcamRecorder?
     private var amount = 0.0
     private var makeup = FaceMakeupSettings()
+    private var mirrored = false
+    private var removeBackground = false
+    private var lastMirrored = false
+    private var lastRemoveBackground = false
     private var active = true
     private var displayPixelSize = CGSize(width: 360, height: 360)
     private var pendingImage: CGImage?
@@ -56,6 +66,7 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
     private weak var layer: CALayer?
     private let context = CIContext(options: [.cacheIntermediates: false])
     private var filter = FaceBeautyFilter()
+    private var personCutout = PersonCutout()
     private var lastRecorder: ObjectIdentifier?
     private var lastTime: Double?
     private var lastAmount = -1.0
@@ -72,8 +83,12 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
         timer.resume()
     }
 
-    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init()) {
-        lock.withLock { self.recorder = recorder; self.amount = FaceBeautyFilter.clamped(amount); self.makeup = makeup.clamped }
+    func configure(recorder: WebcamRecorder, amount: Double, makeup: FaceMakeupSettings = .init(),
+                   mirrored: Bool = false, removeBackground: Bool = false) {
+        lock.withLock {
+            self.recorder = recorder; self.amount = FaceBeautyFilter.clamped(amount)
+            self.makeup = makeup.clamped; self.mirrored = mirrored; self.removeBackground = removeBackground
+        }
     }
     func setDisplayPixelSize(_ size: CGSize) {
         lock.withLock { displayPixelSize = size }
@@ -96,17 +111,26 @@ final class CameraBeautyPreviewRenderer: @unchecked Sendable {
     deinit { timer?.cancel() }
 
     private func render() {
-        let (recorder, amount, makeup, active, displaySize) = lock.withLock { (self.recorder, self.amount, self.makeup, self.active, self.displayPixelSize) }
+        let (recorder, amount, makeup, mirrored, removeBackground, active, displaySize) = lock.withLock {
+            (self.recorder, self.amount, self.makeup, self.mirrored, self.removeBackground, self.active, self.displayPixelSize)
+        }
         guard active, let recorder, let frame = recorder.previewFrame else { return }
-        if lastRecorder != ObjectIdentifier(recorder) { filter = FaceBeautyFilter(); lastTime = nil; lastRecorder = ObjectIdentifier(recorder) }
+        if lastRecorder != ObjectIdentifier(recorder) {
+            filter = FaceBeautyFilter(); personCutout = PersonCutout()
+            lastTime = nil; lastRecorder = ObjectIdentifier(recorder)
+        }
         let raw = CIImage(cvPixelBuffer: frame.buffer)
         let edge = Self.renderLongEdge(source: raw.extent.size, display: displaySize,
                                       beautyEnabled: amount > 0 || makeup.amount > 0)
-        guard lastTime != frame.time || lastAmount != amount || lastMakeup != makeup || lastRenderEdge != edge else { return }
+        guard lastTime != frame.time || lastAmount != amount || lastMakeup != makeup || lastRenderEdge != edge
+                || lastMirrored != mirrored || lastRemoveBackground != removeBackground else { return }
         lastTime = frame.time; lastAmount = amount; lastMakeup = makeup; lastRenderEdge = edge
+        lastMirrored = mirrored; lastRemoveBackground = removeBackground
         let scale = min(1, edge / max(raw.extent.width, raw.extent.height))
         let image = raw.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        let result = filter.render(image, at: frame.time, amount: amount, makeup: makeup)
+        let filtered = filter.render(image, at: frame.time, amount: amount, makeup: makeup)
+        let prepared = removeBackground ? personCutout.apply(to: filtered, source: image, at: frame.time) : filtered
+        let result = mirrored ? WebcamCompositor.mirrored(prepared) : prepared
         guard let rendered = context.createCGImage(result, from: result.extent) else { return }
         let schedule = lock.withLock { () -> Bool in
             guard self.active else { return false }

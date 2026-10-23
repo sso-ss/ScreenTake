@@ -2,6 +2,11 @@ import Foundation
 
 extension VideoEditSettings {
     func validate(duration: Double) throws {
+        let texts = textOverlays ?? []
+        guard texts.count <= 100, Set(texts.map(\.id)).count == texts.count else {
+            throw EditValidationError.invalid("Invalid text layer identifiers or too many text layers.")
+        }
+        for text in texts { try text.validate() }
         _ = try trim.timeRange(duration: EditorAudio.time(duration))
         let timeline = try trim.timeline(duration: EditorAudio.time(duration))
         guard timeline.duration.seconds.isFinite, timeline.duration.seconds > 0,
@@ -55,9 +60,11 @@ extension VideoEditSettings {
         try number(cursorScale, 0.5...3, "cursor size")
         try number(zoomLevel, 1...10, "zoom level")
         try number(desktopCornerRadius, 0...0.5, "corner radius")
+        if let phoneCornerRadius { try number(phoneCornerRadius, 0...0.2, "phone corner radius") }
         try number(originalAudioVolume, 0...1, "original audio volume")
         try number(voiceOverVolume, 0...1, "voiceover volume")
         if let faceBeautyAmount { try number(faceBeautyAmount, 0...1, "beauty intensity") }
+        if let cameraEffectSelection { try number(cameraEffectSelection.intensity, 0.05...1, "camera effect intensity") }
         if let faceMakeup {
             for value in faceMakeup.values { try number(value, 0...1, "makeup intensity") }
         }
@@ -92,6 +99,15 @@ extension VideoEditSettings {
             try number(zoom.zoom, 1...10, "segment zoom")
             try number(zoom.centerX, 0...1, "zoom horizontal position")
             try number(zoom.centerY, 0...1, "zoom vertical position")
+            if let region = zoom.manualRegion {
+                let rect = region.rect
+                guard [rect.minX, rect.minY, rect.width, rect.height].allSatisfy({ $0.isFinite }),
+                      rect.width >= 0.125, rect.width <= 1,
+                      abs(rect.width - rect.height) < 0.000001,
+                      rect.minX >= 0, rect.minY >= 0, rect.maxX <= 1.000001, rect.maxY <= 1.000001 else {
+                    throw EditValidationError.invalid("Invalid zoom area.")
+                }
+            }
         }
         let sortedZooms = zooms.sorted { $0.start < $1.start }
         guard zip(sortedZooms, sortedZooms.dropFirst()).allSatisfy({ $0.end <= $1.start }) else {

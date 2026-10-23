@@ -264,3 +264,74 @@
 "Face definition" = "Face definition";
 
 "Under-eye shadow" = "Under-eye shadow";
+
+"Mirror Camera" = "Mirror Camera";
+"Flip the camera horizontally in preview and export." = "Flip the camera horizontally in preview and export.";
+"Editing shortcuts" = "Editing shortcuts";
+"Play / Pause" = "Play / Pause";
+"Reverse / Pause / Play" = "Reverse / Pause / Play";
+"Previous / Next Frame" = "Previous / Next Frame";
+"Seek One Second" = "Seek One Second";
+"Go to start / end" = "Go to start / end";
+"Split at Playhead" = "Split at Playhead";
+"Undo / Redo" = "Undo / Redo";
+"Delete Selection" = "Delete Selection";
+"Link / Unlink Audio" = "Link / Unlink Audio";
+"Zoom Timeline In / Out" = "Zoom Timeline In / Out";
+"Export Video…" = "Export Video…";
+"Playback keys are available while editing, outside text fields." = "Playback keys are available while editing, outside text fields.";
+
+// Automatic updates
+"Updates" = "Updates";
+"Automatically check for updates" = "Automatically check for updates";
+"Automatically download and install updates on quit" = "Automatically download and install updates on quit";
+"Updates install when you quit. Recording, media processing, and unsaved projects must finish first." = "Updates install when you quit. Recording, media processing, and unsaved projects must finish first.";
+"Automatic installation is optional. You can always check and install updates manually here." = "Automatic installation is optional. You can always check and install updates manually here.";
+"Install and Relaunch" = "Install and Relaunch";
+"ScreenTake is keeping your work safe" = "ScreenTake is keeping your work safe";
+"Finish recording before updating or quitting." = "Finish recording before updating or quitting.";
+"Wait for media processing to finish before updating or quitting." = "Wait for media processing to finish before updating or quitting.";
+"Close the capture controls before updating or quitting." = "Close the capture controls before updating or quitting.";
+"Save your project before installing the update or quitting. Exporting a video does not save the editable project." = "Save your project before installing the update or quitting. Exporting a video does not save the editable project.";
+"Complete permission setup before checking for updates." = "Complete permission setup before checking for updates.";
+"You’re up to date." = "You’re up to date.";
+"Unable to check for updates. Try again later." = "Unable to check for updates. Try again later.";
+"Unable to start the updater. Reinstall the latest ScreenTake build." = "Unable to start the updater. Reinstall the latest ScreenTake build.";
+
+"Zoom transition" = "Zoom transition";
+"Zoom transition motion" = "Zoom transition motion";
+
+"Set Zoom Area" = "Set Zoom Area";
+"Zoom Area" = "Zoom Area";
+"Top" = "Top";
+"Bottom" = "Bottom";
+"Loading zoom preview" = "Loading zoom preview";
+"Drag in the zoom track to choose when to zoom, then set its area." = "Drag in the zoom track to choose when to zoom, then set its area.";
+"Selected zoom area" = "Selected zoom area";
+"Drag to reposition the zoom area" = "Drag to reposition the zoom area";
+"Left top zoom handle" = "Left top zoom handle";
+"Right top zoom handle" = "Right top zoom handle";
+"Left bottom zoom handle" = "Left bottom zoom handle";
+"Right bottom zoom handle" = "Right bottom zoom handle";
+"Preview Zoom" = "Preview Zoom";
+"Select Area" = "Select Area";
+"Area magnification" = "Area magnification";
+"Could not load this frame. Try another point in the video." = "Could not load this frame. Try another point in the video.";
+"Starts at %.1fs · %.1f×" = "Starts at %.1fs · %.1f×";
+
+// Custom backgrounds
+"Custom Background" = "Custom Background";
+"Upload Image…" = "Upload Image…";
+"Replace Image…" = "Replace Image…";
+"Remove custom background" = "Remove custom background";
+"Return to the selected preset background." = "Return to the selected preset background.";
+"Upload custom background image" = "Upload custom background image";
+"Choose an image to fill the canvas background." = "Choose an image to fill the canvas background.";
+"Choose Background Image" = "Choose Background Image";
+"Choose Image" = "Choose Image";
+"Could Not Import Background" = "Could Not Import Background";
+"Choose a valid image file, such as PNG, JPEG, or HEIC." = "Choose a valid image file, such as PNG, JPEG, or HEIC.";
+"Silk" = "Silk";
+"Pastel" = "Pastel";
+"Breeze" = "Breeze";
+"Mint" = "Mint";

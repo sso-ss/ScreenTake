@@ -152,7 +152,7 @@ final class RecordingState: ObservableObject {
             let mouseURL = result.mouseDataURL
             let hasManualZoom = mouseURL.map { hasManualZoomMarkers(mouseDataURL: $0) } ?? false
             let autoEnabled = captureSettings?.autoZoomEnabled == true
-            let shouldApplyZoom = autoEnabled || hasManualZoom
+            let shouldApplyZoom = captureSettings?.zoomEnabled != false && (autoEnabled || hasManualZoom)
             lastRecordingUsedZoom = shouldApplyZoom
             initialEdits = recordingEdits(for: videoURL, generateZoom: shouldApplyZoom)
             processingStage = nil
@@ -204,6 +204,7 @@ final class RecordingState: ObservableObject {
     }
 
     func toggleZoom() {
+        guard captureSettings?.zoomEnabled != false else { return }
         guard let coordinator = recordingCoordinator else {
             Log.recording.warning("toggleZoom: recordingCoordinator is nil")
             return
@@ -290,7 +291,9 @@ final class RecordingState: ObservableObject {
             ratio: captureSettings?.canvasRatio ?? .original,
             layout: captureSettings?.deviceLayout ?? .desktop,
             wallpaper: captureSettings?.selectedWallpaper ?? .sonoma,
+            customBackgroundImage: captureSettings?.customBackgroundImage,
             desktopCornerRadius: captureSettings?.desktopCornerRadius ?? 0.025,
+            phoneCornerRadius: captureSettings?.phoneCornerRadius,
             backgroundEnabled: recordingUsesBackground,
             crop: captureSettings?.phoneCrop(for: videoURL) ?? PhoneCrop(),
             phoneMode: captureSettings?.phoneContentMode ?? .fit,
@@ -305,8 +308,10 @@ final class RecordingState: ObservableObject {
             webcamShape: captureSettings?.webcamPiPShape ?? .circle,
             webcamPosition: captureSettings?.webcamPiPPosition ?? .bottomRight,
             webcamSize: captureSettings?.webcamPiPSize ?? .medium,
+            cameraMirrored: captureSettings?.isCameraMirrored,
             faceBeautyAmount: captureSettings?.faceBeautyAmount,
             faceMakeup: captureSettings?.faceMakeup,
+            cameraEffectSelection: captureSettings?.cameraEffectSelection,
             videoOverlayURL: lastWebcamVideoURL,
             exportResolution: captureSettings?.exportResolution ?? .preserveSource,
             recordedBrowserContentRect: lastBrowserContentRect)
@@ -325,12 +330,13 @@ final class RecordingState: ObservableObject {
         do {
             let settings = edits ?? recordingEdits(for: videoURL, generateZoom: generateZoom)
             var keyframes: [CameraKeyframe] = []
-            if generateZoom, let mouseDataURL {
+            if generateZoom {
                 keyframes = try await ClickZoomGenerator.generate(
                     from: mouseDataURL,
                     sourceVideoURL: videoURL,
-                    settings: .init(zoomLevel: settings.zoomLevel),
-                    segments: settings.zoomSegments
+                    settings: .init(zoomLevel: settings.zoomLevel,
+                                    transitionMotion: settings.zoomTransitionMotion ?? .smooth),
+                    segments: settings.zoomSegments, crop: settings.crop
                 )
             }
 
@@ -357,6 +363,7 @@ final class RecordingState: ObservableObject {
                 pipPosition: settings.webcamPosition,
                 pipSize: settings.webcamSize,
                 pipShape: settings.webcamShape,
+                cameraMirrored: settings.cameraMirrored ?? false,
                 cameraLayout: settings.cameraLayout,
                 cameraLayoutChanges: settings.cameraLayoutChanges,
                 faceBeautyAmount: settings.faceBeautyAmount ?? 0,
@@ -369,8 +376,9 @@ final class RecordingState: ObservableObject {
                 smoothCursorSigma: settings.smoothCursorSigma,
                 canvasRatio: settings.ratio,
                 deviceLayout: settings.layout,
-                wallpaper: settings.wallpaper,
+                wallpaper: settings.wallpaper, customBackgroundImage: settings.customBackgroundImage,
                 desktopCornerRadius: settings.desktopCornerRadius,
+                phoneCornerRadius: settings.phoneCornerRadius,
                 phoneVideoURL: settings.phoneVideoURL ?? captureSettings?.phoneVideoURL,
                 phoneCrop: settings.crop,
                 phoneContentMode: settings.phoneMode,
@@ -411,8 +419,16 @@ final class RecordingState: ObservableObject {
                 }
             }
 
+            processingStage = .processing
             let untrimmedURL = resultURL
-            resultURL = try await settings.trim.export(source: untrimmedURL)
+            let texts = settings.textOverlays ?? []
+            let renderedAsset = AVURLAsset(url: untrimmedURL)
+            let renderedTrack = try await renderedAsset.loadTracks(withMediaType: .video).first
+            let renderedSize = try await renderedTrack?.load(.naturalSize) ?? .zero
+            let textRenderer = TextOverlayRenderer(overlays: texts, size: renderedSize)
+            resultURL = try await settings.trim.export(source: untrimmedURL, frameFilter: texts.isEmpty ? nil : { image, time in
+                textRenderer.composite(over: image, at: time)
+            })
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,
                                                     originalVolume: settings.originalAudioVolume,
                                                     clips: settings.voiceOverEnabled ? settings.voiceOvers : [],
