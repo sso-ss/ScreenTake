@@ -108,7 +108,7 @@ final class MCPBridge {
             let negotiated = Self.protocols.contains(version) ? version : Self.protocols.last!
             protocolVersion = negotiated
             return ["protocolVersion": negotiated, "capabilities": ["tools": ["listChanged": false], "resources": ["subscribe": false, "listChanged": false]],
-                    "serverInfo": ["name": "screentake", "version": "1.2.0"],
+                    "serverInfo": ["name": "screentake", "version": "1.3.0"],
                     "instructions": "Operate the project open in ScreenTake. Read get_project before editing and pass projectID/expectedRevision. Use stable requestID UUIDs for retriable mutations. Rendering and analysis return jobs; poll get_job. Retrieve preview images with get_preview_frame. ScreenTake must be running with its AI connection enabled."]
         }
         if method == "ping" { return [:] }

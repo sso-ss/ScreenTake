@@ -30,6 +30,10 @@ enum MCPToolCatalog {
     static let time = number(0)
     static let fileURL: Schema = ["type": "string", "pattern": "^file:///", "description": "Absolute local file URL, e.g. file:///Users/me/take.mov."]
     static let cut = object(["id": uuid, "start": time, "end": time], required: ["id", "start", "end"])
+    static let mediaClip = object([
+        "id": uuid, "start": time, "sourceStart": time,
+        "duration": number(0, extra: ["exclusiveMinimum": 0]), "linkID": ["type": ["string", "null"], "format": "uuid"]
+    ], required: ["id", "start", "sourceStart", "duration"])
     static let exactRange = object([
         "startValue": ["type": "integer", "minimum": 0], "startScale": ["type": "integer", "minimum": 1],
         "durationValue": ["type": "integer", "minimum": 1], "durationScale": ["type": "integer", "minimum": 1]
@@ -59,12 +63,16 @@ enum MCPToolCatalog {
 
     static let edits = object([
         "trim": object(["start": time, "end": ["type": ["number", "null"], "minimum": 0], "cuts": array(cut),
-                        "splits": array(time), "clipOrder": array(exactRange)],
-                       extra: ["description": "Replaces the timeline. Seconds refer to source time; clipOrder preserves rational CMTime ranges."]),
+                        "splits": array(time), "clipOrder": array(exactRange), "clips": array(mediaClip),
+                        "timelineLength": time],
+                       extra: ["description": "Replaces the timeline. Legacy cuts and clipOrder use source time. clips use output start, sourceStart, duration, and optional linkID; timelineLength preserves output gaps. Preserve complete existing trim values when editing one part."]),
         "removeRanges": array(cut, extra: ["description": "Append cuts in source seconds. Supply a UUID for each cut."]),
+        "removeOutputRanges": array(cut, extra: ["minItems": 1, "description": "Remove edited-video seconds from screen, recorded audio, and added audio together; ripple remaining content. Supply a UUID for each nonoverlapping range. Use with output-time find_silences suggestions."]),
         "ratio": choices("original", "landscape", "desktop", "square", "portrait", "vertical"),
         "layout": choices("desktop", "iPhone", "duo", "iPhoneDuoClosed", "iPhoneDuoUnfolded"),
-        "wallpaper": choices("sonoma", "aurora", "sunset", "ocean", "blossom", "nebula", "moss", "dusk", "prism", "lagoon", "ember", "midnight"),
+        "wallpaper": choices("sonoma", "aurora", "sunset", "ocean", "blossom", "nebula", "moss", "dusk", "prism", "lagoon", "ember", "midnight", "silk", "pastel", "breeze", "mint"),
+        "customBackgroundImagePath": ["type": "string", "pattern": "^/", "description": "Absolute path to a PNG, JPEG, HEIC, or other supported image. The native editor imports and embeds a bounded PNG. Takes precedence over wallpaper and clearCustomBackgroundImage in the same batch."],
+        "clearCustomBackgroundImage": boolean,
         "backgroundEnabled": boolean, "desktopCornerRadius": number(0, 0.5),
         "phoneCornerRadius": number(0, 0.2),
         "crop": object(["rect": array(array(number(0, 1), extra: ["minItems": 2, "maxItems": 2]),
@@ -81,7 +89,7 @@ enum MCPToolCatalog {
                         "description": "Fixed zoom area within the cropped screen, [[x,y],[width,height]], top-left origin. Width equals height, 0.125 through 1. Overrides global zoom and cursor following."])], required: ["rect"])
         ], required: ["id", "start", "end", "zoom", "centerX", "centerY", "followsCursor"])),
         "restoreAutomaticZooms": boolean,
-        "webcamEnabled": boolean, "cameraMirrored": boolean, "webcamShape": choices("circle", "roundedSquare"),
+        "webcamEnabled": boolean, "cameraMirrored": boolean, "webcamShape": choices("circle", "roundedSquare", "cutout"),
         "webcamPosition": choices("topLeft", "topCenter", "topRight", "middleLeft", "center", "middleRight", "bottomLeft", "bottomCenter", "bottomRight"),
         "webcamSize": choices("small", "medium", "large"), "videoOverlayURL": fileURL, "cameraLayout": camera,
         "faceBeautyAmount": number(0, 1),
@@ -99,6 +107,8 @@ enum MCPToolCatalog {
             "id": uuid, "url": fileURL, "start": time, "sourceStart": time,
             "duration": number(0, extra: ["exclusiveMinimum": 0]), "sourceDuration": number(0, extra: ["exclusiveMinimum": 0])
         ], required: ["id", "url", "start", "sourceStart", "duration", "sourceDuration"])),
+        "recordedAudioClips": array(mediaClip, extra: ["description": "Replaces independent recorded audio placements. Preserve existing IDs and linkIDs. Linked video clips must match the audio timing exactly; [] removes recorded audio placements."]),
+        "closeTimelineGaps": boolean,
         "textOverlays": array(textOverlay, extra: ["maxItems": 100, "description": "Replaces all text layers in back-to-front order. Preserve existing IDs/objects when adding or editing; [] removes all text. Timeline rows are packed automatically and are not persisted settings."]),
         "audioEnabled": boolean, "originalAudioVolume": number(0, 1), "voiceOverEnabled": boolean, "voiceOverVolume": number(0, 1),
         "exportResolution": choices("preserveSource", "uhd4k", "fhd1080")
@@ -117,7 +127,8 @@ enum MCPToolCatalog {
             ("open_project", "Open a portable .screentake project in the native editor. Replacing work has the same revision and discard requirements as open_video.", merge(merge(path, revision), ["discardUnsaved": boolean]), ["path"], false, true),
             ("save_project", "Atomically save the current editable project with embedded media to a .screentake package.", merge(path, revision), ["path", "projectID", "expectedRevision"], false, true),
             ("apply_edits", "Apply validated settings to the same draft displayed by the UI. Uses one shared undo operation. Stale revisions are rejected.", merge(revision, ["edits": edits]), ["projectID", "expectedRevision", "edits"], false, false),
-            ("find_silences", "Start an analysis job suggesting removals in retained source time. Suggestions do not change the timeline; review and apply them with apply_edits.", merge(revision, ["silence": object(["thresholdDB": number(-80, 0), "minimumPause": number(0, extra: ["exclusiveMinimum": 0]), "padding": time], required: ["thresholdDB", "minimumPause", "padding"])]), ["projectID", "expectedRevision"], false, false),
+            ("set_browser_toolbar_hidden", "Detect the browser content at the current preview frame and crop away its toolbar, or restore the previous crop. Uses the native editor control and shared Undo history.", merge(revision, ["hidden": boolean]), ["projectID", "expectedRevision", "hidden"], false, false),
+            ("find_silences", "Analyze original audio or an added audio track. Default suggestions use source seconds; audioTrackID or outputTime=true returns edited-video seconds. Check job.suggestionTimebase and apply with removeRanges or removeOutputRanges respectively.", merge(revision, ["silence": object(["thresholdDB": number(-80, 0), "minimumPause": number(0, extra: ["exclusiveMinimum": 0]), "padding": time], required: ["thresholdDB", "minimumPause", "padding"]), "audioTrackID": uuid, "outputTime": boolean]), ["projectID", "expectedRevision"], false, false),
             ("render_preview", "Start a preview job at 1–12 edited-video timestamps. Poll get_job, then call get_preview_frame to see a PNG.", merge(revision, ["times": array(time, extra: ["minItems": 1, "maxItems": 12])]), ["projectID", "expectedRevision"], false, false),
             ("export_video", "Start a job rendering the current draft and atomically saving video to the destination. Poll get_job; cancel_job can stop encoding and preserve an existing destination.", merge(path, revision), ["path", "projectID", "expectedRevision"], false, true),
             ("get_job", "Read queued/running/cancelling/succeeded/failed/cancelled status, progress, output, preview frame indices, or silence suggestions. The last 50 jobs are retained.", ["jobID": uuid], ["jobID"], true, false),

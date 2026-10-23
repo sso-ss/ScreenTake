@@ -11,7 +11,7 @@ Use the `screentake` MCP server to operate the same draft and Undo history as th
 
 Read `get_project` before editing. Use the returned project `id` as `projectID` and its current `revision` as `expectedRevision` for edits, saving, rendering and analysis. Each successful mutation returns the next revision. On `stale_project`, reread and reconcile with the user's current work.
 
-Apply related changes in one `apply_edits` call so they share one Undo step. Omitted top-level fields stay unchanged. Arrays such as `textOverlays`, `voiceOvers` and `zoomSegments` replace their entire existing values; preserve unrelated items, IDs and their full settings. Use `[]` only when removing every item is intended. `removeRanges` appends source-time cuts instead.
+Apply related changes in one `apply_edits` call so they share one Undo step. Omitted top-level fields stay unchanged. Arrays such as `textOverlays`, `voiceOvers`, `recordedAudioClips` and `zoomSegments` replace their entire existing values; preserve unrelated items, IDs and their full settings. Use `[]` only when removing every item is intended. `removeRanges` appends source-time cuts; `removeOutputRanges` removes edited-video time from all timeline tracks and ripples the remaining content.
 
 Use a stable UUID `requestID` when retrying an identical mutation. A changed request needs a new ID. Replacing an open project requires its revision and, when there is unsaved work, explicit authorization before using `discardUnsaved: true`.
 
@@ -34,7 +34,15 @@ Use `cameraEffectSelection: {"style":"natural","intensity":0.5}` or style `peach
 
 `zoomEnabled` is the editor Zoom master. `zoomSegments` supplies explicit sections; `[]` leaves no sections. `restoreAutomaticZooms: true` clears the explicit override and restores generated sections, while preserving the master toggle. Capture Auto Zoom is a separate pre-recording preference and is not exposed by editor MCP commands. For a fixed zoom area, use the segment's `manualRegion` schema: normalized cropped-screen coordinates, square dimensions 0.125–1. Zoom segment timing uses source-video seconds.
 
+`webcamShape: "cutout"` removes the camera background. `wallpaper` includes `silk`, `pastel`, `breeze`, and `mint`. To use a custom background, send an absolute local image path as `customBackgroundImagePath`; the editor imports and embeds it. Use `clearCustomBackgroundImage: true` to return to a preset. A wallpaper choice also clears the custom image; an image path takes precedence if both appear in one batch.
+
 Narration in `voiceOvers` uses edited-video `start` plus source-audio `sourceStart`/`duration` in seconds. Preserve local file URLs, source duration and IDs. Use `audioEnabled`/`originalAudioVolume` and `voiceOverEnabled`/`voiceOverVolume` for independent levels (0–1). Sequential voiceovers share a filmstrip row; overlaps use extra rows. Text and voiceover tracks share the timeline's 240-point maximum track viewport and internal scrolling, with no row-setting API.
+
+Independent source audio placements use `recordedAudioClips` with `id`, edited-video `start`, source `sourceStart`, `duration`, and optional `linkID`. Explicit screen placements use `trim.clips` with the same shape; `trim.timelineLength` preserves gaps. Keep linked screen and audio timing aligned. `closeTimelineGaps` controls subsequent source-time cuts.
+
+`find_silences` defaults to source-time suggestions for original audio. Use `outputTime: true` to map them onto the edited timeline, or `audioTrackID` with a `voiceOvers` UUID to analyze added audio. Check the completed job's `suggestionTimebase`; after review, apply `source` suggestions with `removeRanges` or `output` suggestions with `removeOutputRanges`.
+
+Use `set_browser_toolbar_hidden` with the current project revision and `hidden: true` to detect the browser content at the current preview frame and crop away its toolbar. `hidden: false` restores the prior crop. Detection can fail when the frame has no recognizable browser content; report the tool error and keep the current crop.
 
 ## Verify and deliver
 

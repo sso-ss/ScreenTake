@@ -78,8 +78,9 @@ Supported operations:
 | `open_video`, `open_project` | Absolute local path; replacing existing work requires current project ID/revision and explicit `discardUnsaved` when needed |
 | `save_project` | Absolute `.screentake` path |
 | `apply_edits` | Partial typed settings batch, committed as one undo operation |
+| `set_browser_toolbar_hidden` | Detect browser content in the current preview frame and crop its toolbar, or restore the previous crop |
 | `undo`, `redo` | Shared editor history |
-| `find_silences` | Job with suggested removals in retained source-time ranges |
+| `find_silences` | Job with suggested removals for original or added audio |
 | `render_preview` | Job with PNG artifacts at 1–12 edited-video timestamps |
 | `export_video` | Job rendering and atomically saving to an absolute local path |
 | `get_job`, `cancel_job` | Job ID; inspect or cancel queued/running work |
@@ -156,11 +157,38 @@ internally; row indices, maximum height and drawer state are UI concerns, not
 editable project settings. Existing narration timing/volume MCP fields continue
 to drive the same UI, playback and export behavior.
 
+The same editor batch supports the camera `webcamShape: "cutout"` and the `silk`,
+`pastel`, `breeze`, and `mint` wallpaper presets. To import a custom background,
+pass an absolute local image path as `customBackgroundImagePath`; ScreenTake
+converts it to a bounded embedded PNG. `clearCustomBackgroundImage: true` removes
+the custom image, and choosing a wallpaper also clears it. An image path wins if
+both are supplied in one batch.
+
+Independent recorded audio is available as `recordedAudioClips`, an array of
+`{id, start, sourceStart, duration, linkID?}`. `trim.clips` uses the same clip
+shape for video, and `trim.timelineLength` preserves output gaps. Arrays replace
+the full prior value, so preserve IDs and link IDs when editing one section.
+Linked audio and video clips must have matching timing. `closeTimelineGaps` sets
+the editor's close gaps preference for subsequent timeline cuts.
+
+`find_silences` still returns source-time suggestions for original audio by
+default. Set `outputTime: true` to map original audio into edited-video seconds,
+including independent recorded audio placements. Set `audioTrackID` to a
+`voiceOvers` clip UUID to analyze that added audio; its suggestions are always in
+edited-video seconds. The job reports `suggestionTimebase`. Review the cuts, then
+apply source-time suggestions with `removeRanges`, or output-time suggestions with
+`removeOutputRanges`. Output cuts ripple the video, recorded audio, and added
+audio together in one undoable edit.
+
+`set_browser_toolbar_hidden` takes `hidden: true` or `false` with the current
+project ID and revision. It uses the editor's browser content detector at the
+current preview frame, and returns an error if no valid content is found.
+
 The project skill at `.agents/skills/screentake-editor/SKILL.md` documents the MCP
 editing workflow, replacement-array semantics, text coordinates, camera styles,
-and preview/export verification. MCP helper version 1.2.0 adds the text and camera
-style fields. Restart an older helper/client connection to refresh its tool schema
-after updating ScreenTake.
+and preview/export verification. MCP helper version 1.3.0 adds the new background,
+camera cutout, audio timeline, and silence cleanup fields. Restart an older
+helper/client connection to refresh its tool schema after updating ScreenTake.
 
 Jobs move through `queued`, `running`, and a terminal `succeeded`, `failed`, or
 `cancelled` state; cancellation can report `cancelling` while resources shut down.
@@ -251,7 +279,7 @@ and reassess. Paths are absolute local paths; nested media references are `file:
 URLs. Nested objects replace their fields using the native defaults where supported;
 omitted top-level edit fields remain unchanged. Cuts, zoom segments, and narration
 clips require their own UUID identifiers, as advertised in the schema. Silence
-suggestions use source seconds; preview timestamps use edited-video seconds.
+suggestion timebase is reported by each job; preview timestamps use edited-video seconds.
 Jobs outlive bridge disconnects. After a lost response, retry using identical
 arguments and the same `requestID`; a command may already have completed. Do not
 repeat a failed/cancelled export with its old ID when intending to start a new job.

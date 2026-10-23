@@ -51,7 +51,7 @@ def protocol_checks():
     assert responses[6]['result']['isError'] and responses[6]['result']['structuredContent']['error']['code'] == 'connection_unavailable'
     assert responses[-1]['result'] == {}
     tools = responses[4]['result']['tools']
-    assert len(tools) == 14 and all(tool['inputSchema']['additionalProperties'] is False for tool in tools)
+    assert len(tools) == 15 and all(tool['inputSchema']['additionalProperties'] is False for tool in tools)
     for tool in tools:
         assert tool['annotations']['openWorldHint'] is False
     # Every EditorEdits member must be discoverable by a client.
@@ -80,12 +80,19 @@ def protocol_checks():
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(showCursor=1))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cursorScale=4))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(ratio='typo'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(webcamShape='unknown'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(wallpaper='unknown'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(customBackgroundImagePath='relative.png'))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(recordedAudioClips=[dict(id='bad', start=0, sourceStart=0, duration=1)]))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(removeOutputRanges=[]))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='unknown', intensity=0.5)))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='natural', intensity=0)))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(crop=dict(rect=[[0, 0], [1]])))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(phoneVideoURL='https://example.com/a.mov'))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(phoneVideoURL='file:///a\0.mov'))),
         dict(name='find_silences', arguments=dict(**revision, silence=dict(thresholdDB=-40, minimumPause=0, padding=0))),
+        dict(name='find_silences', arguments=dict(**revision, audioTrackID='bad')),
+        dict(name='set_browser_toolbar_hidden', arguments=dict(**revision, hidden=1)),
         dict(name='get_job', arguments=dict(jobID='bad')),
         dict(name='get_job', arguments=dict(jobID=str(uuid.uuid4()), expectedRevision=0)),
         dict(name='get_preview_frame', arguments=dict(jobID=str(uuid.uuid4()), index=0.5)),
@@ -100,7 +107,9 @@ def protocol_checks():
     assert all(response['error']['code'] == -32602 for response in responses[1:]), responses
     accepted = run_frames([messages[3], json.dumps(rpc('tools/call', dict(name='apply_edits', arguments=dict(
         **revision, edits=dict(textOverlays=[title], cameraEffectSelection=dict(style='peachMakeup', intensity=0.6),
-                               cameraEffectsEnabled=True))))).encode() + b'\n'])[-1]
+                               cameraEffectsEnabled=True, webcamShape='cutout', wallpaper='silk',
+                               closeTimelineGaps=False, clearCustomBackgroundImage=True,
+                               recordedAudioClips=[], removeOutputRanges=[dict(id=str(uuid.uuid4()), start=0.2, end=0.3)]))))).encode() + b'\n'])[-1]
     assert accepted['result']['structuredContent']['error']['code'] == 'connection_unavailable', accepted
     bad_frames = [b'{"jsonrpc":"2.0","id":true,"method":"ping"}\n',
                   b'{"jsonrpc":"2.0","id":1.5,"method":"ping"}\n',
@@ -248,7 +257,7 @@ def integration(path, source, destination):
     assert os.stat(Path(path).parent).st_mode & 0o777 == 0o700
 
     client = Client(path)
-    assert len(client.rpc('tools/list')['tools']) == 14
+    assert len(client.rpc('tools/list')['tools']) == 15
     assert len(client.rpc('resources/list')['resources']) == 1
     assert client.call('get_capabilities')['ok']
     project = client.call('open_video', path=source)['project']
@@ -296,6 +305,22 @@ def integration(path, source, destination):
     edited = client.call('apply_edits', **rev(edited), edits=dict(cameraEffectsEnabled=True))['project']
     assert edited['settings']['faceMakeup']['amount'] == 0.6
     assert edited['settings']['textOverlays'][0] == layer
+    edited = client.call('apply_edits', **rev(edited), edits=dict(
+        webcamShape='cutout', wallpaper='silk', closeTimelineGaps=False))['project']
+    assert edited['settings']['webcamShape'] == 'cutout'
+    assert edited['settings']['wallpaper'] == 'silk'
+    assert edited['settings']['closeTimelineGaps'] is False
+    imported = client.call('apply_edits', **rev(edited), edits=dict(
+        customBackgroundImagePath=str(ROOT / 'assets/mark.png')))
+    assert imported['ok'] and imported['project']['settings']['customBackgroundImage'], imported
+    edited = client.call('apply_edits', **rev(imported['project']), edits=dict(
+        clearCustomBackgroundImage=True))['project']
+    assert edited['settings'].get('customBackgroundImage') is None
+    cut = client.call('apply_edits', **rev(edited), edits=dict(removeOutputRanges=[
+        dict(id=str(uuid.uuid4()), start=0.2, end=0.3)]))
+    assert cut['ok'] and abs(cut['project']['editedDuration'] - 1.4) < 0.002, cut
+    edited = client.call('undo', **rev(cut['project']))['project']
+    assert abs(edited['editedDuration'] - 1.5) < 0.002
     saved = client.call('save_project', **rev(edited), path=destination + '/Portable.screentake')
     assert saved['ok'] and not saved['project']['hasUnsavedWork'], saved
     edited = client.call('open_project', **rev(saved['project']), path=destination + '/Portable.screentake')['project']

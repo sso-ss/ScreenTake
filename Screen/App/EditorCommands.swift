@@ -5,9 +5,12 @@ import ImageIO
 struct EditorEdits: Codable {
     var trim: VideoTrim?
     var removeRanges: [VideoCut]?
+    var removeOutputRanges: [VideoCut]?
     var ratio: CanvasRatio?
     var layout: DeviceLayout?
     var wallpaper: BackgroundStyle.WallpaperPreset?
+    var customBackgroundImagePath: String?
+    var clearCustomBackgroundImage: Bool?
     var backgroundEnabled: Bool?
     var desktopCornerRadius: Double?
     var phoneCornerRadius: Double?
@@ -36,6 +39,8 @@ struct EditorEdits: Codable {
     var cameraLayoutChanges: [CameraLayoutChange]?
     var videoOverlayTiming: VideoOverlayTiming?
     var voiceOvers: [VoiceOverClip]?
+    var recordedAudioClips: [MediaTimelineClip]?
+    var closeTimelineGaps: Bool?
     var textOverlays: [TextOverlay]?
     var audioEnabled: Bool?
     var originalAudioVolume: Double?
@@ -52,6 +57,7 @@ struct EditorEdits: Codable {
             settings.wallpaper = wallpaper
             settings.customBackgroundImage = nil
         }
+        if clearCustomBackgroundImage == true { settings.customBackgroundImage = nil }
         if let backgroundEnabled { settings.backgroundEnabled = backgroundEnabled }
         if let desktopCornerRadius { settings.desktopCornerRadius = desktopCornerRadius }
         if let phoneCornerRadius { settings.phoneCornerRadius = phoneCornerRadius }
@@ -87,6 +93,8 @@ struct EditorEdits: Codable {
         if let cameraLayoutChanges { settings.cameraLayoutChanges = cameraLayoutChanges }
         if let videoOverlayTiming { settings.videoOverlayTiming = videoOverlayTiming }
         if let voiceOvers { settings.voiceOvers = voiceOvers }
+        if let recordedAudioClips { settings.recordedAudioClips = recordedAudioClips }
+        if let closeTimelineGaps { settings.closeTimelineGaps = closeTimelineGaps }
         if let textOverlays { settings.textOverlays = textOverlays }
         if let audioEnabled { settings.audioEnabled = audioEnabled }
         if let originalAudioVolume { settings.originalAudioVolume = originalAudioVolume }
@@ -100,7 +108,8 @@ struct EditorCommandRequest: Codable {
     enum Operation: String, Codable, CaseIterable {
         case getCapabilities = "get_capabilities", getProject = "get_project"
         case openVideo = "open_video", openProject = "open_project", saveProject = "save_project"
-        case applyEdits = "apply_edits", findSilences = "find_silences", renderPreview = "render_preview"
+        case applyEdits = "apply_edits", setBrowserToolbarHidden = "set_browser_toolbar_hidden"
+        case findSilences = "find_silences", renderPreview = "render_preview"
         case exportVideo = "export_video", getJob = "get_job", cancelJob = "cancel_job", undo, redo
     }
     var id = UUID()
@@ -110,7 +119,10 @@ struct EditorCommandRequest: Codable {
     var path: String?
     var discardUnsaved: Bool?
     var edits: EditorEdits?
+    var hidden: Bool?
     var silence: SilenceDetector.Settings?
+    var audioTrackID: UUID?
+    var outputTime: Bool?
     var times: [Double]?
     var jobID: UUID?
 }
@@ -143,6 +155,7 @@ struct EditorJob: Codable {
     var output: URL?
     var frames: [Frame]?
     var suggestions: [VideoCut]?
+    var suggestionTimebase: String?
     var error: EditorCommandResponse.Failure?
 }
 
@@ -239,7 +252,7 @@ final class EditorCommandDispatcher {
             switch request.operation {
             case .getCapabilities:
                 return .init(id: request.id, capabilities: EditorCommandRequest.Operation.allCases.map {
-                    .init(command: $0.rawValue, requiresRevision: [.applyEdits, .undo, .redo, .saveProject, .exportVideo, .renderPreview, .findSilences].contains($0),
+                    .init(command: $0.rawValue, requiresRevision: [.applyEdits, .setBrowserToolbarHidden, .undo, .redo, .saveProject, .exportVideo, .renderPreview, .findSilences].contains($0),
                           returnsJob: [.exportVideo, .renderPreview, .findSilences].contains($0))
                 })
             case .getProject: return .init(id: request.id, project: snapshot)
@@ -274,7 +287,41 @@ final class EditorCommandDispatcher {
             case .applyEdits:
                 try checkRevision(request)
                 guard let edits = request.edits else { throw CommandError("invalid_request", "Provide an edits object.") }
-                try session.updateEdits { edits.apply(to: &$0) }
+                let image: Data?
+                if let imagePath = edits.customBackgroundImagePath {
+                    let url = try path(imagePath)
+                    image = try await Task.detached(priority: .userInitiated) {
+                        try CustomBackgroundImage.load(from: url)
+                    }.value
+                } else {
+                    image = nil
+                }
+                try checkRevision(request)
+                var candidate = session.draft
+                edits.apply(to: &candidate)
+                if let image { candidate.customBackgroundImage = image }
+                if let cuts = edits.removeOutputRanges {
+                    var timeline = LinkedMediaTimeline(trim: candidate.trim, audioClips: candidate.recordedAudioClips,
+                        sourceDuration: session.sourceDuration, hasAudio: session.hasEditableAudio)
+                    guard timeline.cutOutput(cuts) else {
+                        throw CommandError("invalid_output_ranges", "Choose nonoverlapping output-time ranges while keeping video content.")
+                    }
+                    candidate.trim = VideoTrim()
+                    candidate.trim.clips = timeline.video
+                    candidate.trim.timelineLength = timeline.duration
+                    candidate.recordedAudioClips = timeline.audio
+                    candidate.voiceOvers = VoiceOverClip.removing(cuts, from: candidate.voiceOvers)
+                }
+                try session.updateEdits { $0 = candidate }
+            case .setBrowserToolbarHidden:
+                try checkRevision(request)
+                guard let hidden = request.hidden else { throw CommandError("invalid_request", "Provide hidden as true or false.") }
+                await session.waitForPreview()
+                try checkRevision(request)
+                await session.setBrowserToolbarHidden(hidden)
+                guard session.draft.isBrowserToolbarHidden == hidden else {
+                    throw CommandError("browser_crop_failed", session.browserCropMessage ?? "The browser content could not be detected in this frame.")
+                }
             case .undo:
                 try checkRevision(request)
                 guard session.canUndo else { throw CommandError("nothing_to_undo", "There are no edits to undo.") }
@@ -360,13 +407,53 @@ final class EditorCommandDispatcher {
                 jobs[id]?.output = destination
             case .findSilences:
                 session.isAnalyzing = true
-                guard let audio = session.audioURL else { throw CleanupError.noAudio }
+                let selectedClip: VoiceOverClip?
+                let audio: URL
+                if let audioTrackID = request.audioTrackID {
+                    guard let clip = session.draft.voiceOvers.first(where: { $0.id == audioTrackID }) else {
+                        throw CommandError("unknown_audio_track", "The added audio track was not found.")
+                    }
+                    selectedClip = clip
+                    audio = clip.url
+                } else {
+                    guard let original = session.audioURL else { throw CleanupError.noAudio }
+                    selectedClip = nil
+                    audio = original
+                }
                 let cuts = try await SilenceDetector.suggestions(source: audio, settings: request.silence ?? .init())
-                let ranges = try session.draft.trim.timeline(duration: EditorAudio.time(session.sourceDuration)).ranges
-                jobs[id]?.suggestions = cuts.flatMap { cut in ranges.compactMap { range in
-                    let start = max(cut.start, range.start.seconds), end = min(cut.end, range.end.seconds)
-                    return end > start ? VideoCut(start: start, end: end) : nil
-                } }
+                let timeline = try session.draft.trim.timeline(duration: EditorAudio.time(session.sourceDuration))
+                if selectedClip != nil || request.outputTime == true {
+                    let placements: [(source: Double, output: Double, duration: Double)]
+                    if let clip = selectedClip {
+                        placements = [(clip.sourceStart, clip.start, clip.duration)]
+                    } else if let recorded = session.draft.recordedAudioClips {
+                        placements = recorded.map { ($0.sourceStart, $0.start, $0.duration) }
+                    } else {
+                        placements = zip(timeline.ranges, timeline.outputStarts).map {
+                            ($0.start.seconds, $1.seconds, $0.duration.seconds)
+                        }
+                    }
+                    let outputCuts = cuts.flatMap { cut in placements.compactMap { placement -> VideoCut? in
+                        let start = max(placement.source, cut.start)
+                        let end = min(placement.source + placement.duration, cut.end)
+                        return end > start ? VideoCut(start: placement.output + start - placement.source,
+                                                      end: placement.output + end - placement.source) : nil
+                    } }
+                    jobs[id]?.suggestions = outputCuts.flatMap { cut in
+                        zip(timeline.ranges, timeline.outputStarts).compactMap { range, output -> VideoCut? in
+                            let start = max(output.seconds, cut.start)
+                            let end = min(output.seconds + range.duration.seconds, cut.end)
+                            return end > start ? VideoCut(start: start, end: end) : nil
+                        }
+                    }.sorted { $0.start < $1.start }
+                    jobs[id]?.suggestionTimebase = "output"
+                } else {
+                    jobs[id]?.suggestions = cuts.flatMap { cut in timeline.ranges.compactMap { range in
+                        let start = max(cut.start, range.start.seconds), end = min(cut.end, range.end.seconds)
+                        return end > start ? VideoCut(start: start, end: end) : nil
+                    } }
+                    jobs[id]?.suggestionTimebase = "source"
+                }
             case .renderPreview:
                 session.isAnalyzing = true
                 await session.waitForPreview()
