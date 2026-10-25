@@ -42,6 +42,7 @@ struct EditorEdits: Codable {
     var recordedAudioClips: [MediaTimelineClip]?
     var closeTimelineGaps: Bool?
     var textOverlays: [TextOverlay]?
+    var privacyMasks: [PrivacyMask]?
     var audioEnabled: Bool?
     var originalAudioVolume: Double?
     var voiceOverEnabled: Bool?
@@ -96,6 +97,7 @@ struct EditorEdits: Codable {
         if let recordedAudioClips { settings.recordedAudioClips = recordedAudioClips }
         if let closeTimelineGaps { settings.closeTimelineGaps = closeTimelineGaps }
         if let textOverlays { settings.textOverlays = textOverlays }
+        if let privacyMasks { settings.privacyMasks = privacyMasks }
         if let audioEnabled { settings.audioEnabled = audioEnabled }
         if let originalAudioVolume { settings.originalAudioVolume = originalAudioVolume }
         if let voiceOverEnabled { settings.voiceOverEnabled = voiceOverEnabled }

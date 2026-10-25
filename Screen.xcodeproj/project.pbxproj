@@ -89,6 +89,34 @@
 		7E8700000000000000000002 /* TextOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000001 /* TextOverlay.swift */; };
 		7E8700000000000000000004 /* TextOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000003 /* TextOverlayRenderer.swift */; };
 		7E8700000000000000000006 /* TextEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8700000000000000000005 /* TextEditorPanel.swift */; };
+		7E8800000000000000000002 /* PrivacyMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8800000000000000000001 /* PrivacyMask.swift */; };
+		7E8800000000000000000004 /* PrivacyMaskEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8800000000000000000003 /* PrivacyMaskEditor.swift */; };
+		F40C21049AFE85CE7ED56928 /* FaceEffectsPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0D470AFF9AA75F409D77C2; };
+		0DF657A027B38459ED23DAA3 /* LashFaceLandmarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674DF41BCF45FF776197A9D1; };
+		A2D2AB220FF08CFF8AB87CFA /* LashGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76591A70C0DF2D7B88FB647C; };
+		B62E7E62E3ADBBB95697AE7A /* LashMesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CDB055F81B0B30111983B11; };
+		8C9C5B92E053AD382568EE55 /* LashPose.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71D9FC9905F8DDBDE6800CC; };
+		03326FE02C8B660E5A8D1B08 /* LashRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5EAECA1CF992B7CFD6CFAE; };
+		21F2B37BE07A86154146A3B0 /* MakeupBrows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CACAE2BF671E13DCB0C3408; };
+		DE191CEA5E2DA36BD8712AF3 /* MakeupEyes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7BDFD5FE7B0D727EA9B46BF; };
+		2F89F4E0519CB7CEAAD0AC33 /* MakeupFaceShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = D399B2F791DEECE9AE5F0B80; };
+		16E42EF36E3B2E836D40BF49 /* MakeupGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F9C617E3557362B59A091F; };
+		D7029697CD28880758507AA9 /* MakeupLipSmudge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C46C2B2583C03D7E68F1BA03; };
+		C2F5B0AE790CC1965CCE54E0 /* MakeupLipVolume.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE3FA9D93955A682B2C8871; };
+		A612736A01D30F28D47F693B /* MakeupLips.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1624016CDDFA32D39923EFE4; };
+		B6D2C35923463D418DAE0DCB /* MakeupLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99CA4DA96D605ACE5F1AD373; };
+		8EF90774EE6722EBB60BEDD9 /* MakeupNose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2787BB51C123E34924849CE4; };
+		186EEBA926FB862251C62515 /* MakeupPaint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EDC3FBF7295729051FAF0B3; };
+		6B065243786641F7785A5271 /* MakeupReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05886BB0018D7D5A386B233; };
+		7D3DC2917DC8707EA2AC6405 /* MakeupRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E725BB8FC54783B7E848FC; };
+		CE79716EDFE654872B74BD31 /* MakeupSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA0B9F0F474125C17EAF199; };
+		BFA45126EAABDBDF6B6D802F /* MakeupSkinSmoothing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCD7F78D4941DD40948F3BC; };
+		D514CA13BFB3573FA9E74853 /* ScreenTakeHandOcclusion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D64E613C431BEFE3E28E5C5; };
+		349432109B1E6C8CB22B2CB8 /* face_landmarker.task in Resources */ = {isa = PBXBuildFile; fileRef = 87177D3D64AB76E1AEAD6675; };
+		19698000A406BA850B4B9477 /* canonical_face_model.obj in Resources */ = {isa = PBXBuildFile; fileRef = 12AE3DF445022217CE42D623; };
+		F8B1FA3D671254C6475E6779 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 098D8B20D487C7A2BF697CA1; };
+		A99C4141B540B5D70116A20B /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 41BBD7D159C66EF710688B8E; };
+		E8A2BD9604FD88114B817A90 /* ReferenceMakeup in Resources */ = {isa = PBXBuildFile; fileRef = 3FFF4AD007A8FC308DA78D8D; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +142,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+        1968D847CCFCA5DBAA05CFAA /* Embed MediaPipe */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ("$(SRCROOT)/distribution/embed-mediapipe.sh", "$(SRCROOT)/Screen/Resources/MediaPipe/libmediapipe_source.so.gz",);
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/libmediapipe_source.so",);
+            name = "Embed MediaPipe";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/zsh;
+            shellScript = "\"$SRCROOT/distribution/embed-mediapipe.sh\"";
+        };
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		9E605141F51AF64E8A295346 /* PBXTargetDependency */ = {
@@ -218,6 +260,36 @@
 		7E8700000000000000000001 /* TextOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOverlay.swift; sourceTree = "<group>"; };
 		7E8700000000000000000003 /* TextOverlayRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOverlayRenderer.swift; sourceTree = "<group>"; };
 		7E8700000000000000000005 /* TextEditorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEditorPanel.swift; sourceTree = "<group>"; };
+		7E8800000000000000000001 /* PrivacyMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyMask.swift; sourceTree = "<group>"; };
+		7E8800000000000000000003 /* PrivacyMaskEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyMaskEditor.swift; sourceTree = "<group>"; };
+		5B0D470AFF9AA75F409D77C2 /* FaceEffectsPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceEffectsPipeline.swift; sourceTree = "<group>"; };
+		674DF41BCF45FF776197A9D1 /* LashFaceLandmarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LashFaceLandmarker.swift; sourceTree = "<group>"; };
+		76591A70C0DF2D7B88FB647C /* LashGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LashGeometry.swift; sourceTree = "<group>"; };
+		6CDB055F81B0B30111983B11 /* LashMesh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LashMesh.swift; sourceTree = "<group>"; };
+		F71D9FC9905F8DDBDE6800CC /* LashPose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LashPose.swift; sourceTree = "<group>"; };
+		3E5EAECA1CF992B7CFD6CFAE /* LashRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LashRendering.swift; sourceTree = "<group>"; };
+		5CACAE2BF671E13DCB0C3408 /* MakeupBrows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupBrows.swift; sourceTree = "<group>"; };
+		E7BDFD5FE7B0D727EA9B46BF /* MakeupEyes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupEyes.swift; sourceTree = "<group>"; };
+		D399B2F791DEECE9AE5F0B80 /* MakeupFaceShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupFaceShape.swift; sourceTree = "<group>"; };
+		C1F9C617E3557362B59A091F /* MakeupGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupGeometry.swift; sourceTree = "<group>"; };
+		C46C2B2583C03D7E68F1BA03 /* MakeupLipSmudge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupLipSmudge.swift; sourceTree = "<group>"; };
+		2EE3FA9D93955A682B2C8871 /* MakeupLipVolume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupLipVolume.swift; sourceTree = "<group>"; };
+		1624016CDDFA32D39923EFE4 /* MakeupLips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupLips.swift; sourceTree = "<group>"; };
+		99CA4DA96D605ACE5F1AD373 /* MakeupLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupLook.swift; sourceTree = "<group>"; };
+		2787BB51C123E34924849CE4 /* MakeupNose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupNose.swift; sourceTree = "<group>"; };
+		2EDC3FBF7295729051FAF0B3 /* MakeupPaint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupPaint.swift; sourceTree = "<group>"; };
+		E05886BB0018D7D5A386B233 /* MakeupReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupReference.swift; sourceTree = "<group>"; };
+		A7E725BB8FC54783B7E848FC /* MakeupRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupRendering.swift; sourceTree = "<group>"; };
+		EFA0B9F0F474125C17EAF199 /* MakeupSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupSkin.swift; sourceTree = "<group>"; };
+		5BCD7F78D4941DD40948F3BC /* MakeupSkinSmoothing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeupSkinSmoothing.swift; sourceTree = "<group>"; };
+		4D64E613C431BEFE3E28E5C5 /* ScreenTakeHandOcclusion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTakeHandOcclusion.swift; sourceTree = "<group>"; };
+		B82D62506822BE03468EF218 /* MediaPipeBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaPipeBridge.h; sourceTree = "<group>"; };
+		87177D3D64AB76E1AEAD6675 /* face_landmarker.task */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Screen/Resources/MediaPipe/face_landmarker.task"; sourceTree = SOURCE_ROOT; };
+		12AE3DF445022217CE42D623 /* canonical_face_model.obj */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Screen/Resources/MediaPipe/canonical_face_model.obj"; sourceTree = SOURCE_ROOT; };
+		098D8B20D487C7A2BF697CA1 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Screen/Resources/MediaPipe/LICENSE"; sourceTree = SOURCE_ROOT; };
+		41BBD7D159C66EF710688B8E /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Screen/Resources/MediaPipe/NOTICE"; sourceTree = SOURCE_ROOT; };
+		3FFF4AD007A8FC308DA78D8D /* ReferenceMakeup */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "Screen/Resources/ReferenceMakeup"; sourceTree = SOURCE_ROOT; };
+		E7EB3F94070F650CB0387069 /* libmediapipe_source.so.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = "Screen/Resources/MediaPipe/libmediapipe_source.so.gz"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -286,6 +358,7 @@
 				FA1100000000000000000002 /* FaceTracking.swift */,
 				BEA010000000000000000002 /* FaceBeautyFilter.swift */,
 				DFA100000000000000000002 /* DenseFaceMesh.swift */,
+				E1C0A6AA5E54CE5A367A7520 /* FaceEffects */,
 			);
 			path = Render;
 			sourceTree = "<group>";
@@ -346,6 +419,7 @@
 				83FC0BFB6012FE0D217E6338 /* MediaAsset.swift */,
 				4AF00DE98C978E0A0DAF2172 /* RenderSettings.swift */,
 				7E8700000000000000000001 /* TextOverlay.swift */,
+				7E8800000000000000000001 /* PrivacyMask.swift */,
 				ED1700050000000000000001 /* EditValidation.swift */,
 				82D19650C656141BDEE63D4F /* ScreenProject.swift */,
 				ED1700040000000000000001 /* EditorProjectStore.swift */,
@@ -383,6 +457,7 @@
 				EA2000010000000000000001 /* ZoomRegionEditor.swift */,
 				D450B289D9878B21F305AA05 /* AudioEditorViews.swift */,
 				7E8700000000000000000005 /* TextEditorPanel.swift */,
+				7E8800000000000000000003 /* PrivacyMaskEditor.swift */,
 				DE5C1065339160BD6604FC0A /* ContentView.swift */,
 				57C5A0A8B7A778DD8A7D6094 /* MainWelcomeView.swift */,
 				AAF512D84C873D0CEA66D994 /* PermissionSetupWizardView.swift */,
@@ -434,6 +509,7 @@
 			sourceTree = "<group>";
 		};
 		DFA100000000000000000009 /* FaceMesh */ = {isa = PBXGroup; children = (DFA100000000000000000004, DFA100000000000000000006, DFA100000000000000000008,); path = FaceMesh; sourceTree = "<group>"; };
+		E1C0A6AA5E54CE5A367A7520 /* FaceEffects */ = {isa = PBXGroup; children = (5B0D470AFF9AA75F409D77C2,674DF41BCF45FF776197A9D1,76591A70C0DF2D7B88FB647C,6CDB055F81B0B30111983B11,F71D9FC9905F8DDBDE6800CC,3E5EAECA1CF992B7CFD6CFAE,5CACAE2BF671E13DCB0C3408,E7BDFD5FE7B0D727EA9B46BF,D399B2F791DEECE9AE5F0B80,C1F9C617E3557362B59A091F,C46C2B2583C03D7E68F1BA03,2EE3FA9D93955A682B2C8871,1624016CDDFA32D39923EFE4,99CA4DA96D605ACE5F1AD373,2787BB51C123E34924849CE4,2EDC3FBF7295729051FAF0B3,E05886BB0018D7D5A386B233,A7E725BB8FC54783B7E848FC,EFA0B9F0F474125C17EAF199,5BCD7F78D4941DD40948F3BC,4D64E613C431BEFE3E28E5C5,B82D62506822BE03468EF218,); path = FaceEffects; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -462,6 +538,7 @@
 				5A1600000000000000000003 /* Frameworks */,
 				14EA0BF61BAE95C3DBD5997C /* Resources */,
 				ABBABFE2CD2B37AFAB3D9F9E /* Embed Dependencies */,
+				1968D847CCFCA5DBAA05CFAA /* Embed MediaPipe */,
 			);
 			buildRules = (
 			);
@@ -519,6 +596,11 @@
 				911F4DBCE16908A8FAB2D8B1 /* cursor.svg in Resources */,
 				DFA100000000000000000007 /* LICENSE.txt in Resources */,
 				DFA100000000000000000005 /* triangles.json in Resources */,
+				349432109B1E6C8CB22B2CB8 /* face_landmarker.task in Resources */,
+				19698000A406BA850B4B9477 /* canonical_face_model.obj in Resources */,
+				F8B1FA3D671254C6475E6779 /* LICENSE in Resources */,
+				A99C4141B540B5D70116A20B /* NOTICE in Resources */,
+				E8A2BD9604FD88114B817A90 /* ReferenceMakeup in Resources */,
 				FA1800000000000000000004 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -553,6 +635,8 @@
 				7E8700000000000000000006 /* TextEditorPanel.swift in Sources */,
 				7E8700000000000000000004 /* TextOverlayRenderer.swift in Sources */,
 				7E8700000000000000000002 /* TextOverlay.swift in Sources */,
+				7E8800000000000000000002 /* PrivacyMask.swift in Sources */,
+				7E8800000000000000000004 /* PrivacyMaskEditor.swift in Sources */,
 				26E267AD65E36AD219A801FD /* BackgroundStyle.swift in Sources */,
 				57D9993000EAF08145D07EC7 /* BugReporter.swift in Sources */,
 				0EEF5ED541135223028B26AD /* CameraTransform.swift in Sources */,
@@ -607,6 +691,27 @@
 				FA1100000000000000000001 /* FaceTracking.swift in Sources */,
 				BEA020000000000000000001 /* BeautyCameraFeedView.swift in Sources */,
 				BEA010000000000000000001 /* FaceBeautyFilter.swift in Sources */,
+				F40C21049AFE85CE7ED56928 /* FaceEffectsPipeline.swift in Sources */,
+				0DF657A027B38459ED23DAA3 /* LashFaceLandmarker.swift in Sources */,
+				A2D2AB220FF08CFF8AB87CFA /* LashGeometry.swift in Sources */,
+				B62E7E62E3ADBBB95697AE7A /* LashMesh.swift in Sources */,
+				8C9C5B92E053AD382568EE55 /* LashPose.swift in Sources */,
+				03326FE02C8B660E5A8D1B08 /* LashRendering.swift in Sources */,
+				21F2B37BE07A86154146A3B0 /* MakeupBrows.swift in Sources */,
+				DE191CEA5E2DA36BD8712AF3 /* MakeupEyes.swift in Sources */,
+				2F89F4E0519CB7CEAAD0AC33 /* MakeupFaceShape.swift in Sources */,
+				16E42EF36E3B2E836D40BF49 /* MakeupGeometry.swift in Sources */,
+				D7029697CD28880758507AA9 /* MakeupLipSmudge.swift in Sources */,
+				C2F5B0AE790CC1965CCE54E0 /* MakeupLipVolume.swift in Sources */,
+				A612736A01D30F28D47F693B /* MakeupLips.swift in Sources */,
+				B6D2C35923463D418DAE0DCB /* MakeupLook.swift in Sources */,
+				8EF90774EE6722EBB60BEDD9 /* MakeupNose.swift in Sources */,
+				186EEBA926FB862251C62515 /* MakeupPaint.swift in Sources */,
+				6B065243786641F7785A5271 /* MakeupReference.swift in Sources */,
+				7D3DC2917DC8707EA2AC6405 /* MakeupRendering.swift in Sources */,
+				CE79716EDFE654872B74BD31 /* MakeupSkin.swift in Sources */,
+				BFA45126EAABDBDF6B6D802F /* MakeupSkinSmoothing.swift in Sources */,
+				D514CA13BFB3573FA9E74853 /* ScreenTakeHandOcclusion.swift in Sources */,
 				DFA100000000000000000003 /* FaceMesh.mlmodel in Sources */,
 				DFA100000000000000000001 /* DenseFaceMesh.swift in Sources */,
 				C8B1A1CDBC09070BB74FAB9D /* WebcamPiPOverlay.swift in Sources */,
@@ -813,6 +918,7 @@
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "Screen/Screen-Bridging-Header.h";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) SCREENTAKE_RUNTIME";
 			};
 			name = Debug;
 		};
@@ -840,6 +946,7 @@
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
 				SWIFT_OBJC_BRIDGING_HEADER = "Screen/Screen-Bridging-Header.h";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) SCREENTAKE_RUNTIME";
 			};
 			name = Release;
 		};

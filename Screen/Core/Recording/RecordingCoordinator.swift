@@ -36,6 +36,12 @@ final class RecordingCoordinator: ObservableObject {
     @Published private(set) var currentDuration: TimeInterval = 0
     private(set) var isMicrophoneEnabled = false
 
+    /// Current live microphone amplitude for the recording toolbar.
+    var microphoneInputLevel: Float {
+        guard isRecording, !isPaused, isMicrophoneEnabled else { return 0 }
+        return microphoneRecorder?.inputLevel ?? 0
+    }
+
     // MARK: - Private Properties
 
     private var captureManager: ScreenCaptureManager?

@@ -41,6 +41,11 @@ final class CaptureToolbarCoordinator: ObservableObject {
     @Published var currentFrameRate: Int = 60
     @Published var needsRelaunch: Bool = false
 
+    var microphoneInputLevel: Float {
+        guard toolbarPhase == .recording, isMicrophoneEnabled, !isPaused else { return 0 }
+        return appState?.recording.recordingCoordinator?.microphoneInputLevel ?? 0
+    }
+
     // MARK: - Private
 
     private var toolbarWindow: NSWindow?

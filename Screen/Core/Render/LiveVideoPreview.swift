@@ -2,6 +2,12 @@ import AVFoundation
 import CoreImage
 
 enum LiveVideoPreview {
+    struct EditableItem {
+        let item: AVPlayerItem
+        let updatePrivacyMasks: ([PrivacyMask]) -> Void
+        let updateCameraEffects: (Double, FaceMakeupSettings) -> Void
+    }
+
     struct Request: Equatable {
         let source: URL
         let audio: URL?
@@ -11,6 +17,10 @@ enum LiveVideoPreview {
     }
 
     static func makeItem(_ request: Request) async throws -> AVPlayerItem {
+        try await makeEditableItem(request).item
+    }
+
+    static func makeEditableItem(_ request: Request) async throws -> EditableItem {
         let asset = AVURLAsset(url: request.source)
         guard let sourceTrack = try await asset.loadTracks(withMediaType: .video).first else { throw ExportError.noVideoTrack }
         let duration = try await asset.load(.duration)
@@ -78,6 +88,7 @@ enum LiveVideoPreview {
         } else { phone = nil }
         let context = CIContext(options: [.cacheIntermediates: false])
         let gapTextRenderer = TextOverlayRenderer(overlays: request.settings.textOverlays ?? [], size: renderer.outputSize)
+        let gapPrivacyRenderer = PrivacyMaskRenderer(masks: request.settings.privacyMasks ?? [], size: renderer.outputSize)
         let filters = AVMutableVideoComposition(asset: composition) { frame in
             autoreleasepool {
                 let image = frame.sourceImage
@@ -85,7 +96,8 @@ enum LiveVideoPreview {
                 let sourceTime = timeline.sourceTime(at: frame.compositionTime)
                 guard sourceTime.isNumeric else {
                     let black = CIImage(color: .black).cropped(to: CGRect(origin: .zero, size: renderer.outputSize))
-                    frame.finish(with: gapTextRenderer.composite(over: black, at: frame.compositionTime.seconds), context: context)
+                    let moment = frame.compositionTime.seconds
+                    frame.finish(with: gapPrivacyRenderer.composite(over: gapTextRenderer.composite(over: black, at: moment), at: moment), context: context)
                     return
                 }
                 let webcamTime: CMTime?
@@ -109,6 +121,14 @@ enum LiveVideoPreview {
         let item = AVPlayerItem(asset: composition)
         item.videoComposition = filters
         item.audioMix = audioMix
-        return item
+        return EditableItem(item: item, updatePrivacyMasks: { masks in
+            renderer.updatePrivacyMasks(masks)
+            gapPrivacyRenderer.updateMasks(masks)
+        }, updateCameraEffects: { amount, makeup in
+            renderer.updateCameraEffects(amount: amount, makeup: makeup)
+            // AVPlayer retains a paused composition frame. A new composition
+            // identity invalidates it so the selected style appears immediately.
+            item.videoComposition = filters.mutableCopy() as? AVVideoComposition
+        })
     }
 }

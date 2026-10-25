@@ -58,7 +58,7 @@ struct EditorMCPChecks {
         let exportedFrame = try generator.copyCGImage(at: EditorAudio.time(0.5), actualTime: nil)
         precondition(greenPixels(NSBitmapImageRep(cgImage: exportedFrame)) > 10,
                      "MCP-created text must also appear in the exported video")
-        precondition(session.draft.textOverlays?.first?.x == 0.35 && session.draft.cameraEffectSelection?.style == .peachMakeup)
+        precondition(session.draft.textOverlays?.first?.x == 0.35 && session.draft.cameraEffectSelection?.style == .softPeach)
         print("PASS: text created through MCP renders in actual preview and export frames")
         server.stop()
         precondition(!FileManager.default.fileExists(atPath: path))

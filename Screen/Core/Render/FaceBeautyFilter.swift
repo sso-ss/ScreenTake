@@ -306,10 +306,25 @@ final class FaceBeautyFilter {
     var profileImagesEnabled = false
 #endif
     private let meshDetector: DenseFaceMeshDetector?
+#if SCREENTAKE_RUNTIME && arch(arm64)
+    private let usesNativeTracking: Bool
+    private var nativeEffects: FaceEffectsPipeline?
+#endif
     init(meshEnabled: Bool = true, meshModelURL: URL? = nil, meshComputeUnits: MLComputeUnits = .cpuAndGPU) {
+#if SCREENTAKE_RUNTIME && arch(arm64)
+        if #available(macOS 14, *) { usesNativeTracking = meshEnabled && meshModelURL == nil }
+        else { usesNativeTracking = false }
+        meshDetector = usesNativeTracking ? nil : (meshEnabled ? DenseFaceMeshDetector(modelURL:meshModelURL,computeUnits:meshComputeUnits) : nil)
+#else
         meshDetector = meshEnabled ? DenseFaceMeshDetector(modelURL:meshModelURL,computeUnits:meshComputeUnits) : nil
+#endif
     }
-    var meshError: String? { meshDetector?.error }
+    var meshError: String? {
+#if SCREENTAKE_RUNTIME && arch(arm64)
+        if usesNativeTracking { return nativeEffects?.error }
+#endif
+        return meshDetector?.error
+    }
     private let lock = NSLock()
     private var tracker = FaceBeautyTracker()
     private var cachedTime: Double?
@@ -328,7 +343,12 @@ final class FaceBeautyFilter {
     var lastLipVisibility: Double { lipVisibility.amount }
     var lastMakeupVisibility: Double { makeupVisibility.amount }
     private(set) var lastHandMask: CIImage?
-    var lastTrackedGeometry: FaceBeautyGeometry? { tracker.geometry }
+    var lastTrackedGeometry: FaceBeautyGeometry? {
+#if SCREENTAKE_RUNTIME && arch(arm64)
+        if usesNativeTracking { return lastDetectedGeometry }
+#endif
+        return tracker.geometry
+    }
 
     static func clamped(_ value: Double) -> Double { value.isFinite ? min(1, max(0, value)) : 0 }
 
@@ -345,11 +365,29 @@ final class FaceBeautyFilter {
         let amount = Self.clamped(amount)
         let makeup = makeup.clamped
         guard amount > 0 || makeup.amount > 0, time.isFinite, !image.extent.isEmpty, !image.extent.isInfinite else {
+#if SCREENTAKE_RUNTIME && arch(arm64)
+            nativeEffects?.reset()
+#endif
             tracker = FaceBeautyTracker(); cachedImage = nil; cachedSource = nil; cachedTime = nil
             lastDetectedGeometry = nil; lastUsedFaceFallback = false; lastDetectedHands = []; handTracker = FaceHandTracker(); makeupVisibility = FaceMakeupVisibility(); lipVisibility = FaceMakeupVisibility(); lastHandMask = nil
             return image
         }
         if cachedSource === image, cachedTime == time, cachedAmount == amount, cachedMakeup == makeup, cachedExtent == image.extent, let cachedImage { return cachedImage }
+#if SCREENTAKE_RUNTIME && arch(arm64)
+        if usesNativeTracking {
+            if nativeEffects == nil { nativeEffects = FaceEffectsPipeline() }
+            let result = nativeEffects!.render(image, at: time, amount: amount, makeup: makeup)
+            lastDetectedGeometry = nativeEffects!.geometry
+            lastHandMask = nativeEffects!.handMask
+            detectionCount = nativeEffects!.detectionCount
+            lastDetectedHands = []; lastUsedFaceFallback = false
+            makeupVisibility.update(detected: lastDetectedGeometry != nil, at: time)
+            lipVisibility.update(detected: lastDetectedGeometry != nil, at: time)
+            cachedMakeup = makeup; cachedTime = time; cachedAmount = amount
+            cachedExtent = image.extent; cachedImage = result; cachedSource = image
+            return result
+        }
+#endif
         let bounds = image.extent
         let scale = min(1, (makeup.amount > 0 ? 960 : 512) / max(bounds.width, bounds.height))
         let normalized = image.transformed(by: CGAffineTransform(translationX: -bounds.minX, y: -bounds.minY))
@@ -503,16 +541,10 @@ final class FaceBeautyFilter {
         // Choose the stronger requested pass rather than smoothing twice.
         let peachSkin = detected == nil ? 0 : effectiveMakeup.amount * makeup.skin
         let skinAmount = max(amount, peachSkin)
-        if skinAmount > 0, let geometry = tracker.geometry, tracker.opacity > 0,
-           let mask = Self.mask(geometry, protecting: detected, size: small.extent.size), let kernel = Self.kernel {
-            let fullMask = mask.transformed(by: CGAffineTransform(scaleX: 1 / scale, y: 1 / scale))
-                .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY)).cropped(to: bounds)
-#if FACE_BEAUTY_PROFILING
-            if profile.captureImages { profile.images["skinMask"] = fullMask }
-#endif
-            let radius = max(1, geometry.bounds.width * bounds.width * 0.035)
-            result = kernel.apply(extent: bounds, roiCallback: { index, rect in index == 0 ? rect.insetBy(dx: -radius, dy: -radius) : rect },
-                                  arguments: [image.clampedToExtent(), fullMask, radius, skinAmount * tracker.opacity, peachSkin]) ?? image
+        if let geometry = tracker.geometry {
+            result = Self.renderSkin(image, face: geometry, current: detected,
+                                     amount: skinAmount * tracker.opacity, fineLines: peachSkin,
+                                     maskSize: small.extent.size)
         }
 #if FACE_BEAUTY_PROFILING
         profile.mark("skin.maskAndGraph")
@@ -543,6 +575,22 @@ final class FaceBeautyFilter {
         cachedMakeup = makeup
         cachedTime = time; cachedAmount = amount; cachedExtent = bounds; cachedImage = result; cachedSource = image
         return result
+    }
+
+    /// Preserve the existing Natural/Peach skin finish when the landmark
+    /// provider changes. This pass has no pigment, feature warp or lip expansion.
+    static func renderSkin(_ image: CIImage, face: FaceBeautyGeometry, current: FaceBeautyGeometry?,
+                           amount: Double, fineLines: Double, maskSize: CGSize) -> CIImage {
+        guard amount > 0, let kernel,
+              let mask = mask(face, protecting: current, size: maskSize) else { return image }
+        let bounds = image.extent
+        let fullMask = mask.transformed(by: CGAffineTransform(scaleX: bounds.width / maskSize.width,
+                                                              y: bounds.height / maskSize.height))
+            .transformed(by: CGAffineTransform(translationX: bounds.minX, y: bounds.minY)).cropped(to: bounds)
+        let radius = max(1, face.bounds.width * bounds.width * 0.035)
+        return kernel.apply(extent: bounds,
+            roiCallback: { index, rect in index == 0 ? rect.insetBy(dx: -radius, dy: -radius) : rect },
+            arguments: [image.clampedToExtent(), fullMask, radius, amount, fineLines]) ?? image
     }
 
     /// Rasterize palms and tapered finger capsules separately. Convex-hulling
@@ -735,7 +783,10 @@ final class FaceBeautyFilter {
 }
 
 /// Independent from Natural; old recordings and fresh installs start with makeup off.
+enum FaceMakeupPreset: String, Codable { case peachMakeup, softPeach }
+
 struct FaceMakeupSettings: Codable, Equatable {
+    var preset = FaceMakeupPreset.peachMakeup
     var amount = 0.0
     var lashes = 0.85
     var brows = 0.45
@@ -748,12 +799,15 @@ struct FaceMakeupSettings: Codable, Equatable {
     var shortening = 0.3
     var skin = 0.9
     var definition = 0.65
+    var lipBlur = 0.78
+    var lipVolume = 0.55
 
-    enum CodingKeys: String, CodingKey { case amount, lashes, brows, blush, lips, eyeshadow, underEyeShadow, aegyo, contour, shortening, skin, definition }
+    enum CodingKeys: String, CodingKey { case preset, amount, lashes, brows, blush, lips, eyeshadow, underEyeShadow, aegyo, contour, shortening, skin, definition, lipBlur, lipVolume }
     init(amount: Double = 0) { self.amount = amount }
     init(from decoder: Decoder) throws {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        preset = try c.decodeIfPresent(FaceMakeupPreset.self, forKey: .preset) ?? preset
         amount = try c.decodeIfPresent(Double.self, forKey: .amount) ?? amount
         lashes = try c.decodeIfPresent(Double.self, forKey: .lashes) ?? lashes
         brows = try c.decodeIfPresent(Double.self, forKey: .brows) ?? brows
@@ -766,15 +820,33 @@ struct FaceMakeupSettings: Codable, Equatable {
         shortening = try c.decodeIfPresent(Double.self, forKey: .shortening) ?? shortening
         skin = try c.decodeIfPresent(Double.self, forKey: .skin) ?? skin
         definition = try c.decodeIfPresent(Double.self, forKey: .definition) ?? definition
+        lipBlur = try c.decodeIfPresent(Double.self, forKey: .lipBlur) ?? lipBlur
+        lipVolume = try c.decodeIfPresent(Double.self, forKey: .lipVolume) ?? lipVolume
     }
 
-    var values: [Double] { [amount, lashes, brows, blush, lips, eyeshadow, underEyeShadow, aegyo, contour, shortening, skin, definition] }
+    var values: [Double] { Self.keys.map { self[keyPath: $0] } }
+    static var softPeach: Self {
+        var value = Self()
+        value.preset = .softPeach
+        value.lashes = 0.72; value.brows = 0.60; value.blush = 0.62
+        value.lips = 1; value.eyeshadow = 0.80; value.contour = 0.42
+        value.skin = 0.78; value.definition = 0.28
+        value.shortening = 0; value.lipBlur = 0.78; value.lipVolume = 0.55
+        return value
+    }
+    var replacingRetiredPreset: Self {
+        guard preset == .peachMakeup else { return self }
+        var value = Self.softPeach
+        value.amount = amount
+        value.shortening = shortening
+        return value
+    }
     var clamped: Self {
         var copy = self
         for key in Self.keys { copy[keyPath: key] = FaceBeautyFilter.clamped(copy[keyPath: key]) }
         return copy
     }
-    static let keys: [WritableKeyPath<Self, Double>] = [\.amount, \.lashes, \.brows, \.blush, \.lips, \.eyeshadow, \.underEyeShadow, \.aegyo, \.contour, \.shortening, \.skin, \.definition]
+    static let keys: [WritableKeyPath<Self, Double>] = [\.amount, \.lashes, \.brows, \.blush, \.lips, \.eyeshadow, \.underEyeShadow, \.aegyo, \.contour, \.shortening, \.skin, \.definition, \.lipBlur, \.lipVolume]
 }
 
 /// Procedural, translucent cosmetics preserve the source texture. All drawing is
@@ -1456,27 +1528,35 @@ enum FaceMakeupRenderer {
             result = unfiltered.applyingFilter("CIBlendWithMask",parameters:[
                 kCIInputBackgroundImageKey:result,kCIInputMaskImageKey:cosmeticProtection]).cropped(to:bounds)
         }
-        if settings.shortening > 0 || settings.definition > 0, face.shapingVisibility > 0,
-           let warp = shorteningKernel, face.contour.count >= 5 {
-            // The center three contour landmarks identify the same chin region
-            // on every frame; selecting a new minimum can jump between vertices.
-            let jaw = pixels(face.contour), middle = jaw.count/2
-            let chin = CGPoint(x:(jaw[middle-1].x+2*jaw[middle].x+jaw[middle+1].x)/4,
-                               y:(jaw[middle-1].y+2*jaw[middle].y+jaw[middle+1].y)/4)
-            let chinFull = CGPoint(x: bounds.minX+chin.x*bounds.width/size.width, y: bounds.minY+chin.y*bounds.height/size.height)
-            let width = fw*bounds.width/size.width, height = fh*bounds.height/size.height
-            let shift = height*0.028*CGFloat(settings.shortening)*strength*face.shapingVisibility
-            let slim = width*0.045*CGFloat(settings.definition)*strength*face.shapingVisibility
-            // Restoring raw hand pixels after a warp is too late: the warp can
-            // already have copied a second finger/sleeve edge beside the mask.
-            // Keep displacement zero around foreground boundaries, then blend
-            // back to normal shaping over nearby skin without gating all makeup.
-            let protection = shapingProtection(handProtection,extent:bounds,displacement:shift+slim)
-            result = warp.apply(extent: bounds, roiCallback: { _,rect in rect.insetBy(dx:-(shift+slim),dy:-(shift+slim)) },
-                                arguments: [result.clampedToExtent(),protection,CIVector(cgPoint:chinFull),
-                                            CIVector(cgPoint:up),width,height,shift,slim]) ?? result
+        return shapeLowerFace(result, face: face, shortening: CGFloat(settings.shortening)*strength,
+                              definition: CGFloat(settings.definition)*strength, protection: handProtection)
+    }
+
+    /// Shorter face is an independent, bounded chin adjustment. Soft Peach's
+    /// eye/nose shaping leaves this area unchanged unless this control is used.
+    static func shapeLowerFace(_ image: CIImage, face: FaceBeautyGeometry, shortening: CGFloat,
+                               definition: CGFloat = 0, protection mask: CIImage? = nil) -> CIImage {
+        guard shortening > 0 || definition > 0, face.shapingVisibility > 0,
+              let warp = shorteningKernel, face.contour.count >= 5, face.features.count >= 2,
+              face.features.prefix(2).allSatisfy({ !$0.isEmpty }) else { return image }
+        let bounds = image.extent
+        func pixel(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: bounds.minX+p.x*bounds.width, y: bounds.minY+p.y*bounds.height)
         }
-        return result.cropped(to: bounds)
+        let a = pixel(center(face.features[0])), b = pixel(center(face.features[1]))
+        let distance = hypot(b.x-a.x,b.y-a.y)
+        guard distance > 1 else { return image }
+        let up = CGPoint(x: -(b.y-a.y)/distance, y: (b.x-a.x)/distance)
+        let jaw = face.contour.map(pixel), middle = jaw.count/2
+        let chin = CGPoint(x:(jaw[middle-1].x+2*jaw[middle].x+jaw[middle+1].x)/4,
+                           y:(jaw[middle-1].y+2*jaw[middle].y+jaw[middle+1].y)/4)
+        let width = face.bounds.width*bounds.width, height = face.bounds.height*bounds.height
+        let shift = height*0.028*MakeupPaint.clamp(shortening)*face.shapingVisibility
+        let slim = width*0.045*MakeupPaint.clamp(definition)*face.shapingVisibility
+        let protection = shapingProtection(mask,extent:bounds,displacement:shift+slim)
+        return (warp.apply(extent: bounds, roiCallback: { _,rect in rect.insetBy(dx:-(shift+slim),dy:-(shift+slim)) },
+            arguments: [image.clampedToExtent(),protection,CIVector(cgPoint:chin),
+                        CIVector(cgPoint:up),width,height,shift,slim]) ?? image).cropped(to: bounds)
     }
 
     static func shapingProtection(_ mask: CIImage?, extent: CGRect, displacement: CGFloat) -> CIImage {

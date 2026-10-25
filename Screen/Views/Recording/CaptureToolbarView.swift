@@ -216,12 +216,10 @@ struct CaptureToolbarView: View {
             Button {
                 coordinator.toggleMicrophone()
             } label: {
-                Image(systemName: coordinator.isMicrophoneEnabled ? "mic.fill" : "mic.slash.fill")
-                    .font(.system(size: 14, weight: coordinator.isMicrophoneEnabled ? .bold : .regular))
-                    .foregroundStyle(coordinator.isMicrophoneEnabled ? .white : .secondary)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(coordinator.isMicrophoneEnabled ? systemAccent.opacity(0.8) : Color.clear))
-                    .contentShape(Rectangle())
+                TimelineView(.animation(minimumInterval: 1.0 / 15.0,
+                                        paused: !coordinator.isMicrophoneEnabled || coordinator.isPaused)) { _ in
+                    microphoneButtonLabel(level: coordinator.microphoneInputLevel)
+                }
             }
             .buttonStyle(.plain)
             .disabled(coordinator.isUpdatingMicrophone)
@@ -249,6 +247,30 @@ struct CaptureToolbarView: View {
     }
 
     // MARK: - Toolbar Components
+
+    private func microphoneButtonLabel(level: Float) -> some View {
+        // Convert microphone amplitude to a visible range without lighting the
+        // ring for room noise. The capture connection supplies the live level.
+        let decibels = 20 * log10(max(Double(level), 0.000_01))
+        let amount = CGFloat(min(1, max(0, (decibels + 48) / 42)))
+
+        return Image(systemName: coordinator.isMicrophoneEnabled ? "mic.fill" : "mic.slash.fill")
+            .font(.system(size: 14, weight: coordinator.isMicrophoneEnabled ? .bold : .regular))
+            .foregroundStyle(coordinator.isMicrophoneEnabled ? .white : .secondary)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(coordinator.isMicrophoneEnabled ? systemAccent.opacity(0.8) : Color.clear))
+            .overlay {
+                if coordinator.isMicrophoneEnabled {
+                    Circle()
+                        .trim(from: 0, to: amount)
+                        .stroke(.white.opacity(0.9), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .padding(2)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+    }
 
     private func toolbarModeIcon(
         systemName: String,

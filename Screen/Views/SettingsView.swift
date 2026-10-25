@@ -8,6 +8,7 @@ private enum SettingsPanel: String, CaseIterable {
     case cursor = "Cursor"
     case camera = "Camera"
     case text = "Text"
+    case privacy = "Privacy"
     case audio = "Audio"
     case output = "Output"
 
@@ -17,6 +18,7 @@ private enum SettingsPanel: String, CaseIterable {
         case .cursor: return "cursorarrow"
         case .camera: return "video.fill"
         case .text: return "textformat"
+        case .privacy: return "eye.slash"
         case .audio: return "waveform"
         case .output: return "square.and.arrow.up"
         }
@@ -43,6 +45,7 @@ struct SettingsView: View {
     @State private var isCroppingScreen = false
     @State private var cropFrameTime = CMTime.zero
     @State private var selectedPanel: SettingsPanel = .canvas
+    @State private var selectedPrivacyMaskID: UUID?
     @State private var showsZoomRegion = false
     @State private var previewsZoomRegion = false
     @State private var adjustingZoomRegion = false
@@ -70,7 +73,7 @@ struct SettingsView: View {
     private var isExporting: Bool { session.isExporting }
     private var isSaving: Bool { session.isSaving }
     private var processingTitle: String? {
-        appState.recording.processingStage?.title ?? (isExporting ? "Applying changes..." : nil)
+        appState.recording.processingStage?.title ?? (isExporting ? "Exporting video..." : nil)
     }
     private var processingProgress: Double? {
         // A new recording may be processing while the previous video is still
@@ -405,23 +408,40 @@ struct SettingsView: View {
             .disabled(editsBusy)
             .hoverHelp(editBusyReason ?? "Open a video file for editing.")
 
-            // Record button
-            Button {
-                stopCameraPreview()
-                onStartRecording?()
-            } label: {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 7, height: 7)
-                    Text("Record")
-                        .font(.system(size: 12, weight: .semibold))
+            if let videoURL {
+                Button { presentSavePanel(for: videoURL) } label: {
+                    HStack(alignment: .center, spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 11, weight: .semibold))
+                            .frame(width: 12, height: 12)
+                        Text("Export Video…")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
+                .buttonStyle(CompactActionButtonStyle(prominent: true))
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(!hasValidTimeline || editsBusy)
+                .hoverHelp(exportDisabledReason ?? "Export the edited video to a file.")
+                .accessibilityIdentifier("exportVideo")
+            } else {
+                Button {
+                    stopCameraPreview()
+                    onStartRecording?()
+                } label: {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                        Text("Record")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                }
+                .buttonStyle(CompactActionButtonStyle(prominent: true))
+                .localizedAccessibilityLabel("Start recording")
+                .disabled(editsBusy || !appState.capture.isLayoutReady)
+                .hoverHelp(editBusyReason ?? (!appState.capture.isLayoutReady ? "Choose a phone video before recording this layout." : "Choose a source and start recording."))
             }
-            .buttonStyle(CompactActionButtonStyle(prominent: true))
-            .localizedAccessibilityLabel("Start recording")
-            .disabled(editsBusy || !appState.capture.isLayoutReady)
-            .hoverHelp(editBusyReason ?? (!appState.capture.isLayoutReady ? "Choose a phone video before recording this layout." : "Choose a source and start recording."))
         }
         .padding(.horizontal, Spacing.lg)
         .frame(height: 52)
@@ -624,17 +644,10 @@ struct SettingsView: View {
         }
         return nil
     }
-    private var applyDisabledReason: String? {
-        if let reason = editBusyReason { return reason }
-        if appState.updates.isPresenting { return "Close the app update dialog first." }
-        if !hasValidTimeline { return "Keep at least one valid video section before applying changes." }
-        if !hasEditChanges { return "Make an edit first; there are no pending changes to apply." }
-        return nil
-    }
-    private var downloadDisabledReason: String? {
+    private var exportDisabledReason: String? {
         if videoURL == nil { return "Record or open a video first." }
         if let reason = editBusyReason { return reason }
-        if !hasValidTimeline { return "Keep at least one valid video section before downloading." }
+        if !hasValidTimeline { return "Keep at least one valid video section before exporting." }
         return nil
     }
     private var hasEditChanges: Bool { session.hasEditChanges }
@@ -668,8 +681,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Divider()
-                editActions
             }
             Divider()
             settingsPanelRail(editing: true)
@@ -744,12 +755,12 @@ struct SettingsView: View {
     }
 
     private func isPanelAvailable(_ panel: SettingsPanel, editing: Bool) -> Bool {
-        guard editing else { return true }
+        guard editing else { return panel != .privacy }
         switch panel {
         case .canvas: return true
         case .cursor: return true
         case .camera, .audio: return true
-        case .text: return true
+        case .text, .privacy: return true
         case .output: return true
         }
     }
@@ -757,10 +768,12 @@ struct SettingsView: View {
     @ViewBuilder
     private var editPanelContent: some View {
         VStack(alignment: .leading, spacing: Spacing.featureGap) {
-            if selectedPanel != .text && selectedPanel != .audio {
+            if selectedPanel != .text && selectedPanel != .audio && selectedPanel != .privacy {
                 InspectorTitle(title: selectedPanel.rawValue)
             }
             switch selectedPanel {
+            case .privacy:
+                PrivacyMaskEditorPanel(session: session, selectedID: $selectedPrivacyMaskID)
             case .canvas:
                 settingsSection("Layout") {
                     ratioPicker(selection: $session.draft.ratio)
@@ -1077,40 +1090,16 @@ struct SettingsView: View {
         }
     }
 
-    private var editActions: some View {
-        VStack(spacing: 10) {
-            Button { Task { await applyLayout() } } label: {
-                Label("Apply Changes", systemImage: "checkmark")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(CompactActionButtonStyle(size: .medium))
-            .disabled(!hasEditChanges || !hasValidTimeline || editsBusy || appState.updates.isPresenting)
-            .keyboardShortcut(.return, modifiers: [.command, .shift])
-            .hoverHelp(applyDisabledReason ?? "Render the video with your current edits. ⇧⌘Return")
-            .accessibilityIdentifier("applyVideoChanges")
-            Button {
-                if let videoURL { presentSavePanel(for: videoURL) }
-            } label: {
-                Label(isSaving ? "Downloading..." : "Download", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(CompactActionButtonStyle(prominent: true, size: .medium))
-            .keyboardShortcut("s", modifiers: .command)
-            .disabled(videoURL == nil || !hasValidTimeline || editsBusy)
-            .hoverHelp(downloadDisabledReason ?? "Save the finished video to a file.")
-            .accessibilityIdentifier("downloadVideo")
-        }
-        .padding(Spacing.lg)
-        .background(DesignColors.controlBackground)
-    }
-
     @ViewBuilder
     private var capturePanelContent: some View {
         VStack(alignment: .leading, spacing: Spacing.featureGap) {
-            if selectedPanel != .text && selectedPanel != .audio {
+            if selectedPanel != .text && selectedPanel != .audio && selectedPanel != .privacy {
                 InspectorTitle(title: selectedPanel.rawValue)
             }
             switch selectedPanel {
+            case .privacy:
+                Text("Open or record a video to add privacy masks.")
+                    .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
             case .text:
                 TextEditorPanel(session: session)
             case .canvas:
@@ -1362,6 +1351,18 @@ struct SettingsView: View {
 
     private func updateCameraLayout(_ change: (inout CameraLayoutSettings) -> Void) {
         videoPlayer?.pause()
+        // A camera sidecar follows each screen section. Materialize inherited
+        // settings at their boundaries before editing one section, so a change
+        // to Overlay or Full Screen cannot silently affect every split clip.
+        if session.draft.videoOverlayTiming == nil, let clips = session.draft.trim.clips, clips.count > 1 {
+            let starts = Array(Set(clips.map(\.sourceStart))).sorted()
+            for start in starts.dropFirst() where !session.draft.cameraLayoutChanges.contains(where: { abs($0.start - start) < 0.0001 }) {
+                let inherited = CameraLayoutChange.settings(at: start, initial: session.draft.cameraLayout,
+                                                             changes: session.draft.cameraLayoutChanges)
+                session.draft.cameraLayoutChanges.append(.init(start: start, settings: inherited))
+            }
+            session.draft.cameraLayoutChanges.sort { $0.start < $1.start }
+        }
         if let index = cameraLayoutChangeIndex { change(&session.draft.cameraLayoutChanges[index].settings) }
         else { change(&session.draft.cameraLayout) }
     }
@@ -2022,8 +2023,7 @@ struct SettingsView: View {
             // Close video bar
             HStack {
                 Button {
-                    session.close()
-                    cameraLayoutPlayback.detach()
+                    closeVideoPreview()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "xmark")
@@ -2086,7 +2086,11 @@ struct SettingsView: View {
                 NativeVideoPlayerView(player: player, showsControls: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay {
-                        TextCanvasOverlay(session: session, isEnabled: !editsBusy)
+                        if selectedPanel == .privacy {
+                            PrivacyMaskCanvasOverlay(session: session, selectedID: $selectedPrivacyMaskID)
+                        } else {
+                            TextCanvasOverlay(session: session, isEnabled: !editsBusy)
+                        }
                     }
             }
             if sourceDuration > 0, let player = videoPlayer, let source = layoutSourceURL {
@@ -2142,13 +2146,15 @@ struct SettingsView: View {
     private func presentSavePanel(for source: URL) {
         guard !isShowingSavePanel, !isSaving else { return }
         let panel = NSSavePanel()
-        panel.title = "Save Recording"
-        panel.prompt = "Save"
-        panel.allowedContentTypes = [UTType(filenameExtension: source.pathExtension) ?? .quickTimeMovie]
+        panel.title = "Export Video"
+        panel.prompt = "Export"
+        let outputExtension = hasEditChanges ? "mov" : source.pathExtension
+        panel.allowedContentTypes = [UTType(filenameExtension: outputExtension) ?? .quickTimeMovie]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
         panel.nameFieldStringValue = source == appState.recording.lastRecordingURL
-            ? "ScreenTake Recording.\(source.pathExtension)" : source.lastPathComponent
+            ? "ScreenTake Recording.\(outputExtension)"
+            : "\(source.deletingPathExtension().lastPathComponent).\(outputExtension)"
         panel.directoryURL = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
         isShowingSavePanel = true
         videoPlayer?.pause()
@@ -2184,6 +2190,21 @@ struct SettingsView: View {
     }
 
     private var hasUnsavedVideoWork: Bool { session.hasUnsavedWork }
+
+    private func closeVideoPreview() {
+        guard !editsBusy else { return }
+        if hasUnsavedVideoWork {
+            Task { @MainActor in
+                let approved = await appState.confirmVideoReplacement(.close)
+                guard approved, !editsBusy else { return }
+                session.close()
+                cameraLayoutPlayback.detach()
+            }
+        } else {
+            session.close()
+            cameraLayoutPlayback.detach()
+        }
+    }
 
     private func requestImport(_ url: URL) {
         requestOpen(url, project: false)
@@ -2323,12 +2344,6 @@ struct SettingsView: View {
         if let current = videoURL, current == appState.recording.lastRecordingURL,
            let source = appState.recording.lastSourceRecordingURL { return source }
         return layoutSourceURL
-    }
-
-    private func applyLayout() async {
-        guard !editsBusy, hasEditChanges, hasValidTimeline else { return }
-        do { try await session.applyChanges() }
-        catch { session.exportError = error.localizedDescription }
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -3544,9 +3559,10 @@ struct VideoTrimControls: View {
                     .disabled(zoom <= 1)
                     .modifier(TimelineTooltip(text: zoom <= 1 ? "The timeline is already fully zoomed out" : "Zoom timeline out"))
                 if expanded {
-                    SliderValueControl(selection: $zoom, range: 1...8, label: "Timeline zoom",
-                                       unit: "×", decimals: 2, keyboardStep: 0.25)
-                        .frame(width: 150)
+                    Slider(value: $zoom, in: 1...8)
+                        .labelsHidden()
+                        .accessibilityLabel(Text("Timeline zoom"))
+                        .frame(width: 90)
                 }
                 icon("plus", "Zoom timeline in · ⌘=") { zoom = min(8, zoom + 1) }
                     .keyboardShortcut("=", modifiers: .command)
@@ -4430,7 +4446,7 @@ struct CameraEffectsControls: View {
             VStack(alignment: .leading, spacing: Spacing.labelToControl) {
                 Text("Style").font(Typography.body)
                 Picker("Camera effect style", selection: $selection.style) {
-                    ForEach(CameraEffectStyle.allCases, id: \.self) { style in
+                    ForEach(CameraEffectStyle.availableCases, id: \.self) { style in
                         Text(LocalizedStringKey(style.displayName)).tag(style)
                     }
                 }
@@ -4443,7 +4459,7 @@ struct CameraEffectsControls: View {
                                    label: "Camera effect intensity", multiplier: 100, unit: "%")
                     .accessibilityIdentifier("cameraEffectIntensity")
             }
-            if selection.style == .peachMakeup {
+            if selection.style != .natural {
                 InspectorSection(title: "Customize makeup", initiallyExpanded: false) {
                     makeupSlider("Skin & fine lines", key: \.skin)
                     makeupSlider("Face definition", key: \.definition)
@@ -4451,16 +4467,16 @@ struct CameraEffectsControls: View {
                     makeupSlider("Eyebrows", key: \.brows)
                     makeupSlider("Peach blush", key: \.blush)
                     makeupSlider("Overlined lips", key: \.lips)
+                    makeupSlider("Lip edge smudge", key: \.lipBlur)
+                    makeupSlider("Lip volume", key: \.lipVolume)
                     makeupSlider("Eyeshadow", key: \.eyeshadow)
-                    makeupSlider("Under-eye shadow", key: \.underEyeShadow)
-                    makeupSlider("Under-eye fullness · 애굣살", key: \.aegyo)
-                    makeupSlider("Nose & chin contour", key: \.contour)
+                    makeupSlider("Nose contour", key: \.contour)
                     makeupSlider("Shorter face", key: \.shortening)
                 }
             }
             Text(LocalizedStringKey(selection.style == .natural
                  ? "Softens skin and fine lines while tracking visible facial features. Fades out when tracking is lost."
-                 : "Soft peach makeup that follows your face. Face shortening eases off as you turn sideways."))
+                 : "Peach blush, brown eye makeup and softly smudged overlined lips that follow your face."))
                 .font(Typography.caption).foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -5056,7 +5072,7 @@ private struct EditorShortcutsView: View {
         ("Go to start / end", "⌘← / ⌘→"), ("Split at Playhead", "⌘B"),
         ("Undo / Redo", "⌘Z / ⇧⌘Z"), ("Delete Selection", "Delete"),
         ("Link / Unlink Audio", "⇧⌘L"), ("Zoom Timeline In / Out", "⌘= / ⌘−"),
-        ("Apply Changes", "⇧⌘Return"), ("Export Video…", "⌘E"),
+        ("Export Video…", "⌘E / ⌘S"),
         ("Save Project…", "⇧⌘S")
     ]
     var body: some View {

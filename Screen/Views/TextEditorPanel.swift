@@ -340,6 +340,13 @@ struct TextCanvasGeometry {
         return CGPoint(x: min(1, max(0, origin.x + translation.width / viewport.width)),
                        y: min(1, max(0, origin.y + translation.height / viewport.height)))
     }
+
+    func snappedToCenter(_ position: CGPoint, threshold: CGFloat = 6) -> (position: CGPoint, vertical: Bool, horizontal: Bool) {
+        let vertical = abs(position.x - 0.5) * viewport.width <= threshold
+        let horizontal = abs(position.y - 0.5) * viewport.height <= threshold
+        return (CGPoint(x: vertical ? 0.5 : position.x, y: horizontal ? 0.5 : position.y),
+                vertical, horizontal)
+    }
 }
 
 struct TextCanvasOverlay: NSViewRepresentable {
@@ -376,6 +383,7 @@ final class TextCanvasSelectionView: NSView {
     private var cachedTexts: [UUID: TextOverlay] = [:]
     private var cachedCanvas = CGSize.zero
     private var drag: (id: UUID, point: CGPoint, position: CGPoint)?
+    private var centerGuides = (vertical: false, horizontal: false)
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -436,6 +444,7 @@ final class TextCanvasSelectionView: NSView {
         window?.makeFirstResponder(self)
         session.beginUndoGroup()
         drag = (text.id, point, CGPoint(x: text.x, y: text.y))
+        centerGuides = (false, false)
         needsDisplay = true
     }
 
@@ -445,8 +454,10 @@ final class TextCanvasSelectionView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         let position = geometry.position(from: drag.position,
                                          translation: CGSize(width: point.x - drag.point.x, height: point.y - drag.point.y))
+        let aligned = geometry.snappedToCenter(position)
+        centerGuides = (aligned.vertical, aligned.horizontal)
         var layers = session.draft.textOverlays ?? []
-        layers[index].x = position.x; layers[index].y = position.y
+        layers[index].x = aligned.position.x; layers[index].y = aligned.position.y
         session.draft.textOverlays = layers
         updateLayers(layers)
     }
@@ -456,6 +467,8 @@ final class TextCanvasSelectionView: NSView {
     func finishDrag() {
         guard drag != nil else { return }
         drag = nil
+        centerGuides = (false, false)
+        needsDisplay = true
         session?.endUndoGroup()
     }
 
@@ -466,6 +479,22 @@ final class TextCanvasSelectionView: NSView {
         let size = geometry.displaySize(canvasSize), center = geometry.center(of: text)
         context.saveGState()
         context.clip(to: geometry.viewport)
+        if drag != nil {
+            let viewport = geometry.viewport
+            context.setStrokeColor(NSColor(DesignColors.accent).cgColor)
+            context.setLineWidth(1)
+            context.setLineDash(phase: 0, lengths: [5, 4])
+            if centerGuides.vertical {
+                context.move(to: CGPoint(x: viewport.midX, y: viewport.minY))
+                context.addLine(to: CGPoint(x: viewport.midX, y: viewport.maxY))
+            }
+            if centerGuides.horizontal {
+                context.move(to: CGPoint(x: viewport.minX, y: viewport.midY))
+                context.addLine(to: CGPoint(x: viewport.maxX, y: viewport.midY))
+            }
+            context.strokePath()
+            context.setLineDash(phase: 0, lengths: [])
+        }
         context.translateBy(x: center.x, y: center.y)
         context.rotate(by: text.rotation * .pi / 180)
         context.setStrokeColor(NSColor(DesignColors.accent).cgColor)

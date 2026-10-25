@@ -60,6 +60,8 @@ struct VideoEditSettings: Equatable, Codable {
     var voiceOvers: [VoiceOverClip] = []
     /// Optional for projects created before text overlays were introduced.
     var textOverlays: [TextOverlay]?
+    /// Nil keeps projects created before privacy masks compatible.
+    var privacyMasks: [PrivacyMask]?
     var trim = VideoTrim()
     var exportResolution: ExportResolution = .preserveSource
     /// Optional source metadata captured from the browser's visible web area.
@@ -80,9 +82,19 @@ struct VideoEditSettings: Equatable, Codable {
 }
 
 enum CameraEffectStyle: String, CaseIterable, Codable {
-    case natural, peachMakeup
+    // Retain the old raw value only to read existing projects and preferences.
+    case natural, peachMakeup, softPeach
 
-    var displayName: String { self == .natural ? "Natural" : "Peach Makeup" }
+    static var availableCases: [Self] {
+#if arch(arm64)
+        if #available(macOS 14, *) { return [.natural, .softPeach] }
+#endif
+        return [.natural]
+    }
+
+    var displayName: String {
+        switch self { case .natural: return "Natural"; case .peachMakeup: return "Peach Makeup"; case .softPeach: return "Soft Peach" }
+    }
 }
 
 struct CameraEffectSelection: Equatable, Codable {
@@ -90,23 +102,31 @@ struct CameraEffectSelection: Equatable, Codable {
     var intensity: Double = 0.5
 
     var clamped: Self {
-        Self(style: style, intensity: min(1, max(0.05, intensity.isFinite ? intensity : 0.5)))
+        Self(style: style == .peachMakeup ? .softPeach : style,
+             intensity: min(1, max(0.05, intensity.isFinite ? intensity : 0.5)))
     }
 
     static func current(preferred: Self?, natural: Double, makeup: FaceMakeupSettings) -> Self {
-        if makeup.amount > 0 { return Self(style: .peachMakeup, intensity: makeup.amount).clamped }
+        if makeup.amount > 0 { return Self(style: makeup.preset == .softPeach ? .softPeach : .peachMakeup, intensity: makeup.amount).clamped }
         if natural > 0 { return Self(style: .natural, intensity: natural).clamped }
         return preferred?.clamped ?? Self()
     }
 
     func amounts(enabled: Bool, makeup: FaceMakeupSettings) -> (natural: Double, makeup: FaceMakeupSettings) {
-        var updated = makeup
-        updated.amount = enabled && style == .peachMakeup ? clamped.intensity : 0
+        let style = clamped.style
+        var updated = makeup.preset == .peachMakeup && makeup.amount == 0 ? .softPeach : makeup.replacingRetiredPreset
+        if style == .softPeach && updated.preset != .softPeach { updated = .softPeach }
+        updated.amount = enabled && style != .natural ? clamped.intensity : 0
         return (enabled && style == .natural ? clamped.intensity : 0, updated)
     }
 }
 
 extension VideoEditSettings {
+    mutating func migrateRetiredCameraEffect() {
+        if faceMakeup?.preset == .peachMakeup { faceMakeup = faceMakeup?.replacingRetiredPreset }
+        if cameraEffectSelection?.style == .peachMakeup { cameraEffectSelection = cameraEffectSelection?.clamped }
+    }
+
     var cameraEffectsEnabled: Bool { (faceBeautyAmount ?? 0) > 0 || (faceMakeup?.amount ?? 0) > 0 }
 
     var resolvedCameraEffectSelection: CameraEffectSelection {
