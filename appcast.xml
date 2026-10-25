@@ -6,6 +6,19 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>ScreenTake</title>
         <item>
+            <title>0.1.22</title>
+            <pubDate>Sat, 24 Oct 2026 21:05:32 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>24</sparkle:version>
+            <sparkle:shortVersionString>0.1.22</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.22</h2><ul><li>Cover or blur sensitive details with timed privacy masks, motion keyframes, and tracking. Review coverage before sharing.</li><li>Edit privacy masks through MCP with shared Undo and portable project persistence.</li><li>Use Natural or Soft Peach camera effects; MCP supports softPeach, lip blur, and lip volume. Reconnect your AI client after updating.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
+]]></description>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.22-build24.dmg" length="78443942" type="application/octet-stream" sparkle:edSignature="eMe1K3fzXumL5u4aRbl6KtTV2K968lJOHtxmUuKA21fJoLZLICwgfPhF6N4Fjcuv3VgTxvc+CZurbfshr3AqAg=="/>
+        </item>
+        <item>
             <title>0.1.21</title>
             <pubDate>Thu, 22 Oct 2026 23:55:01 -0700</pubDate>
             <link>https://sso-ss.github.io/ScreenTake/</link>
@@ -14,8 +27,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:shortVersionString>0.1.21</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>ScreenTake 0.1.21</h2><ul><li>Remove the camera background in live preview and exported video.</li><li>Edit recorded audio independently, choose whether cuts close gaps, and clean up silence in added audio.</li><li>Use the expanded bundled MCP helper from a connected AI client. Reconnect the client after updating ScreenTake.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
-]]></description>
             <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg" length="37933760" type="application/octet-stream" sparkle:edSignature="VCdpRVxWh+J+2wa03zj8SJQFGxuzSyNJ5WTHqXrwg3J71s6eHPQrJLaX7S/QoE8jiUFejpV2BVc3AvEzEvb8Dg=="/>
         </item>
         <item>
@@ -29,21 +40,9 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.20-build22.dmg" length="37831661" type="application/octet-stream" sparkle:edSignature="6/qf4yr/fUHqcdkRQmMEpxDKJrOp2y6GDPoUUtgYcAT3nXhD7/kr/EcoFXT+C8PvSKJ0EVCPTUebk//KQ28sBg=="/>
         </item>
-        <item>
-            <title>0.1.19</title>
-            <pubDate>Mon, 19 Oct 2026 21:52:00 -0700</pubDate>
-            <link>https://sso-ss.github.io/ScreenTake/</link>
-            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.1.19</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>ScreenTake 0.1.19</h2><ul><li>Upload your own background image and keep it inside saved projects, with consistent previews and export.</li><li>Choose 16 wallpapers in a square, four-column grid, including new 4K Silk, Pastel, Breeze, and Mint presets.</li><li>Draw, move, and resize manual zoom regions on recordings, imported videos, and phone layouts.</li><li>Adjust phone corner rounding separately and use floating phone chrome.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>]]></description>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.19-build21.dmg" length="37710476" type="application/octet-stream" sparkle:edSignature="oyNFxOiAysjAifwsBM0Bx1C0bn2liPFwbC5K7UziYmV+SCtHG1w6kPMtqQviFjILGbI4d2EWiFrhGA4oFvZwDg=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: f82yBgQ53vU8aQuuTouJ3WmK5Bv9HDUmElyXgVMlS7JX8CDy38/bmMUu8Zdq8+89qvHHZEH4rwUv98OTK/MTDA==
-length: 4036
+edSignature: RwLuyHkMj/RUDsE7tK3NSF7xeqmHv82QTZePObSFtPAD4X3UK4kvca1jUwHrgKo5wIrRZB9qS3THfY5zWhMyBQ==
+length: 3542
 -->

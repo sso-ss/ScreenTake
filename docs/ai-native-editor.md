@@ -113,6 +113,34 @@ return the same job with its latest status, including a failed or cancelled job.
 Commands rejected before execution are not cached; use a new request ID to start
 another job after a failure or cancellation.
 
+### Privacy masks
+
+`apply_edits.privacyMasks` replaces the complete mask array (maximum 100).
+Read `get_project` first and preserve existing mask IDs and keyframes when adding
+or changing a mask. `[]` removes every mask. Each mask requires a UUID `id`,
+`start`, `duration` (at least 0.05 seconds), `style` (`cover` or `blur`), and
+one or more `keyframes` (maximum 600 per mask).
+
+Times are absolute edited-video seconds. Each keyframe has `time` and
+`rect: [[x, y], [width, height]]`, normalized from the top-left of the output
+canvas. Keep rectangles inside the canvas, with width and height at least 0.005,
+and keyframes in increasing time order within the mask interval. For example:
+
+```json
+{
+  "id": "63BFA994-A217-47DE-BD42-4E60B6A11DA2",
+  "start": 0,
+  "duration": 2,
+  "style": "cover",
+  "keyframes": [{"time": 0, "rect": [[0.1, 0.2], [0.3, 0.1]]}]
+}
+```
+
+Masks share native Undo, project persistence, preview, and export. Native **Privacy**
+controls also offer tracking for text, people, and image/UI regions; MCP edits
+explicit keyframes. Review mask coverage through the full exported video before
+sharing. Blur may leave details recognizable; use Cover when they must be hidden.
+
 ### Text, camera styles, and timeline tracks
 
 `apply_edits.textOverlays` replaces the complete text layer array, in back-to-front
@@ -141,10 +169,12 @@ fields, enums and bounds. For example, append this object to the existing array:
 ```
 
 Use `cameraEffectSelection: {"style":"natural","intensity":0.5}` (or
-`peachMakeup`) with `cameraEffectsEnabled` for the exclusive camera style picker.
+`softPeach`) with `cameraEffectsEnabled` for the exclusive camera style picker.
 Selection alone preserves enablement. Disabling effects keeps the preferred style,
 intensity and makeup component values, so enabling restores them. These fields
 take precedence over legacy `faceBeautyAmount`/`faceMakeup.amount` in the same batch.
+The `faceMakeup` object also supports `preset: "softPeach"`, `lipBlur`, and
+`lipVolume` (both 0–1). Preserve its other required component fields when editing.
 
 The editor `zoomEnabled` master and the capture Auto Zoom preference are separate.
 `restoreAutomaticZooms: true` restores generated editor sections without changing

@@ -4,11 +4,17 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.21 (build 23)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.22 (build 24)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.22-build24.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.21
+## New in 0.1.22
+
+- Cover or blur sensitive details with timed privacy masks. Move and resize masks on the canvas, add motion keyframes, or track text, people, and image/UI regions. Review tracked coverage before sharing.
+- Read and edit privacy masks through MCP, including timing, style, and keyframes, using the same native project and shared Undo.
+- Use Natural or Soft Peach camera effects with remembered intensity and individual makeup controls, including lip blur and volume. MCP clients can select `softPeach` and edit the new controls.
+
+## Included from 0.1.21
 
 - Remove the background from a camera overlay in live preview and exported video.
 - Edit recorded audio independently, choose whether cuts close gaps, and clean up silence in added audio.
@@ -104,6 +110,7 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
 | Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Add styled text overlays. Use separate video, camera, audio, zoom, and text tracks and editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
+| Privacy masks | Cover or blur timed regions, drag to move or resize, add motion keyframes, or track text, people, and image/UI regions. Masks are retained in saved projects and rendered into exports. Review coverage before sharing. |
 | Pause cleanup | Detect pauses in original or added audio, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
 | Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
