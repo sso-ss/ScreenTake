@@ -7,8 +7,6 @@ struct ContentView: View {
 
     @EnvironmentObject var appState: AppState
     @AppStorage("hasCompletedPermissionSetup") private var hasCompletedSetup: Bool = false
-    @State private var showErrorAlert = false
-    @State private var errorAlertMessage = ""
 
     var body: some View {
         Group {
@@ -26,11 +24,9 @@ struct ContentView: View {
                 )
             }
         }
-        .alert("Error", isPresented: $showErrorAlert) {
-            Button("OK") {}
-        } message: {
-            Text(LocalizedStringKey(errorAlertMessage))
-        }
+        .reportableError("Error", error: Binding(
+            get: { appState.errorMessage }, set: { appState.errorMessage = $0 }
+        ))
     }
 }
 

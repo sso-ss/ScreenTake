@@ -264,38 +264,12 @@ struct SettingsView: View {
             guard !editsBusy, hasValidTimeline, let videoURL else { return }
             presentSavePanel(for: videoURL)
         }
-        .alert("Export Error", isPresented: Binding(
-            get: { session.exportError != nil },
-            set: { if !$0 { session.exportError = nil } }
-        )) {
-            Button("OK") { session.exportError = nil }
-        } message: {
-            Text(LocalizedStringKey(session.exportError ?? "Unknown error"))
-        }
-        .alert("Processing Failed", isPresented: Binding(
-            get: { appState.recording.processingError != nil },
-            set: { if !$0 { appState.recording.processingError = nil } }
-        )) {
-            Button("OK") { appState.recording.processingError = nil }
-        } message: {
-            Text(LocalizedStringKey(appState.recording.processingError ?? ""))
-        }
-        .alert("Could Not Import Background", isPresented: Binding(
-            get: { backgroundImportError != nil },
-            set: { if !$0 { backgroundImportError = nil } }
-        )) {
-            Button("OK") { backgroundImportError = nil }
-        } message: {
-            Text(LocalizedStringKey(backgroundImportError ?? ""))
-        }
-        .alert("Could Not Save Recording", isPresented: Binding(
-            get: { session.saveError != nil },
-            set: { if !$0 { session.saveError = nil } }
-        )) {
-            Button("OK") { session.saveError = nil }
-        } message: {
-            Text(LocalizedStringKey(session.saveError ?? ""))
-        }
+        .reportableError("Export Error", error: $session.exportError)
+        .reportableError("Processing Failed", error: Binding(
+            get: { appState.recording.processingError }, set: { appState.recording.processingError = $0 }
+        ))
+        .reportableError("Could Not Import Background", error: $backgroundImportError)
+        .reportableError("Could Not Save Recording", error: $session.saveError)
     }
 
     private var settingsPresentation: some View {

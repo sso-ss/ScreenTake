@@ -117,6 +117,8 @@
 		F8B1FA3D671254C6475E6779 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 098D8B20D487C7A2BF697CA1; };
 		A99C4141B540B5D70116A20B /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 41BBD7D159C66EF710688B8E; };
 		E8A2BD9604FD88114B817A90 /* ReferenceMakeup in Resources */ = {isa = PBXBuildFile; fileRef = 3FFF4AD007A8FC308DA78D8D; };
+		B0900000000000000000002 /* BugReportDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0900000000000000000001 /* BugReportDiagnostics.swift */; };
+		B0900000000000000000012 /* BugReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0900000000000000000011 /* BugReportView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -290,6 +292,8 @@
 		41BBD7D159C66EF710688B8E /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Screen/Resources/MediaPipe/NOTICE"; sourceTree = SOURCE_ROOT; };
 		3FFF4AD007A8FC308DA78D8D /* ReferenceMakeup */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "Screen/Resources/ReferenceMakeup"; sourceTree = SOURCE_ROOT; };
 		E7EB3F94070F650CB0387069 /* libmediapipe_source.so.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = "Screen/Resources/MediaPipe/libmediapipe_source.so.gz"; sourceTree = SOURCE_ROOT; };
+		B0900000000000000000001 /* BugReportDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BugReportDiagnostics.swift; sourceTree = "<group>"; };
+		B0900000000000000000011 /* BugReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BugReportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -319,6 +323,8 @@
 			children = (
 				A1F8564903E4F6315C8505D5 /* AppState.swift */,
 				883133A83CDE5F55F700A3C2 /* BugReporter.swift */,
+				B0900000000000000000011 /* BugReportView.swift */,
+				B0900000000000000000001 /* BugReportDiagnostics.swift */,
 				301153710880C8D34A6D3ACE /* CaptureSettings.swift */,
 				5BFD069330C6A6AF2F3D7626 /* CaptureToolbarCoordinator.swift */,
 				C71BC748567A61120D433587 /* Log.swift */,
@@ -639,6 +645,8 @@
 				7E8800000000000000000004 /* PrivacyMaskEditor.swift in Sources */,
 				26E267AD65E36AD219A801FD /* BackgroundStyle.swift in Sources */,
 				57D9993000EAF08145D07EC7 /* BugReporter.swift in Sources */,
+				B0900000000000000000012 /* BugReportView.swift in Sources */,
+				B0900000000000000000002 /* BugReportDiagnostics.swift in Sources */,
 				0EEF5ED541135223028B26AD /* CameraTransform.swift in Sources */,
 				9851AA2528AECEDA7BA012BC /* CaptureConfiguration.swift in Sources */,
 				795B9BF1508DCA6DBF39379F /* CaptureMeta.swift in Sources */,
@@ -900,7 +908,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 25;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -913,7 +921,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.22;
+				MARKETING_VERSION = 0.1.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;
@@ -929,7 +937,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Screen/Screen.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 25;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Screen/Info.plist;
@@ -941,7 +949,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.22;
+				MARKETING_VERSION = 0.1.23;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screen.Screen;
 				PRODUCT_NAME = ScreenTake;
 				SDKROOT = macosx;

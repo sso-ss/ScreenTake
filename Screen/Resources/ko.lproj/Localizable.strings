@@ -341,3 +341,27 @@
 "Lip volume" = "입술 볼륨";
 "Nose contour" = "코 쉐이딩";
 "Peach blush, brown eye makeup and softly smudged overlined lips that follow your face." = "얼굴을 따라 움직이는 피치 블러시, 브라운 눈화장과 부드럽게 번지는 오버립 메이크업.";
+
+// Bug reports
+"Recent logs and app information are prepared automatically." = "최근 로그와 앱 정보를 자동으로 첨부했어요.";
+"What were you doing? (optional)" = "어떤 작업 중이었나요? (선택)";
+"Screenshot (optional)" = "스크린샷 (선택)";
+"Capture App Window" = "현재 앱 화면 캡처";
+"Attach Image…" = "이미지 첨부…";
+"Hide Sensitive Areas" = "민감한 부분 가리기";
+"Include recent error logs" = "최근 오류 로그 포함";
+"ScreenTake version and macOS version are included. Common file paths, email addresses and credentials are removed from logs. Review before sharing." = "ScreenTake 버전과 macOS 버전을 포함해요. 로그에서 일반적인 파일 경로, 이메일 주소와 인증 정보를 가려요. 보내기 전에 내용을 확인해 주세요.";
+"View and edit diagnostics" = "첨부 정보 확인 및 수정";
+"Recent ScreenTake logs" = "최근 ScreenTake 로그";
+"Reports are public on GitHub and require a GitHub account. Videos and project files are not included." = "오류 보고는 GitHub에 공개되며 GitHub 계정이 필요해요. 영상과 프로젝트 파일은 포함되지 않아요.";
+"Continue on GitHub" = "GitHub에서 계속";
+"Attached screenshot preview" = "첨부한 스크린샷 미리보기";
+"The reviewed screenshot will be copied. Paste it into the GitHub issue with Command-V before submitting." = "확인한 스크린샷을 복사해요. GitHub 오류 작성란에 Command-V로 붙여넣은 뒤 제출해 주세요.";
+"Could not capture the app window. Check Screen Recording permission or attach an image instead." = "앱 화면을 캡처하지 못했어요. 화면 기록 권한을 확인하거나 이미지를 첨부해 주세요.";
+"Could not prepare the screenshot. Try attaching it again." = "스크린샷을 준비하지 못했어요. 다시 첨부해 주세요.";
+"Could not copy the screenshot. Try again." = "스크린샷을 복사하지 못했어요. 다시 시도해 주세요.";
+"Could not open GitHub. Check your default browser and try again." = "GitHub를 열지 못했어요. 기본 브라우저를 확인하고 다시 시도해 주세요.";
+"Drag over anything you want to hide. Selected areas are covered with solid black." = "가리고 싶은 부분을 드래그하세요. 선택한 영역을 검은색으로 완전히 덮어요.";
+"Drag to cover sensitive areas" = "드래그해서 민감한 부분 가리기";
+"Could not save screenshot changes. Try again." = "스크린샷 변경 내용을 저장하지 못했어요. 다시 시도해 주세요.";
+"Clear All" = "모두 지우기";
