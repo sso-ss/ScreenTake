@@ -24,6 +24,17 @@ struct VideoEditSettings: Equatable, Codable {
     var showCursor = true
     var cursorShape: CursorShape = .arrow
     var cursorScale: Double = 1
+    /// Optional so projects saved before smooth cursor motion decode with it off.
+    var storedSmoothCursor: Bool?
+    var storedSmoothCursorSigma: Double?
+    var smoothCursor: Bool {
+        get { storedSmoothCursor ?? false }
+        set { storedSmoothCursor = newValue }
+    }
+    var smoothCursorSigma: Double {
+        get { storedSmoothCursorSigma ?? 0.06 }
+        set { storedSmoothCursorSigma = newValue }
+    }
     var zoomEnabled = false
     var zoomLevel: Double = 2
     /// Nil keeps projects saved before motion controls on the original smooth curve.

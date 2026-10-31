@@ -2,7 +2,16 @@ import AppKit
 
 @main
 struct CursorTests {
-    static func main() {
+    static func main() throws {
+        var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(VideoEditSettings())) as! [String: Any]
+        for key in legacy.keys where key.lowercased().contains("smoothcursor") { legacy.removeValue(forKey: key) }
+        let decoded = try JSONDecoder().decode(VideoEditSettings.self, from: JSONSerialization.data(withJSONObject: legacy))
+        precondition(!decoded.smoothCursor && decoded.smoothCursorSigma == 0.06, "Projects saved before smooth cursor must decode with defaults")
+        var enabled = VideoEditSettings()
+        enabled.smoothCursor = true
+        enabled.smoothCursorSigma = 0.1
+        let roundTrip = try JSONDecoder().decode(VideoEditSettings.self, from: JSONEncoder().encode(enabled))
+        precondition(roundTrip.smoothCursor && roundTrip.smoothCursorSigma == 0.1, "Smoothing settings must survive save and reopen")
         for shape in CursorShape.allCases {
             let small = CursorImageProvider.cgImage(width: 24, screenScale: 1, shape: shape)!
             let large = CursorImageProvider.cgImage(width: 48, screenScale: 1, shape: shape)!
