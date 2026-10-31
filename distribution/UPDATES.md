@@ -10,14 +10,14 @@ After verifying notarization, generate the feed from a directory containing the 
 
 ```sh
 .build/SparkleTools/bin/generate_appcast --account ScreenTake --maximum-deltas 0 \
-  --download-url-prefix https://sso-ss.github.io/ScreenTake/downloads/ \
+  --download-url-prefix https://github.com/sso-ss/ScreenTake/releases/download/vVERSION/ \
   --embed-release-notes \
   --full-release-notes-url https://sso-ss.github.io/ScreenTake/release-notes.html \
   --link https://sso-ss.github.io/ScreenTake/ PATH_TO_ARCHIVES
 .build/SparkleTools/bin/sign_update --account ScreenTake --verify PATH_TO_ARCHIVES/appcast.xml
 ```
 
-Publish byte-identical copies of the verified DMG, checksum, and signed feed under the root and website folder. Never edit a signed appcast without signing it again. Increase CFBundleVersion for each future update. GitHub Pages serves the repository root. Also publish a normal GitHub Release for users of the older GitHub-based checker.
+Starting with 0.1.23, publish the verified DMG and checksum as GitHub Release assets and use that version-specific release URL prefix when generating its feed entry. Website download links and the new feed enclosure must point to the same verified asset. Historical root/website download copies stay available; adding another pair would exceed the GitHub Pages 1 GB site limit. Keep byte-identical copies of the signed feed at the root and in `website/`, and retain older feed entries with their existing URLs. Never edit a signed appcast without signing it again. Increase CFBundleVersion for each future update. GitHub Pages serves the repository root.
 
 The updater defers checks during recording, processing, capture selection, and onboarding. Relaunch and quit additionally protect unsaved projects. A deferred restart can resume through Settings → Updates after saving; the Settings sheet closes before the installer resumes.
 

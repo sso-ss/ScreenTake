@@ -4,11 +4,17 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.22 (build 24)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.23 (build 25)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.22-build24.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.23/ScreenTake-0.1.23-build25.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.22
+## New in 0.1.23
+
+- Open an in-app bug report from error alerts or **ScreenTake → Report a Bug…**. Recent ScreenTake logs and app/macOS versions are prepared automatically; review, edit, or exclude logs before continuing.
+- Capture the ScreenTake window or attach an image. Drag over sensitive areas to cover them with solid black, then save a flattened screenshot without source photo metadata.
+- Continue to a public GitHub issue with the report filled in. A GitHub account is required; paste the reviewed screenshot with Command-V before submitting. Videos and project files are not included.
+
+## Included from 0.1.22
 
 - Cover or blur sensitive details with timed privacy masks. Move and resize masks on the canvas, add motion keyframes, or track text, people, and image/UI regions. Review tracked coverage before sharing.
 - Read and edit privacy masks through MCP, including timing, style, and keyframes, using the same native project and shared Undo.
@@ -184,7 +190,7 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 
 ## Feedback
 
-[Report an issue](https://github.com/sso-ss/ScreenTake/issues) with your Mac model, macOS version, ScreenTake version, and steps to reproduce the problem. Remove private information from screenshots and recordings before sharing them.
+Choose **ScreenTake → Report a Bug…** or use the report button in an error alert. Review the automatically prepared logs and app information, optionally capture or attach a screenshot, and hide sensitive areas before continuing to GitHub. Reports are public and require a GitHub account. Paste the copied screenshot into the issue before submitting. Videos and project files are not included. You can also [report an issue](https://github.com/sso-ss/ScreenTake/issues) directly.
 
 For export failures, include the exact error message, whether the video was recorded or imported, the selected export resolution, and whether camera and audio tracks were enabled.
 
