@@ -720,6 +720,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .localizedAccessibilityLabel("Settings")
+            .modifier(UpdateSettingsBadge())
             .accessibilityIdentifier("appSettingsButton")
         }
         .padding(.horizontal, Spacing.md)
@@ -4558,6 +4559,7 @@ struct LineSlider: View {
 
 private struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var updates = AppState.shared.updates
     @AppStorage(AppAppearance.defaultsKey) private var appearance: AppAppearance = .system
     @AppStorage(AppLanguage.defaultsKey) private var language: AppLanguage = .system
     @State private var page: Page = .appearance
@@ -4590,7 +4592,13 @@ private struct AppSettingsView: View {
                 VStack(alignment: .leading) {
                     ForEach(Page.allCases, id: \.self) { item in
                         Button { page = item } label: {
-                            Label(LocalizedStringKey(item.rawValue), systemImage: item.symbol)
+                            HStack {
+                                Label(LocalizedStringKey(item.rawValue), systemImage: item.symbol)
+                                Spacer(minLength: 0)
+                                if item == .updates, updates.availableRelease != nil {
+                                    UpdateAvailabilityDot()
+                                }
+                            }
                                 .font(.system(size: 13, weight: .medium))
                                 .padding(.horizontal, 12)
                                 .frame(height: 34)
@@ -4601,6 +4609,8 @@ private struct AppSettingsView: View {
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(page == item ? [.isSelected] : [])
                         .accessibilityIdentifier("settings-\(item.rawValue.lowercased())")
+                        .accessibilityValue(item == .updates && updates.availableRelease != nil
+                                            ? AppLanguage.text("Update available") : "")
                     }
                     Spacer()
                 }
@@ -4632,7 +4642,7 @@ private struct AppSettingsView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     } else if page == .updates {
-                        UpdateSettingsView(updates: AppState.shared.updates)
+                        UpdateSettingsView(updates: updates)
                     } else if page == .aiConnection {
                         AIConnectionSettingsView(connection: AppState.shared.editorConnection)
                     } else {
@@ -4670,7 +4680,7 @@ private struct AppSettingsView: View {
             }
         }
         .foregroundStyle(DesignColors.primaryLabel)
-        .frame(width: 760, height: 420)
+        .frame(width: 760, height: 480)
         .background(DesignColors.controlBackground)
         .environment(\.locale, language.locale)
         .onExitCommand { dismiss() }
@@ -4707,8 +4717,12 @@ private struct UpdateSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Toggle("Automatically check for updates", isOn: $updates.automaticallyChecksForUpdates)
+            Toggle("Check for updates every 24 hours", isOn: $updates.automaticallyChecksForUpdates)
                 .accessibilityIdentifier("automaticUpdateChecks")
+            Text("ScreenTake checks once at launch, even when periodic checks are off.")
+                .font(.system(size: 12))
+                .foregroundStyle(DesignColors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
             Toggle("Automatically download and install updates on quit", isOn: $updates.automaticallyDownloadsUpdates)
                 .accessibilityIdentifier("automaticUpdateDownloads")
             Text("Updates install when you quit. Recording, media processing, and unsaved projects must finish first.")
@@ -4716,8 +4730,11 @@ private struct UpdateSettingsView: View {
                 .foregroundStyle(DesignColors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 12) {
-                Button("Check for Updates...") {
-                    Task { await updates.tick(manual: true) }
+                Button {
+                    updates.showAvailableUpdate()
+                } label: {
+                    Text(updates.availableRelease == nil ? LocalizedStringKey("Check for Updates...")
+                         : LocalizedStringKey("Update available"))
                 }
                 .buttonStyle(CompactActionButtonStyle(prominent: true))
                 .disabled(!updates.canCheckForUpdates)
@@ -4729,6 +4746,13 @@ private struct UpdateSettingsView: View {
                         .buttonStyle(CompactActionButtonStyle())
                         .accessibilityIdentifier("installAndRelaunch")
                 }
+            }
+            if let release = updates.availableRelease {
+                HStack(spacing: 6) {
+                    UpdateAvailabilityDot()
+                    Text(verbatim: "ScreenTake \(release.version)")
+                }
+                .font(.system(size: 12, weight: .medium))
             }
             if let status = updates.status {
                 Text(LocalizedStringKey(status))

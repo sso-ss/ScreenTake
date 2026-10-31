@@ -335,3 +335,8 @@
 "Pastel" = "粉彩";
 "Breeze" = "微风";
 "Mint" = "薄荷";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "每24小时检查更新";
+"ScreenTake checks once at launch, even when periodic checks are off." = "即使关闭定期检查，ScreenTake也会在启动时检查一次更新。";
+"Update available" = "有可用更新";

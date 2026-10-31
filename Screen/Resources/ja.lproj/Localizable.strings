@@ -335,3 +335,8 @@
 "Pastel" = "パステル";
 "Breeze" = "そよ風";
 "Mint" = "ミント";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "24時間ごとにアップデートを確認";
+"ScreenTake checks once at launch, even when periodic checks are off." = "定期的な確認がオフでも、ScreenTakeは起動時に一度アップデートを確認します。";
+"Update available" = "アップデートがあります";

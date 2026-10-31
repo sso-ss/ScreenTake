@@ -2,6 +2,8 @@
 
 ScreenTake 0.1.16 uses Sparkle 2.10.0. Older apps require one manual installation of 0.1.16. Automatic checks default to enabled; automatic downloads and installation on quit are opt-in in Settings → Updates.
 
+ScreenTake now probes for updates once at each launch, independently of the periodic-check preference. The probe waits for updater readiness and permission setup or busy media work to finish. Periodic checks remain optional and run every 24 hours. Available updates keep a red dot in the menu bar, the Settings button, and the Updates sidebar item until installed or no longer offered by the feed. Opening Settings does not dismiss the dot.
+
 Build with `SCREENTAKE_BUILD_CONFIGURATION=Release './Launch ScreenTake.command'`. The launcher signs every embedded Sparkle helper, then the framework and app, with the required Developer ID identity. Create the installer with `SCREENTAKE_NOTARY_PROFILE=SCREENTAKE ./distribution/build-dmg.sh .build/DerivedData/Build/Products/Release/ScreenTake.app release/ScreenTake-VERSION-buildBUILD.dmg`.
 
 The update-signing private key is in macOS Keychain under the Sparkle account **ScreenTake**. Keep this key; never publish or export it into the repository. The matching public key is embedded in Screen/Info.plist. Both update archives and the appcast require Ed25519 signatures, and archive verification runs before extraction.

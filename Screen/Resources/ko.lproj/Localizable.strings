@@ -365,3 +365,8 @@
 "Drag to cover sensitive areas" = "드래그해서 민감한 부분 가리기";
 "Could not save screenshot changes. Try again." = "스크린샷 변경 내용을 저장하지 못했어요. 다시 시도해 주세요.";
 "Clear All" = "모두 지우기";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "24시간마다 업데이트 확인";
+"ScreenTake checks once at launch, even when periodic checks are off." = "주기적 확인을 꺼도 앱 시작 시 한 번 업데이트를 확인합니다.";
+"Update available" = "업데이트 있음";

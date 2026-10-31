@@ -365,3 +365,8 @@
 "Drag to cover sensitive areas" = "Drag to cover sensitive areas";
 "Could not save screenshot changes. Try again." = "Could not save screenshot changes. Try again.";
 "Clear All" = "Clear All";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "Check for updates every 24 hours";
+"ScreenTake checks once at launch, even when periodic checks are off." = "ScreenTake checks once at launch, even when periodic checks are off.";
+"Update available" = "Update available";
