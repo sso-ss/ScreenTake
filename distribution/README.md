@@ -4,11 +4,18 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.23 (build 25)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.24 (build 26)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.23/ScreenTake-0.1.23-build25.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.24/ScreenTake-0.1.24-build26.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.23
+## New in 0.1.24
+
+- Check for updates once at app launch, even when periodic checks are disabled. Checks wait until permission setup, recording, or media processing has finished.
+- Keep optional update checks every 24 hours while ScreenTake is running.
+- Show a persistent red dot on the menu bar icon, Settings button, and Updates sidebar item when an update is available. Opening Settings does not dismiss the reminder.
+- See the available version in Settings → Updates and open the installer from there.
+
+## Included from 0.1.23
 
 - Open an in-app bug report from error alerts or **ScreenTake → Report a Bug…**. Recent ScreenTake logs and app/macOS versions are prepared automatically; review, edit, or exclude logs before continuing.
 - Capture the ScreenTake window or attach an image. Drag over sensitive areas to cover them with solid black, then save a flattened screenshot without source photo metadata.

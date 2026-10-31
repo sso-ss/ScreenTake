@@ -1,10 +1,21 @@
-<?xml version="1.0" standalone="yes"?>
-<!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
--->
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>ScreenTake</title>
+        <item>
+            <title>0.1.24</title>
+            <pubDate>Fri, 30 Oct 2026 20:41:45 -0700</pubDate>
+            <link>https://sso-ss.github.io/ScreenTake/</link>
+            <sparkle:fullReleaseNotesLink>https://sso-ss.github.io/ScreenTake/release-notes.html</sparkle:fullReleaseNotesLink>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>0.1.24</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>ScreenTake 0.1.24</h2><ul><li>Check for updates once at launch, independently of optional checks every 24 hours.</li><li>See persistent red dots in the menu bar, Settings button, and Updates sidebar item.</li><li>View the available version and open the installer from Settings.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
+]]></description>
+            <enclosure url="https://github.com/sso-ss/ScreenTake/releases/download/v0.1.24/ScreenTake-0.1.24-build26.dmg" length="78536268" type="application/octet-stream" sparkle:edSignature="BUXwpYdIPB6DNYi/XIbdUWBD4R1syKAdmbmnsPcAdkEB53AaedZ0Hk2FRZmg5UmITKWuISB9N/JxzQcAyku4Ag=="></enclosure>
+        </item>
         <item>
             <title>0.1.23</title>
             <pubDate>Fri, 30 Oct 2026 19:51:48 -0700</pubDate>
@@ -16,7 +27,7 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<h2>ScreenTake 0.1.23</h2><ul><li>Prepare bug reports in the app with recent logs and app information that you can review, edit, or exclude.</li><li>Capture the app window or attach an image; cover sensitive areas with solid black and save a flattened screenshot without source photo metadata.</li><li>Continue to a public GitHub issue and paste the reviewed screenshot before submitting. Requires a GitHub account; videos and project files are not included.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
 ]]></description>
-            <enclosure url="https://github.com/sso-ss/ScreenTake/releases/download/v0.1.23/ScreenTake-0.1.23-build25.dmg" length="78524087" type="application/octet-stream" sparkle:edSignature="INfyrMdJfg0ssda55184Ur8jVlaQeQ3zWj2qWoEFca8xg+GVQPaWjTdP90lr0vIx9gi5OR5Yxu04OfNzstTqBQ=="/>
+            <enclosure url="https://github.com/sso-ss/ScreenTake/releases/download/v0.1.23/ScreenTake-0.1.23-build25.dmg" length="78524087" type="application/octet-stream" sparkle:edSignature="INfyrMdJfg0ssda55184Ur8jVlaQeQ3zWj2qWoEFca8xg+GVQPaWjTdP90lr0vIx9gi5OR5Yxu04OfNzstTqBQ=="></enclosure>
         </item>
         <item>
             <title>0.1.22</title>
@@ -29,7 +40,7 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<h2>ScreenTake 0.1.22</h2><ul><li>Cover or blur sensitive details with timed privacy masks, motion keyframes, and tracking. Review coverage before sharing.</li><li>Edit privacy masks through MCP with shared Undo and portable project persistence.</li><li>Use Natural or Soft Peach camera effects; MCP supports softPeach, lip blur, and lip volume. Reconnect your AI client after updating.</li></ul><p>Requires Apple Silicon and macOS 13 or later.</p>
 ]]></description>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.22-build24.dmg" length="78443942" type="application/octet-stream" sparkle:edSignature="eMe1K3fzXumL5u4aRbl6KtTV2K968lJOHtxmUuKA21fJoLZLICwgfPhF6N4Fjcuv3VgTxvc+CZurbfshr3AqAg=="/>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.22-build24.dmg" length="78443942" type="application/octet-stream" sparkle:edSignature="eMe1K3fzXumL5u4aRbl6KtTV2K968lJOHtxmUuKA21fJoLZLICwgfPhF6N4Fjcuv3VgTxvc+CZurbfshr3AqAg=="></enclosure>
         </item>
         <item>
             <title>0.1.21</title>
@@ -40,11 +51,10 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:shortVersionString>0.1.21</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg" length="37933760" type="application/octet-stream" sparkle:edSignature="VCdpRVxWh+J+2wa03zj8SJQFGxuzSyNJ5WTHqXrwg3J71s6eHPQrJLaX7S/QoE8jiUFejpV2BVc3AvEzEvb8Dg=="/>
+            <enclosure url="https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg" length="37933760" type="application/octet-stream" sparkle:edSignature="VCdpRVxWh+J+2wa03zj8SJQFGxuzSyNJ5WTHqXrwg3J71s6eHPQrJLaX7S/QoE8jiUFejpV2BVc3AvEzEvb8Dg=="></enclosure>
         </item>
     </channel>
-</rss>
-<!-- sparkle-signatures:
-edSignature: 5GIpxM0OwQV5WAQmL0x75uLl6lWVWLHWwIE4LeDGsgziSXKOP4rnTRkdsjgoAuvj78snsl9kiN4onlJ3aVLCBg==
-length: 4132
+</rss><!-- sparkle-signatures:
+edSignature: CHJBNu7q6IORX04TUBEmf5AFYAzNMMPKkacfgM1Ju7mwTyaJ10ep9zIbe6xLgylj19RwYxiTIhW1El5sFaQvAA==
+length: 5455
 -->
