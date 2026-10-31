@@ -19,16 +19,16 @@ Open http://127.0.0.1:4187/. The canonical source is `website/`; the root copies
 - Announcement, navigation, split hero, and a tab-free live editor preview. The 29-second guided loop uses a named ScreenTake cursor to change canvas format, choose a wallpaper, add and style text, switch camera layouts, and enable zoom. Direct input pauses the guide and edits the same DOM controls. Play restarts the walkthrough. Reduced-motion mode starts paused; offscreen, hidden-tab, or dialog-covered playback pauses. The full existing product film remains available from Watch the film.
 - The main feature section keeps upright smart zoom, camera, and timeline illustrations, followed immediately by AI editing and the supporting feature cards. The interactive canvas/background preview follows that group. Smart zoom, camera layout, face tracking, optional filters, and manual zoom controls are described.
 - A dedicated AI editing illustration explains the external client connection, shared native editor, and undo.
-- Directly below AI, six image-free supporting cards cover screen/window capture, voiceover/linked audio, pause cleanup, browser cropping/phone frames, portable projects/export, and keyboard shortcuts. Supporting feature copy follows the 0.1.21 README and release notes. The live editor additionally reflects the latest local UI, including Text.
+- Directly below AI, six image-free supporting cards cover screen/window capture, voiceover/linked audio, pause cleanup, browser cropping/phone frames, portable projects/export, and keyboard shortcuts. Supporting feature copy follows the 0.1.22 README and release notes. The live editor additionally reflects the latest local UI, including Text.
 - Three-step guide, download invitation, native FAQ disclosures, and footer.
-- Download dialog linked to the 0.1.21 build 23 DMG. Download links retain their destination without JavaScript or with a modifier key.
+- Download dialog linked to the 0.1.23 build 25 DMG on GitHub Releases. Download links retain their destination without JavaScript or with a modifier key.
 - Product film dialog with native video controls, synchronized companion audio, Escape/backdrop/close handling, playback reset, and focus restoration. The existing film is visual-only, so its local WAV companion supplies the sound.
 - Responsive navigation at 860px, single-column layouts at 600px, visible keyboard focus, native modal focus containment, and reduced-motion support. The hero, zoom/cursor walkthrough, timeline editing walkthrough, and presenter clips animate automatically; the hero has a pause control and all respect reduced motion and visibility.
 - Existing release notes use the new shared typography while retaining their release information and download links.
 
 ## Publishing
 
-GitHub Pages serves `main` from the repository root. Keep root HTML, CSS, JavaScript, assets, release notes, downloads, checksums, and signed appcast byte-identical to their copies in `website/`. This release publishes the 0.1.21 build 23 notarized DMG. Never edit a signed update feed without signing it again.
+GitHub Pages serves `main` from the repository root. Keep root HTML, CSS, JavaScript, assets, release notes, and signed appcast byte-identical to their copies in `website/`. Historical downloads and checksums retain matching copies. The 0.1.23 build 25 notarized DMG and checksum are hosted on GitHub Releases, with website links and the signed update feed pointing to the same assets; duplicating another DMG would exceed the GitHub Pages 1 GB site limit. Never edit a signed update feed without signing it again.
 
 ## Verification
 

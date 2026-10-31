@@ -208,6 +208,30 @@ private final class MenuBarUpdateBadge: NSView {
     }
 }
 
+struct UpdateAvailabilityDot: View {
+    var body: some View {
+        Circle()
+            .fill(Color(nsColor: .systemRed))
+            .frame(width: 6, height: 6)
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+    }
+}
+
+struct UpdateSettingsBadge: ViewModifier {
+    @ObservedObject private var updates = AppState.shared.updates
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .topTrailing) {
+                if updates.availableRelease != nil {
+                    UpdateAvailabilityDot()
+                }
+            }
+            .accessibilityValue(updates.availableRelease == nil ? "" : AppLanguage.text("Update available"))
+    }
+}
+
 /// Screen app entry point
 @main
 struct ScreenApp: App {

@@ -335,3 +335,38 @@
 "Pastel" = "Pastel";
 "Breeze" = "Breeze";
 "Mint" = "Mint";
+
+"Soft Peach" = "Soft Peach";
+"Lip edge smudge" = "Lip edge smudge";
+"Lip volume" = "Lip volume";
+"Nose contour" = "Nose contour";
+"Peach blush, brown eye makeup and softly smudged overlined lips that follow your face." = "Peach blush, brown eye makeup and softly smudged overlined lips that follow your face.";
+
+// Bug reports
+"Recent logs and app information are prepared automatically." = "Recent logs and app information are prepared automatically.";
+"What were you doing? (optional)" = "What were you doing? (optional)";
+"Screenshot (optional)" = "Screenshot (optional)";
+"Capture App Window" = "Capture App Window";
+"Attach Image…" = "Attach Image…";
+"Hide Sensitive Areas" = "Hide Sensitive Areas";
+"Include recent error logs" = "Include recent error logs";
+"ScreenTake version and macOS version are included. Common file paths, email addresses and credentials are removed from logs. Review before sharing." = "ScreenTake version and macOS version are included. Common file paths, email addresses and credentials are removed from logs. Review before sharing.";
+"View and edit diagnostics" = "View and edit diagnostics";
+"Recent ScreenTake logs" = "Recent ScreenTake logs";
+"Reports are public on GitHub and require a GitHub account. Videos and project files are not included." = "Reports are public on GitHub and require a GitHub account. Videos and project files are not included.";
+"Continue on GitHub" = "Continue on GitHub";
+"Attached screenshot preview" = "Attached screenshot preview";
+"The reviewed screenshot will be copied. Paste it into the GitHub issue with Command-V before submitting." = "The reviewed screenshot will be copied. Paste it into the GitHub issue with Command-V before submitting.";
+"Could not capture the app window. Check Screen Recording permission or attach an image instead." = "Could not capture the app window. Check Screen Recording permission or attach an image instead.";
+"Could not prepare the screenshot. Try attaching it again." = "Could not prepare the screenshot. Try attaching it again.";
+"Could not copy the screenshot. Try again." = "Could not copy the screenshot. Try again.";
+"Could not open GitHub. Check your default browser and try again." = "Could not open GitHub. Check your default browser and try again.";
+"Drag over anything you want to hide. Selected areas are covered with solid black." = "Drag over anything you want to hide. Selected areas are covered with solid black.";
+"Drag to cover sensitive areas" = "Drag to cover sensitive areas";
+"Could not save screenshot changes. Try again." = "Could not save screenshot changes. Try again.";
+"Clear All" = "Clear All";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "Check for updates every 24 hours";
+"ScreenTake checks once at launch, even when periodic checks are off." = "ScreenTake checks once at launch, even when periodic checks are off.";
+"Update available" = "Update available";

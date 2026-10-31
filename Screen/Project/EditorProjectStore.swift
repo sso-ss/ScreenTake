@@ -98,6 +98,7 @@ enum EditorProjectStore {
             let header = try decoder.decode(Header.self, from: data)
             guard header.version == 2 else { throw ProjectError.unsupportedVersion(header.version) }
             var project = try decoder.decode(EditorProject.self, from: data)
+            project.settings.migrateRetiredCameraEffect()
             guard project.revision >= 0, !project.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw ProjectError.invalidManifest
             }

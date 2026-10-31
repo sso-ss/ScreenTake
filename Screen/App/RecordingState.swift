@@ -422,12 +422,14 @@ final class RecordingState: ObservableObject {
             processingStage = .processing
             let untrimmedURL = resultURL
             let texts = settings.textOverlays ?? []
+            let masks = settings.privacyMasks ?? []
             let renderedAsset = AVURLAsset(url: untrimmedURL)
             let renderedTrack = try await renderedAsset.loadTracks(withMediaType: .video).first
             let renderedSize = try await renderedTrack?.load(.naturalSize) ?? .zero
             let textRenderer = TextOverlayRenderer(overlays: texts, size: renderedSize)
-            resultURL = try await settings.trim.export(source: untrimmedURL, frameFilter: texts.isEmpty ? nil : { image, time in
-                textRenderer.composite(over: image, at: time)
+            let privacyRenderer = PrivacyMaskRenderer(masks: masks, size: renderedSize)
+            resultURL = try await settings.trim.export(source: untrimmedURL, frameFilter: texts.isEmpty && masks.isEmpty ? nil : { image, time in
+                privacyRenderer.composite(over: textRenderer.composite(over: image, at: time), at: time)
             })
             resultURL = try await EditorAudio.export(video: resultURL, originalEnabled: settings.audioEnabled,
                                                     originalVolume: settings.originalAudioVolume,

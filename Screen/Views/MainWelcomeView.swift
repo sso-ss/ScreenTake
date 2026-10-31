@@ -163,6 +163,7 @@ struct MainWelcomeView: View {
             }
             .buttonStyle(.plain)
             .localizedAccessibilityLabel("Settings")
+            .modifier(UpdateSettingsBadge())
             .padding(12)
         }
     }

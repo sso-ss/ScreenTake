@@ -79,10 +79,16 @@ final class LiveEditFrameRenderer {
     private let cursor: CGImage?
     private let faceTrack: FaceTrackingTrack?
     private let textRenderer: TextOverlayRenderer
+    private let privacyRenderer: PrivacyMaskRenderer
+    private let effectsLock = NSLock()
+    private var beautyAmount: Double
+    private var makeup: FaceMakeupSettings
 
     init(sourceSize: CGSize, settings: VideoEditSettings, keyframes: [CameraKeyframe],
          mouse: MouseDataRecorder.MouseRecording? = nil, faceTrack: FaceTrackingTrack? = nil) {
         self.settings = settings
+        beautyAmount = settings.faceBeautyAmount ?? 0
+        makeup = settings.faceMakeup ?? .init()
         self.faceTrack = faceTrack
         cropRect = settings.crop.pixelRect(in: sourceSize)
         normalizedCrop = CGRect(x: cropRect.minX / sourceSize.width,
@@ -93,6 +99,7 @@ final class LiveEditFrameRenderer {
         outputSize = CGSize(width: max(2, floor((dimensions.width * scale + 0.000001) / 2) * 2),
                             height: max(2, floor((dimensions.height * scale + 0.000001) / 2) * 2))
         textRenderer = TextOverlayRenderer(overlays: settings.textOverlays ?? [], size: outputSize)
+        privacyRenderer = PrivacyMaskRenderer(masks: settings.privacyMasks ?? [], size: outputSize)
         evaluator = FrameEvaluator(keyframes: settings.zoomEnabled ? keyframes : [])
         let rawPositions = mouse?.positions ?? []
         positions = settings.smoothCursor ? MouseDataRecorder.smoothedPositions(rawPositions, sigma: settings.smoothCursorSigma) : rawPositions
@@ -107,6 +114,14 @@ final class LiveEditFrameRenderer {
                                preserveSourcePixels: settings.exportResolution == .preserveSource) : nil
         webcam = settings.webcamEnabled ? WebcamCompositor(outputSize: outputSize, position: settings.webcamPosition,
                                    pipSize: settings.webcamSize, shape: settings.webcamShape) : nil
+    }
+
+    func updatePrivacyMasks(_ masks: [PrivacyMask]) {
+        privacyRenderer.updateMasks(masks)
+    }
+
+    func updateCameraEffects(amount: Double, makeup: FaceMakeupSettings) {
+        effectsLock.withLock { beautyAmount = amount; self.makeup = makeup }
     }
 
     func render(_ source: CIImage, at time: Double, webcamImage: CIImage? = nil,
@@ -151,11 +166,14 @@ final class LiveEditFrameRenderer {
                                                      changes: settings.cameraLayoutChanges)
             let transition = CameraLayoutChange.transition(at: webcamTime ?? time, initial: settings.cameraLayout,
                                                            changes: settings.cameraLayoutChanges)
+            let effects = effectsLock.withLock { (beautyAmount, makeup) }
             image = webcam.composite(webcamImage: webcamImage, onto: image, settings: layout, mirrored: settings.cameraMirrored ?? false,
                                      faceFocus: faceTrack?.focus(at: webcamTime ?? time), transition: transition,
-                                     beautyAmount: settings.faceBeautyAmount ?? 0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: settings.faceMakeup ?? .init())
+                                     beautyAmount: effects.0, beautyTime: webcamSampleTime ?? webcamTime ?? time, makeup: effects.1)
         }
-        return textRenderer.composite(over: image, at: outputTime ?? time).cropped(to: CGRect(origin: .zero, size: outputSize))
+        let moment = outputTime ?? time
+        return privacyRenderer.composite(over: textRenderer.composite(over: image, at: moment), at: moment)
+            .cropped(to: CGRect(origin: .zero, size: outputSize))
     }
 
     private func position(at time: Double) -> CGPoint? {

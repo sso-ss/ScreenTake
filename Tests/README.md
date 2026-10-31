@@ -9,6 +9,7 @@ python3 tools/run_swift_checks.py Tests/test_editor_session.swift
 python3 tools/run_swift_checks.py --render-only Tests/test_video_trim.swift
 python3 tools/run_swift_checks.py Tests/test_editor_mcp.swift
 python3 tools/run_swift_checks.py Tests/test_updates.swift
+python3 tools/run_swift_checks.py Tests/test_bug_report.swift
 python3 tools/run_swift_checks.py Tests/test_canvas_corners.swift
 python3 tools/run_swift_checks.py Tests/test_long_import_export.swift
 python3 tools/run_swift_checks.py Tests/test_timeline_interactions.swift
@@ -21,6 +22,8 @@ python3 tools/run_swift_checks.py Tests/test_person_cutout.swift
 ```
 
 Bare filenames also work, and the runner defaults to `test_editor_session.swift` when no checks are specified. `--render-only` skips optional screenshot checks in checks that support it. Some checks require recording permissions, hardware, a supplied clip, or a separately built app module.
+
+`test_bug_report.swift` checks sensitive-log filtering, GitHub URL limits with Unicode, retention of the newest logs, screenshot mask coordinates, opaque PNG pixels and metadata removal. The report window is available from ScreenTake → Report a Bug… and from recording, processing, import, save and export error alerts. It prepares a public GitHub issue with recent logs from this process and copies the optional, reviewed PNG for the user to paste into the issue before submitting. No GitHub credentials, project files or videos are collected; opening the draft does not submit it.
 
 `test_timeline_interactions.swift` checks Delete and Forward Delete routing for selected strips, modified-key handling, and protection for text fields and sliders.
 

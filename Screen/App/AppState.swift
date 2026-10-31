@@ -220,7 +220,7 @@ final class AppState: ObservableObject {
 @MainActor
 func videoReplacementAlert(for action: VideoReplacementAction) -> NSAlert {
     let alert = NSAlert()
-    alert.messageText = AppLanguage.text("Replace current video?")
+    alert.messageText = AppLanguage.text(action.alertTitle)
     alert.informativeText = AppLanguage.text(action.message)
     alert.addButton(withTitle: AppLanguage.text("Keep Editing"))
     alert.addButton(withTitle: AppLanguage.text(action.buttonTitle))

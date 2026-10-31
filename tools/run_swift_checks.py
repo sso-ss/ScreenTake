@@ -54,7 +54,7 @@ def main():
             if check.name == "test_video_trim.swift":
                 command += [str(root / "Screen/Core/Recording/MediaMuxer.swift"), str(root / "Screen/App/Log.swift")]
             else:
-                command += ["-F", str(sparkle), "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", str(sparkle), "-I", str(root / "Screen/Core/Recording"), "-import-objc-header",
+                command += ["-D", "SCREENTAKE_RUNTIME", "-F", str(sparkle), "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", str(sparkle), "-I", str(root / "Screen/Core/Recording"), "-import-objc-header",
                             str(root / "Screen/Screen-Bridging-Header.h"), *sources, str(app), str(exception_object)]
             print(f"Compiling {check.name}…", flush=True)
             subprocess.run([*command, str(check), "-o", str(executable)], check=True, cwd=root)

@@ -61,6 +61,15 @@ enum MCPToolCatalog {
         "backgroundOffsetX": number(-200, 200), "backgroundOffsetY": number(-200, 200)
     ], required: ["id", "text", "start", "duration"], extra: ["description": "Text in edited-video seconds. x/y are the text center on the output canvas, normalized from top-left; size/spacing use a 1080-point canvas height. Omitted appearance fields use native defaults (System 64, centered white text). Preserve complete existing objects when editing; omitted fields reset to defaults."])
 
+    static let privacyMask = object([
+        "id": uuid, "start": time, "duration": number(0.05), "style": choices("cover", "blur"),
+        "keyframes": array(object([
+            "time": time,
+            "rect": array(array(number(0, 1), extra: ["minItems": 2, "maxItems": 2]),
+                          extra: ["minItems": 2, "maxItems": 2])
+        ], required: ["time", "rect"]), extra: ["minItems": 1, "maxItems": 600])
+    ], required: ["id", "start", "duration", "style", "keyframes"], extra: ["description": "Privacy mask in edited-video seconds. Keyframes use increasing absolute times within the mask interval. rect is [[x,y],[width,height]] on the output canvas, normalized from top-left; keep it inside the canvas with width/height at least 0.005."])
+
     static let edits = object([
         "trim": object(["start": time, "end": ["type": ["number", "null"], "minimum": 0], "cuts": array(cut),
                         "splits": array(time), "clipOrder": array(exactRange), "clips": array(mediaClip),
@@ -93,13 +102,14 @@ enum MCPToolCatalog {
         "webcamPosition": choices("topLeft", "topCenter", "topRight", "middleLeft", "center", "middleRight", "bottomLeft", "bottomCenter", "bottomRight"),
         "webcamSize": choices("small", "medium", "large"), "videoOverlayURL": fileURL, "cameraLayout": camera,
         "faceBeautyAmount": number(0, 1),
-        "cameraEffectSelection": object(["style": choices("natural", "peachMakeup"), "intensity": number(0.05, 1)],
+        "cameraEffectSelection": object(["style": choices("natural", "softPeach"), "intensity": number(0.05, 1)],
             required: ["style", "intensity"], extra: ["description": "Exclusive camera style and remembered intensity. Preserves on/off state unless cameraEffectsEnabled is supplied. Overrides legacy faceBeautyAmount/faceMakeup.amount in the same batch."]),
         "cameraEffectsEnabled": ["type": "boolean", "description": "Enable the selected camera style, or disable it while remembering the style, intensity and makeup component settings."],
         "faceMakeup": object([
             "amount": number(0, 1), "lashes": number(0, 1), "brows": number(0, 1), "blush": number(0, 1),
             "lips": number(0, 1), "eyeshadow": number(0, 1), "underEyeShadow": number(0, 1), "aegyo": number(0, 1),
-            "contour": number(0, 1), "shortening": number(0, 1), "skin": number(0, 1), "definition": number(0, 1)
+            "contour": number(0, 1), "shortening": number(0, 1), "skin": number(0, 1), "definition": number(0, 1),
+            "preset": choices("softPeach"), "lipBlur": number(0, 1), "lipVolume": number(0, 1)
         ], required: ["amount", "lashes", "brows", "blush", "lips", "eyeshadow", "aegyo", "contour", "shortening"]),
         "cameraLayoutChanges": array(object(["start": time, "settings": camera], required: ["start", "settings"])),
         "videoOverlayTiming": object(["start": time, "duration": number(0, extra: ["exclusiveMinimum": 0]), "sourceStart": time], required: ["start", "duration", "sourceStart"]),
@@ -110,6 +120,7 @@ enum MCPToolCatalog {
         "recordedAudioClips": array(mediaClip, extra: ["description": "Replaces independent recorded audio placements. Preserve existing IDs and linkIDs. Linked video clips must match the audio timing exactly; [] removes recorded audio placements."]),
         "closeTimelineGaps": boolean,
         "textOverlays": array(textOverlay, extra: ["maxItems": 100, "description": "Replaces all text layers in back-to-front order. Preserve existing IDs/objects when adding or editing; [] removes all text. Timeline rows are packed automatically and are not persisted settings."]),
+        "privacyMasks": array(privacyMask, extra: ["maxItems": 100, "description": "Replaces all privacy masks. Preserve existing IDs and keyframes when editing; [] removes all masks."]),
         "audioEnabled": boolean, "originalAudioVolume": number(0, 1), "voiceOverEnabled": boolean, "voiceOverVolume": number(0, 1),
         "exportResolution": choices("preserveSource", "uhd4k", "fhd1080")
     ], extra: ["minProperties": 1, "description": "Partial settings batch, committed as one undo operation. Omitted top-level fields stay unchanged. Arrays replace their previous values except removeRanges. Read get_project for current values."])

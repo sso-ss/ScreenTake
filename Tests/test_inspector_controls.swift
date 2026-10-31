@@ -14,9 +14,9 @@ struct InspectorControlChecks {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         var settings = VideoEditSettings()
-        var makeup = FaceMakeupSettings(); makeup.lips = 0.27; makeup.blush = 0.83
+        var makeup = FaceMakeupSettings.softPeach; makeup.lips = 0.27; makeup.blush = 0.83
         settings.faceMakeup = makeup
-        let peach = CameraEffectSelection(style: .peachMakeup, intensity: 0.72)
+        let peach = CameraEffectSelection(style: .softPeach, intensity: 0.72)
         settings.setCameraEffect(peach, enabled: true)
         precondition(settings.faceBeautyAmount == 0 && settings.faceMakeup?.amount == 0.72)
         settings.setCameraEffect(peach, enabled: false)
@@ -123,6 +123,12 @@ struct InspectorControlChecks {
         view.updateLayers([text])
         let geometry = TextCanvasGeometry(bounds: view.bounds, canvas: view.canvasSize)
         precondition(geometry.viewport == CGRect(x: 0, y: 75, width: 800, height: 450))
+        let verticalGuide = geometry.snappedToCenter(CGPoint(x: 0.505, y: 0.6))
+        precondition(verticalGuide.vertical && !verticalGuide.horizontal && verticalGuide.position == CGPoint(x: 0.5, y: 0.6))
+        let horizontalGuide = geometry.snappedToCenter(CGPoint(x: 0.6, y: 0.49))
+        precondition(!horizontalGuide.vertical && horizontalGuide.horizontal && horizontalGuide.position == CGPoint(x: 0.6, y: 0.5))
+        let outsideGuide = geometry.snappedToCenter(CGPoint(x: 0.52, y: 0.52))
+        precondition(!outsideGuide.vertical && !outsideGuide.horizontal)
         let center = geometry.center(of: text)
         precondition(view.text(at: center)?.id == text.id)
         precondition(view.text(at: CGPoint(x: 400, y: 10)) == nil)

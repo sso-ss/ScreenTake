@@ -9,6 +9,11 @@ extension VideoEditSettings {
         for text in texts { try text.validate() }
         _ = try trim.timeRange(duration: EditorAudio.time(duration))
         let timeline = try trim.timeline(duration: EditorAudio.time(duration))
+        let masks = privacyMasks ?? []
+        guard masks.count <= 100, Set(masks.map(\.id)).count == masks.count else {
+            throw EditValidationError.invalid("Invalid privacy mask identifiers or too many masks.")
+        }
+        for mask in masks { try mask.validate(maxDuration: timeline.duration.seconds) }
         guard timeline.duration.seconds.isFinite, timeline.duration.seconds > 0,
               trim.end.map({ $0 <= duration + 0.001 }) ?? true,
               trim.cuts.allSatisfy({ $0.start >= 0 && $0.end <= duration + 0.001 }),

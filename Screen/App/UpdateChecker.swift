@@ -32,6 +32,17 @@ struct UpdateSafety: Equatable {
     }
 }
 
+/// Wait for readiness, then consume the launch check before starting an asynchronous session.
+struct LaunchUpdateCheck {
+    private(set) var pending = true
+
+    mutating func beginIfReady(safety: UpdateSafety, updaterReady: Bool) -> Bool {
+        guard pending, safety.canCheck, updaterReady else { return false }
+        pending = false
+        return true
+    }
+}
+
 @MainActor
 final class UpdateChecker: NSObject, ObservableObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
     private let defaults: UserDefaults
@@ -39,6 +50,8 @@ final class UpdateChecker: NSObject, ObservableObject, SPUUpdaterDelegate, @prec
     private weak var appState: AppState?
     private var controller: SPUStandardUpdaterController?
     private var observations: [NSKeyValueObservation] = []
+    private var launchCheck = LaunchUpdateCheck()
+    private var launchSubscriptions = Set<AnyCancellable>()
     private var restartHandler: (() -> Void)?
     private var restartRequested = false
 
@@ -95,18 +108,39 @@ final class UpdateChecker: NSObject, ObservableObject, SPUUpdaterDelegate, @prec
         self.controller = controller
         observations = [
             controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
-                Task { @MainActor in self?.canCheckForUpdates = updater.canCheckForUpdates }
+                Task { @MainActor in
+                    self?.canCheckForUpdates = updater.canCheckForUpdates
+                    self?.checkOnLaunchIfReady()
+                }
             },
             controller.updater.observe(\.sessionInProgress, options: [.initial, .new]) { [weak self] updater, _ in
                 Task { @MainActor in self?.isChecking = updater.sessionInProgress }
             }
         ]
+        // State publishers emit before mutation; inspect safety on the next main runloop turn.
+        appState.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in self?.checkOnLaunchIfReady() }
+            .store(in: &launchSubscriptions)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.checkOnLaunchIfReady() }
+            .store(in: &launchSubscriptions)
         do {
             try controller.updater.start()
+            checkOnLaunchIfReady()
         } catch {
             status = "Unable to start the updater. Reinstall the latest ScreenTake build."
             Log.app.error("Updater startup failed: \(error.localizedDescription)")
         }
+    }
+
+    private func checkOnLaunchIfReady() {
+        guard let updater = controller?.updater,
+              launchCheck.beginIfReady(safety: safety, updaterReady: updater.canCheckForUpdates) else { return }
+        launchSubscriptions.removeAll()
+        // Probe even when scheduled checks are disabled, without presenting an installer.
+        updater.checkForUpdateInformation()
     }
 
     func tick(manual: Bool = false) async {

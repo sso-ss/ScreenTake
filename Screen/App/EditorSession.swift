@@ -44,7 +44,26 @@ final class EditorSession: ObservableObject {
             }
             revision += 1
             if groupDepth == 0 { remember(oldValue) }
-            schedulePreview()
+            if let activePreview, var rendered = activePreviewSettings {
+                var current = draft
+                rendered.privacyMasks = nil
+                current.privacyMasks = nil
+                current.trim.splits = []
+                rendered.faceBeautyAmount = current.faceBeautyAmount
+                rendered.faceMakeup = current.faceMakeup
+                rendered.cameraEffectSelection = current.cameraEffectSelection
+                if current == rendered {
+                    activePreview.updatePrivacyMasks(draft.privacyMasks ?? [])
+                    if draft.faceBeautyAmount != oldValue.faceBeautyAmount || draft.faceMakeup != oldValue.faceMakeup {
+                        activePreview.updateCameraEffects(draft.faceBeautyAmount ?? 0, draft.faceMakeup ?? .init())
+                    }
+                    refreshPausedMaskPreview()
+                } else {
+                    schedulePreview()
+                }
+            } else {
+                schedulePreview()
+            }
             synchronizeUnsavedWork()
         }
     }
@@ -80,6 +99,10 @@ final class EditorSession: ObservableObject {
     private weak var appState: AppState?
     private var videoWork = VideoReplacementState<VideoEditSettings>()
     private var previewTask: Task<Void, Never>?
+    private var maskRefreshTask: Task<Void, Never>?
+    private var maskRefreshID = UUID()
+    private var activePreview: LiveVideoPreview.EditableItem?
+    private var activePreviewSettings: VideoEditSettings?
     private var previewID = UUID()
     private var loadID = UUID()
     private var restoring = false
@@ -120,6 +143,13 @@ final class EditorSession: ObservableObject {
     }
     var hasValidTimeline: Bool { sourceDuration > 0 && (try? draft.trim.timeline(duration: EditorAudio.time(sourceDuration))) != nil }
     var editedDuration: Double { (try? draft.trim.timeline(duration: EditorAudio.time(sourceDuration)).duration.seconds) ?? 0 }
+    var privacyTrackingURL: URL? {
+        guard !requiresRender, (appliedEdits.privacyMasks ?? []).isEmpty else { return nil }
+        var withoutMasks = draft
+        withoutMasks.privacyMasks = appliedEdits.privacyMasks
+        guard withoutMasks == appliedEdits else { return nil }
+        return videoURL
+    }
     var exportProgress: Double? {
         editingRecording ? appState?.recording.processingProgress : exportEngine.progress
     }
@@ -176,6 +206,7 @@ final class EditorSession: ObservableObject {
             : VideoEditSettings(backgroundEnabled: false, showCursor: false))
         if rawSource != nil, recording?.lastAppliedEdits == nil { settings.videoOverlayURL = recording?.lastWebcamVideoURL }
         if rawSource != nil, settings.phoneVideoURL == nil { settings.phoneVideoURL = appState?.capture.phoneVideoURL }
+        settings.migrateRetiredCameraEffect()
         try settings.validate(duration: duration)
 
         invalidatePreview()
@@ -300,6 +331,7 @@ final class EditorSession: ObservableObject {
         guard videoURL != nil else { throw SessionError.noVideo }
         var candidate = draft
         change(&candidate)
+        candidate.migrateRetiredCameraEffect()
         if draft.trim.clips != nil, candidate.trim.clips == draft.trim.clips,
            candidate.trim != draft.trim {
             // Existing source-based commands and silence cleanup still honor independent audio.
@@ -357,6 +389,12 @@ final class EditorSession: ObservableObject {
         settings.trim.clips = timeline.video
         settings.trim.timelineLength = timeline.duration
         settings.recordedAudioClips = timeline.audio
+        if draft.closesTimelineGaps, mediaTimeline.video.count == timeline.video.count + 1,
+           let removed = mediaTimeline.video.first(where: { old in !timeline.video.contains(where: { $0.id == old.id }) }) {
+            settings.privacyMasks = draft.privacyMasks?.flatMap {
+                $0.removingTimelineInterval(removed.start..<removed.end)
+            }
+        }
         guard (try? settings.validate(duration: sourceDuration)) != nil else { return false }
         player?.pause()
         draft = settings
@@ -414,9 +452,35 @@ final class EditorSession: ObservableObject {
                      webcam: settings.videoOverlayURL, settings: settings)
     }
 
+    private func refreshPausedMaskPreview() {
+        guard player?.rate == 0, maskRefreshTask == nil else { return }
+        let refreshID = UUID()
+        maskRefreshID = refreshID
+        maskRefreshTask = Task { [weak self] in
+            // Coalesce rapid mouse updates while the canvas outline follows every drag event.
+            do { try await Task.sleep(nanoseconds: 33_000_000) }
+            catch { return }
+            guard let self, self.maskRefreshID == refreshID else { return }
+            guard let player = self.player, self.activePreview != nil, player.rate == 0 else {
+                self.maskRefreshTask = nil
+                return
+            }
+            let refreshedRevision = self.revision
+            await player.seek(to: player.currentTime(), toleranceBefore: .zero, toleranceAfter: .zero)
+            guard self.maskRefreshID == refreshID else { return }
+            self.maskRefreshTask = nil
+            if !Task.isCancelled, self.revision != refreshedRevision { self.refreshPausedMaskPreview() }
+        }
+    }
+
     private func invalidatePreview() {
         previewTask?.cancel()
         previewTask = nil
+        maskRefreshTask?.cancel()
+        maskRefreshTask = nil
+        maskRefreshID = UUID()
+        activePreview = nil
+        activePreviewSettings = nil
         previewID = UUID()
         previewReady = false
         previewError = nil
@@ -439,7 +503,8 @@ final class EditorSession: ObservableObject {
     private func refreshPreview(_ request: LiveVideoPreview.Request, player: AVPlayer, requestID: UUID) async {
         defer { if previewID == requestID { isPreparingFaceTracking = false } }
         do {
-            let item = try await LiveVideoPreview.makeItem(request)
+            let editable = try await LiveVideoPreview.makeEditableItem(request)
+            let item = editable.item
             try Task.checkCancellation()
             guard previewID == requestID, player === self.player else { return }
             let time = player.currentTime()
@@ -451,6 +516,8 @@ final class EditorSession: ObservableObject {
             try Task.checkCancellation()
             guard previewID == requestID, player === self.player else { return }
             player.replaceCurrentItem(with: item)
+            activePreview = editable
+            activePreviewSettings = request.settings
             renderedPreviewTimeline = timeline
             player.isMuted = false
             let mappedTime = sourceTime.isNumeric ? timeline.outputTime(at: sourceTime) : time
@@ -469,13 +536,14 @@ final class EditorSession: ObservableObject {
 
     /// Renders the current draft from the retained source. No view or save panel is needed.
     @discardableResult
-    func applyChanges() async throws -> URL {
+    func applyChanges(excludingPrivacyMasks: Bool = false) async throws -> URL {
         guard !isBusy, appState?.updates.isPresenting != true else { throw SessionError.busy }
         guard let sourceURL else { throw SessionError.noVideo }
         guard hasValidTimeline else { throw VideoTrimError.invalidRange }
         try draft.validate(duration: sourceDuration)
         player?.pause()
-        let settings = draft
+        var settings = draft
+        if excludingPrivacyMasks { settings.privacyMasks = nil }
         isExporting = true
         appState?.isExportingVideo = true
         exportError = nil
@@ -524,9 +592,13 @@ final class EditorSession: ObservableObject {
                                                        micAudioURL: nil, removeSourceAudio: false)
                 }
                 let texts = settings.textOverlays ?? []
-                let textRenderer = TextOverlayRenderer(overlays: texts, size: settings.outputSize(source: sourceVideoSize ?? .zero))
-                let trimmed = try await settings.trim.export(source: rendered, frameFilter: texts.isEmpty ? nil : { image, time in
-                    textRenderer.composite(over: image, at: time)
+                let masks = settings.privacyMasks ?? []
+                let renderedTrack = try await AVURLAsset(url: rendered).loadTracks(withMediaType: .video).first
+                let renderedSize = try await renderedTrack?.load(.naturalSize) ?? settings.outputSize(source: sourceVideoSize ?? .zero)
+                let textRenderer = TextOverlayRenderer(overlays: texts, size: renderedSize)
+                let privacyRenderer = PrivacyMaskRenderer(masks: masks, size: renderedSize)
+                let trimmed = try await settings.trim.export(source: rendered, frameFilter: texts.isEmpty && masks.isEmpty ? nil : { image, time in
+                    privacyRenderer.composite(over: textRenderer.composite(over: image, at: time), at: time)
                 })
                 if trimmed != rendered { try? FileManager.default.removeItem(at: rendered) }
                 result = try await EditorAudio.export(video: trimmed, originalEnabled: settings.audioEnabled,

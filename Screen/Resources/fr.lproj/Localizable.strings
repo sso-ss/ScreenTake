@@ -335,3 +335,8 @@
 "Pastel" = "Pastel";
 "Breeze" = "Brise";
 "Mint" = "Menthe";
+
+// Launch checks and update badges
+"Check for updates every 24 hours" = "Rechercher les mises à jour toutes les 24 heures";
+"ScreenTake checks once at launch, even when periodic checks are off." = "ScreenTake recherche les mises à jour au démarrage, même si la recherche périodique est désactivée.";
+"Update available" = "Mise à jour disponible";

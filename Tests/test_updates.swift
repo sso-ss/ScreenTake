@@ -41,12 +41,28 @@ struct UpdateCheckerTests {
         }
         print("PASS: recording, export/processing, capture selection, onboarding and unsaved restart protection")
 
+        var launch = LaunchUpdateCheck()
+        precondition(!launch.beginIfReady(safety: UpdateSafety(), updaterReady: false))
+        for unsafe in [UpdateSafety(recording: true), UpdateSafety(processing: true),
+                       UpdateSafety(selecting: true), UpdateSafety(setupComplete: false)] {
+            precondition(!launch.beginIfReady(safety: unsafe, updaterReady: true))
+            precondition(launch.pending)
+        }
+        // Periodic checks remain off in this suite; a launch probe still proceeds once safe.
+        precondition(!checker.automaticallyChecksForUpdates)
+        precondition(launch.beginIfReady(safety: UpdateSafety(unsavedWork: true), updaterReady: true))
+        precondition(!launch.pending)
+        precondition(!launch.beginIfReady(safety: UpdateSafety(), updaterReady: true))
+        print("PASS: launch check waits for readiness/onboarding, permits unsaved work, and runs only once")
+
         let info = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: "Screen/Info.plist")), format: nil) as! [String: Any]
         precondition(info["SUFeedURL"] as? String == "https://sso-ss.github.io/ScreenTake/appcast.xml")
         precondition(info["SUPublicEDKey"] as? String == "8ZGF+YBJisBtZCmLfs6sY+87Y2zJaqzN0Kolz70lmbE=")
         precondition(info["SURequireSignedFeed"] as? Bool == true)
         precondition(info["SUVerifyUpdateBeforeExtraction"] as? Bool == true)
         precondition(info["SUAutomaticallyUpdate"] as? Bool == false)
+        precondition(info["SUEnableAutomaticChecks"] as? Bool == true)
+        precondition(info["SUScheduledCheckInterval"] as? Int == 86400)
         for selector in ["updater:mayPerformUpdateCheck:error:", "updater:didFindValidUpdate:",
                          "updaterDidNotFindUpdate:error:", "updater:didFinishUpdateCycleForUpdateCheck:error:",
                          "updater:shouldPostponeRelaunchForUpdate:untilInvokingBlock:",

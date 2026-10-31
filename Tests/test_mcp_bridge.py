@@ -62,6 +62,8 @@ def protocol_checks():
     assert fields == set(edits), fields ^ set(edits)
     text_fields = (ROOT / 'Screen/Project/TextOverlay.swift').read_text().split('struct TextOverlay:', 1)[1].split('    init()', 1)[0]
     assert set(re.findall(r'    var (\w+)\b', text_fields)) == set(edits['textOverlays']['items']['properties'])
+    privacy_fields = (ROOT / 'Screen/Project/PrivacyMask.swift').read_text().split('struct PrivacyMask:', 1)[1].split('    var end:', 1)[0]
+    assert set(re.findall(r'    var (\w+)\b', privacy_fields)) == set(edits['privacyMasks']['items']['properties'])
     print('PASS: stdio JSON-RPC negotiation, discovery, schemas, malformed/oversized input, notifications, and offline diagnostics', flush=True)
 
     # Old protocol versions omit structured content; unknown versions negotiate latest.
@@ -85,6 +87,10 @@ def protocol_checks():
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(customBackgroundImagePath='relative.png'))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(recordedAudioClips=[dict(id='bad', start=0, sourceStart=0, duration=1)]))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(removeOutputRanges=[]))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(privacyMasks=[dict(
+            id=str(uuid.uuid4()), start=0, duration=1, style='unknown', keyframes=[dict(time=0, rect=[[0, 0], [0.2, 0.2]])])]))),
+        dict(name='apply_edits', arguments=dict(**revision, edits=dict(privacyMasks=[dict(
+            id=str(uuid.uuid4()), start=0, duration=1, style='cover', keyframes=[])]))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='unknown', intensity=0.5)))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(cameraEffectSelection=dict(style='natural', intensity=0)))),
         dict(name='apply_edits', arguments=dict(**revision, edits=dict(crop=dict(rect=[[0, 0], [1]])))),
@@ -106,9 +112,9 @@ def protocol_checks():
     responses = run_frames([messages[3]] + [json.dumps(rpc('tools/call', params)).encode() + b'\n' for params in invalid_calls])
     assert all(response['error']['code'] == -32602 for response in responses[1:]), responses
     accepted = run_frames([messages[3], json.dumps(rpc('tools/call', dict(name='apply_edits', arguments=dict(
-        **revision, edits=dict(textOverlays=[title], cameraEffectSelection=dict(style='peachMakeup', intensity=0.6),
+        **revision, edits=dict(textOverlays=[title], cameraEffectSelection=dict(style='softPeach', intensity=0.6),
                                cameraEffectsEnabled=True, webcamShape='cutout', wallpaper='silk',
-                               closeTimelineGaps=False, clearCustomBackgroundImage=True,
+                               closeTimelineGaps=False, clearCustomBackgroundImage=True, privacyMasks=[],
                                recordedAudioClips=[], removeOutputRanges=[dict(id=str(uuid.uuid4()), start=0.2, end=0.3)]))))).encode() + b'\n'])[-1]
     assert accepted['result']['structuredContent']['error']['code'] == 'connection_unavailable', accepted
     bad_frames = [b'{"jsonrpc":"2.0","id":true,"method":"ping"}\n',
@@ -296,7 +302,7 @@ def integration(path, source, destination):
     edited = client.call('redo', **rev(reverted))['project']
     layer.update(x=0.35, y=0.2, scale=1.2, uniformScale=False, scaleY=0.8)
     edited = client.call('apply_edits', **rev(edited), edits=dict(textOverlays=[layer],
-        cameraEffectSelection=dict(style='peachMakeup', intensity=0.6), cameraEffectsEnabled=True))['project']
+        cameraEffectSelection=dict(style='softPeach', intensity=0.6), cameraEffectsEnabled=True))['project']
     assert edited['settings']['faceBeautyAmount'] == 0 and edited['settings']['faceMakeup']['amount'] == 0.6
     selection = edited['settings']['cameraEffectSelection']
     edited = client.call('apply_edits', **rev(edited), edits=dict(cameraEffectsEnabled=False))['project']

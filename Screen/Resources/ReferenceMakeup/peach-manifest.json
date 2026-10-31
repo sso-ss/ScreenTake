@@ -1,0 +1,9 @@
+{
+  "source": "User-supplied original 2026-10-24 18:47:10 and target 18:47:23",
+  "generator": "tools/extract_soft_peach.py",
+  "assets": ["peach-eye-upper.png", "peach-eye-lower.png"],
+  "coordinates": "Current lid arcs; x -0.18 to 1.30 inner-to-outer; distance from upper lid 0 to 0.46 or lower lid 0 to 0.30, in pose-adjusted eye widths",
+  "method": "Locally illumination-normalized target/source optical density, smoothed and averaged across both eyes; brown multiply pigment with feathered alpha",
+  "excluded": "Eyeball pixels, reference face geometry and full face texture",
+  "purpose": "Local standalone makeup matching; not a face-likeness score"
+}

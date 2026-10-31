@@ -4,11 +4,30 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.21 (build 23)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.24 (build 26)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://sso-ss.github.io/ScreenTake/downloads/ScreenTake-0.1.21-build23.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.24/ScreenTake-0.1.24-build26.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.21
+## New in 0.1.24
+
+- Check for updates once at app launch, even when periodic checks are disabled. Checks wait until permission setup, recording, or media processing has finished.
+- Keep optional update checks every 24 hours while ScreenTake is running.
+- Show a persistent red dot on the menu bar icon, Settings button, and Updates sidebar item when an update is available. Opening Settings does not dismiss the reminder.
+- See the available version in Settings → Updates and open the installer from there.
+
+## Included from 0.1.23
+
+- Open an in-app bug report from error alerts or **ScreenTake → Report a Bug…**. Recent ScreenTake logs and app/macOS versions are prepared automatically; review, edit, or exclude logs before continuing.
+- Capture the ScreenTake window or attach an image. Drag over sensitive areas to cover them with solid black, then save a flattened screenshot without source photo metadata.
+- Continue to a public GitHub issue with the report filled in. A GitHub account is required; paste the reviewed screenshot with Command-V before submitting. Videos and project files are not included.
+
+## Included from 0.1.22
+
+- Cover or blur sensitive details with timed privacy masks. Move and resize masks on the canvas, add motion keyframes, or track text, people, and image/UI regions. Review tracked coverage before sharing.
+- Read and edit privacy masks through MCP, including timing, style, and keyframes, using the same native project and shared Undo.
+- Use Natural or Soft Peach camera effects with remembered intensity and individual makeup controls, including lip blur and volume. MCP clients can select `softPeach` and edit the new controls.
+
+## Included from 0.1.21
 
 - Remove the background from a camera overlay in live preview and exported video.
 - Edit recorded audio independently, choose whether cuts close gaps, and clean up silence in added audio.
@@ -104,6 +123,7 @@ Choose your canvas, background, cursor, camera, and audio settings before record
 | Recording audio | Capture microphone audio, system audio, or both. Choose an available microphone. Camera and microphone controls remain independent; enabling the camera turns the microphone on by default. |
 | Voiceover | Choose a microphone and record narration while watching your video, starting at the playhead, or import an audio file. Move, trim, and remove individual takes. View original audio and narration waveforms. Adjust volume and mute separately for original audio and the voiceover group. |
 | Timeline editing | Import a video or edit a new recording. Trim, split, remove sections, and drag clips to reorder them. Add styled text overlays. Use separate video, camera, audio, zoom, and text tracks and editing shortcuts for playback, frame stepping, split, undo/redo, audio linking, and timeline zoom. |
+| Privacy masks | Cover or blur timed regions, drag to move or resize, add motion keyframes, or track text, people, and image/UI regions. Masks are retained in saved projects and rendered into exports. Review coverage before sharing. |
 | Pause cleanup | Detect pauses in original or added audio, preview the suggestions, and choose which to remove. Undo restores removed sections. |
 | Cursor and clicks | Show or hide the recorded cursor; choose Arrow, Hand, or Circle; adjust its size from 50–300%; enable click highlighting and choose its color. |
 | Zoom | Use automatic click zoom or toggle manual zoom during recording. Add, move, trim, and remove zoom sections in the editor. Draw a manual focus region, then move or resize it, including on imported videos and phone layouts. Under Cursor → Zoom → Zoom transition, choose Smooth, Linear, Ease In, or Ease Out for preview and export. |
@@ -177,7 +197,7 @@ The recording shortcuts work across apps. During recording, plain Z and Space al
 
 ## Feedback
 
-[Report an issue](https://github.com/sso-ss/ScreenTake/issues) with your Mac model, macOS version, ScreenTake version, and steps to reproduce the problem. Remove private information from screenshots and recordings before sharing them.
+Choose **ScreenTake → Report a Bug…** or use the report button in an error alert. Review the automatically prepared logs and app information, optionally capture or attach a screenshot, and hide sensitive areas before continuing to GitHub. Reports are public and require a GitHub account. Paste the copied screenshot into the issue before submitting. Videos and project files are not included. You can also [report an issue](https://github.com/sso-ss/ScreenTake/issues) directly.
 
 For export failures, include the exact error message, whether the video was recorded or imported, the selected export resolution, and whether camera and audio tracks were enabled.
 

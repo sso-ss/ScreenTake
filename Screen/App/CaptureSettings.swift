@@ -128,9 +128,9 @@ final class CaptureSettings: ObservableObject {
 
     @AppStorage("faceMakeupSettings") private var savedFaceMakeup: Data = Data()
     var faceMakeup: FaceMakeupSettings {
-        get { ((try? JSONDecoder().decode(FaceMakeupSettings.self, from: savedFaceMakeup)) ?? .init()).clamped }
+        get { ((try? JSONDecoder().decode(FaceMakeupSettings.self, from: savedFaceMakeup)) ?? .softPeach).replacingRetiredPreset.clamped }
         set {
-            guard let data = try? JSONEncoder().encode(newValue.clamped), data != savedFaceMakeup else { return }
+            guard let data = try? JSONEncoder().encode(newValue.replacingRetiredPreset.clamped), data != savedFaceMakeup else { return }
             objectWillChange.send()
             savedFaceMakeup = data
         }
