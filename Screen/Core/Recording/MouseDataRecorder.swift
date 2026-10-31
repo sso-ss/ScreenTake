@@ -387,7 +387,7 @@ final class MouseDataRecorder: @unchecked Sendable {
 extension MouseDataRecorder {
     // Smooths the mouse positions using a Gaussian kernel with the specified sigma value.
     static func smoothedPositions(_ positions: [MousePosition], sigma: TimeInterval = 0.06) -> [MousePosition] {
-        guard positions.count > 2 else { return positions }
+        guard positions.count > 2, sigma.isFinite, sigma > 0 else { return positions }
         let radius = sigma * 3
         var smoothed: [MousePosition] = []
         smoothed.reserveCapacity(positions.count)

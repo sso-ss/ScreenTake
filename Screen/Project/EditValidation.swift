@@ -63,6 +63,7 @@ extension VideoEditSettings {
             guard value.isFinite, range.contains(value) else { throw EditValidationError.invalid("Invalid \(name).") }
         }
         try number(cursorScale, 0.5...3, "cursor size")
+        try number(smoothCursorSigma, 0.02...0.25, "cursor smoothing")
         try number(zoomLevel, 1...10, "zoom level")
         try number(desktopCornerRadius, 0...0.5, "corner radius")
         if let phoneCornerRadius { try number(phoneCornerRadius, 0...0.2, "phone corner radius") }
