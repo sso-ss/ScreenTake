@@ -4,11 +4,18 @@
 
 ScreenTake is a native screen recorder and editor for Mac. Record your screen, then shape the video with cursor effects, smart zoom, backgrounds, a webcam overlay, and voiceover narration.
 
-**Latest release: 0.1.24 (build 26)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
+**Latest release: 0.1.25 (build 27)** · Apple Silicon (M1 or newer) · macOS 13 Ventura or later
 
-[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.24/ScreenTake-0.1.24-build26.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
+[Visit the website](https://sso-ss.github.io/ScreenTake/) · [Download the DMG](https://github.com/sso-ss/ScreenTake/releases/download/v0.1.25/ScreenTake-0.1.25-build27.dmg) · [Release notes](https://sso-ss.github.io/ScreenTake/release-notes.html)
 
-## New in 0.1.24
+## New in 0.1.25
+
+- Enable **Smooth Motion** in cursor settings before recording or while editing.
+- Adjust cursor smoothing from 20 to 250 ms to reduce small, rapid movements.
+- Keep smoothing settings in saved projects, with matching editor previews and exported videos.
+- Continue opening older projects with smoothing off by default; invalid smoothing values are rejected safely.
+
+## Included from 0.1.24
 
 - Check for updates once at app launch, even when periodic checks are disabled. Checks wait until permission setup, recording, or media processing has finished.
 - Keep optional update checks every 24 hours while ScreenTake is running.
