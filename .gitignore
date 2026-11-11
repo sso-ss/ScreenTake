@@ -16,8 +16,59 @@ release/
 __pycache__/
 *.pyc
 
-# Local promo export; published website media remains trackable.
-/screentake-promo.mp4
+# Local experiments and editable promo projects.
+/experiments/
+/promo-remotion/
+/promo-storyboard-remotion/
+/promo-update-remotion/
+
+# Local diagnostics, environment values and signing credentials.
+*.log
+*.xcresult/
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.key
+
+# Recordings, editable projects, screenshots and other media are private by default.
+# Publish individual website assets only after their contents and source are reviewed.
+/recordings/
+/captures/
+/test-results/
+*.mov
+*.mp4
+*.m4v
+*.webm
+*.mkv
+*.avi
+*.wav
+*.mp3
+*.m4a
+*.aiff
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.webp
+*.gif
+*.zip
+*.dmg
+*.pkg
+*.screentake
+*.screenize
+*.mouse.json
+
+# App resources are part of the open-source build.
+!/Screen/Assets.xcassets/**/*.png
+!/Screen/Assets.xcassets/**/*.jpg
+!/Screen/Assets.xcassets/**/*.jpeg
+!/Screen/Resources/**/*.png
+!/Screen/Resources/**/*.jpg
+!/Screen/Resources/**/*.jpeg
+
+# Ignore rules do not remove tracked files or media in earlier commits/tags.
 
 # Skill pack (copilot/claude agent files)
 .github/agents/
