@@ -75,6 +75,8 @@ final class CaptureSettings: ObservableObject {
     @AppStorage("showCursor") var showCursor: Bool = true
     @AppStorage("cursorScale") var cursorScale: Double = 1.0
     @AppStorage("cursorShape") var cursorShape: CursorShape = .arrow
+    @AppStorage("smoothCursor") var smoothCursor: Bool = false
+    @AppStorage("smoothCursorSigma") var smoothCursorSigma: Double = 0.06
     @AppStorage("highlightClicks") var highlightClicks: Bool = false
     @AppStorage("clickHighlightColor") var clickHighlightColor: ClickHighlightColor = .white
 
